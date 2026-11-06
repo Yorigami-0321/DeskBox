@@ -125,9 +125,20 @@ internal static class ManagedStoragePathService
             {
                 var drive = new DriveInfo(pathRoot);
                 driveType = drive.DriveType;
-                if (drive.IsReady)
+                // Free-space and bus queries can block on a network or
+                // detachable volume. Neither answer is needed for those
+                // paths: DriveType alone already drives their warnings.
+                if (driveType == DriveType.Fixed)
                 {
-                    availableFreeSpace = drive.AvailableFreeSpace;
+                    if (drive.IsReady)
+                    {
+                        availableFreeSpace = drive.AvailableFreeSpace;
+                    }
+
+                    // DriveType misses detachable disks that report as fixed;
+                    // the bus type is what actually tells them apart.
+                    isTransientBusDrive = StorageBusTypeHelper.IsTransientBus(
+                        StorageBusTypeHelper.TryGetBusType(pathRoot));
                 }
             }
             catch
@@ -135,11 +146,6 @@ internal static class ManagedStoragePathService
                 // The path can still be selected. The onboarding UI will label
                 // its storage details as unknown instead of blocking the user.
             }
-
-            // DriveType misses detachable disks that report as fixed; the bus
-            // type is what actually tells them apart.
-            isTransientBusDrive = StorageBusTypeHelper.IsTransientBus(
-                StorageBusTypeHelper.TryGetBusType(pathRoot));
         }
 
         ManagedStorageDriveCandidate? suitableNonSystemDrive =
@@ -200,6 +206,24 @@ internal static class ManagedStoragePathService
 
         foreach (DriveInfo drive in drives)
         {
+            DriveType driveType;
+            try
+            {
+                driveType = drive.DriveType;
+            }
+            catch
+            {
+                continue;
+            }
+
+            // Only fixed disks are eligible suggestions. Skipping everything
+            // else here keeps network and removable volumes from paying the
+            // ready/free-space/bus queries below.
+            if (driveType != DriveType.Fixed)
+            {
+                continue;
+            }
+
             bool isReady;
             long availableFreeSpace;
             try
@@ -213,13 +237,12 @@ internal static class ManagedStoragePathService
                 availableFreeSpace = 0;
             }
 
-            bool isTransientBus = drive.DriveType != DriveType.Fixed ||
-                                  StorageBusTypeHelper.IsTransientBus(
-                                      StorageBusTypeHelper.TryGetBusType(drive.Name));
+            bool isTransientBus = StorageBusTypeHelper.IsTransientBus(
+                StorageBusTypeHelper.TryGetBusType(drive.Name));
 
             yield return new ManagedStorageDriveCandidate(
                 drive.Name,
-                drive.DriveType,
+                driveType,
                 isReady,
                 availableFreeSpace,
                 isTransientBus);

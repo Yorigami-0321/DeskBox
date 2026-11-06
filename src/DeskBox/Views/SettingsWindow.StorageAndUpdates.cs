@@ -110,17 +110,69 @@ public sealed partial class SettingsWindow
         await dialog.ShowAsync();
     }
 
+    private readonly record struct ManagedStorageWarningSnapshot(
+        ManagedStoragePathAssessment Assessment,
+        bool OverlapsDesktop);
+
+    private int _managedStorageWarningRefreshVersion;
+    private int _managedStorageShortcutRefreshVersion;
+
     private void RefreshManagedStoragePathWarning()
     {
-        if (ManagedStoragePathWarningText is null)
+        if (_isClosed)
         {
             return;
         }
 
-        ManagedStoragePathAssessment assessment =
-            ManagedStoragePathService.AssessPath(ViewModel.ManagedStorageRootPath);
+        int version = ++_managedStorageWarningRefreshVersion;
+        string path = ViewModel.ManagedStorageRootPath;
+        _ = RefreshManagedStoragePathWarningAsync(path, version);
+    }
+
+    private async Task RefreshManagedStoragePathWarningAsync(string path, int version)
+    {
+        ManagedStorageWarningSnapshot snapshot;
+        try
+        {
+            snapshot = await Task.Run(() => new ManagedStorageWarningSnapshot(
+                ManagedStoragePathService.AssessPath(path),
+                ManagedStoragePathService.OverlapsDesktop(path)));
+        }
+        catch (Exception ex)
+        {
+            if (!_isClosed)
+            {
+                App.Log($"[Settings] Managed storage path assessment failed path='{path}': {ex}");
+            }
+            return;
+        }
+
+        if (_isClosed || version != _managedStorageWarningRefreshVersion)
+        {
+            return;
+        }
+
+        DispatcherQueue.TryEnqueue(
+            () => ApplyManagedStoragePathWarning(path, version, snapshot));
+    }
+
+    private void ApplyManagedStoragePathWarning(
+        string path,
+        int version,
+        ManagedStorageWarningSnapshot snapshot)
+    {
+        if (_isClosed ||
+            version != _managedStorageWarningRefreshVersion ||
+            !string.Equals(path, ViewModel.ManagedStorageRootPath, StringComparison.OrdinalIgnoreCase) ||
+            ManagedStoragePathWarningText is not TextBlock warningText ||
+            ManagedStoragePathWarningBorder is not InfoBar warningBorder)
+        {
+            return;
+        }
+
+        ManagedStoragePathAssessment assessment = snapshot.Assessment;
         var warnings = new List<string>();
-        if (ManagedStoragePathService.OverlapsDesktop(ViewModel.ManagedStorageRootPath))
+        if (snapshot.OverlapsDesktop)
         {
             warnings.Add(_localizationService.T("Settings.ManagedPath.Warning.DesktopOverlap"));
         }
@@ -143,8 +195,8 @@ public sealed partial class SettingsWindow
             warnings.Add(_localizationService.T("Settings.ManagedPath.Warning.Network"));
         }
 
-        ManagedStoragePathWarningText.Text = string.Join(Environment.NewLine, warnings);
-        ManagedStoragePathWarningBorder.IsOpen = warnings.Count > 0;
+        warningText.Text = string.Join(Environment.NewLine, warnings);
+        warningBorder.IsOpen = warnings.Count > 0;
     }
 
     private void RefreshDragOutWin10State()
@@ -176,14 +228,48 @@ public sealed partial class SettingsWindow
 
     private void RefreshManagedStorageDesktopShortcutState()
     {
-        if (ManagedStorageDesktopShortcutToggle is not ToggleSwitch toggle)
+        if (_isClosed)
         {
             return;
         }
 
-        SetManagedStorageDesktopShortcutToggleState(
-            toggle,
-            _appActions.HasManagedStorageDesktopShortcut());
+        int version = ++_managedStorageShortcutRefreshVersion;
+        _ = RefreshManagedStorageDesktopShortcutStateAsync(version);
+    }
+
+    private async Task RefreshManagedStorageDesktopShortcutStateAsync(int version)
+    {
+        bool hasShortcut;
+        try
+        {
+            hasShortcut = await Task.Run(
+                () => _appActions.HasManagedStorageDesktopShortcut());
+        }
+        catch (Exception ex)
+        {
+            if (!_isClosed)
+            {
+                App.Log($"[Settings] Managed storage shortcut state failed: {ex}");
+            }
+            return;
+        }
+
+        if (_isClosed || version != _managedStorageShortcutRefreshVersion)
+        {
+            return;
+        }
+
+        DispatcherQueue.TryEnqueue(() =>
+        {
+            if (_isClosed ||
+                version != _managedStorageShortcutRefreshVersion ||
+                ManagedStorageDesktopShortcutToggle is not ToggleSwitch toggle)
+            {
+                return;
+            }
+
+            SetManagedStorageDesktopShortcutToggleState(toggle, hasShortcut);
+        });
     }
 
     private async void ManagedStorageDesktopShortcutToggle_Toggled(
