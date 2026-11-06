@@ -26,6 +26,30 @@ public sealed class WidgetShellContentHostTests
     }
 
     [Fact]
+    public async Task UnloadContent_DisposesCurrentAndAllowsReuse()
+    {
+        var calls = new List<string>();
+        var first = new TestWidgetContent("first", WidgetKind.File, calls);
+        var second = new TestWidgetContent("second", WidgetKind.Todo, calls);
+        var host = new WidgetShellContentHost(
+            setContent: content => calls.Add($"set:{content.WidgetId}"));
+
+        await host.SetContentAsync(first);
+        calls.Clear();
+
+        host.UnloadContent();
+
+        Assert.Null(host.CurrentContent);
+        Assert.Contains("deactivate:first", calls);
+        Assert.Contains("dispose:first", calls);
+
+        await host.SetContentAsync(second);
+
+        Assert.Same(second, host.CurrentContent);
+        Assert.Contains("set:second", calls);
+    }
+
+    [Fact]
     public async Task SetContentAsync_DeactivatesPreviousContentWhenReplacing()
     {
         var calls = new List<string>();

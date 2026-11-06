@@ -76,6 +76,10 @@ public sealed partial class ContentWidgetWindow
         WidgetGroupSwitchOrigin origin = WidgetGroupSwitchOrigin.Programmatic,
         bool forward = true)
     {
+        // A group switch owns the content now; a pending wake must not commit
+        // a stale member over it.
+        _contentSleepGeneration++;
+        _isContentSleeping = false;
         ContentWidgetShell.ClearFeedback();
         _config = config;
         _descriptor = descriptor;
@@ -209,16 +213,40 @@ public sealed partial class ContentWidgetWindow
     /// </summary>
     internal int ReleaseLongHiddenContentResources()
     {
-        if (Visible || IsClosing)
+        // The manager filters by native window visibility before calling this;
+        // Visible tracks logical tray state and can remain true while the HWND
+        // is hidden.
+        if (IsClosing)
         {
             return 0;
         }
 
         _contentHost.CurrentContent?.OnWindowLongHidden();
         ReleaseCustomBackgroundSurface();
-        int releasedCachedContents = _cachedGroupContents.Count;
+        int releasedContentTrees = _cachedGroupContents.Count;
         DisposeCachedGroupContents();
-        return releasedCachedContents;
+
+        if (_contentWakeFactory is not null &&
+            !_contentHost.IsContentBusy &&
+            _contentHost.CurrentContent is not null)
+        {
+            _contentSleepGeneration++;
+            _isContentSleeping = true;
+            try
+            {
+                _contentHost.UnloadContent();
+                releasedContentTrees++;
+                App.LogVerbose(
+                    $"[WidgetSleep] Released hidden content kind={_config.WidgetKind} id={_config.Id}");
+            }
+            catch (Exception ex)
+            {
+                App.Log(
+                    $"[WidgetSleep] Releasing hidden content failed kind={_config.WidgetKind} id={_config.Id}: {ex}");
+            }
+        }
+
+        return releasedContentTrees;
     }
 
     private void DisposeCachedGroupContents()

@@ -27,7 +27,7 @@
   "Settings.Performance.HiddenScope.Title": "Étendue du nettoyage après masquage",
   "Settings.Performance.HiddenScope.Description": "Conserve une partie du cache actif, ou libère tous les caches reconstruisibles.",
   "Settings.Performance.HiddenScope.InfoTip.Title": "Cela affecte-t-il les widgets ?",
-  "Settings.Performance.HiddenScope.InfoTip.Description": "**Les vues subsistent** : aucune des deux étendues ne détruit les vues des widgets.",
+  "Settings.Performance.HiddenScope.InfoTip.Description": "**Les vues peuvent être reconstruites** : la portée de libération décharge le contenu masqué et le reconstruit à l’affichage ; la portée chaude conserve les vues.",
   "Settings.Performance.HiddenScope.AllRecreatable": "Libérer tous les caches recréables",
   "Settings.Performance.HiddenScope.Warm": "Conserver un cache actif",
   "Settings.Performance.HiddenCleanup.30Seconds": "30 secondes",

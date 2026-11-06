@@ -27,7 +27,7 @@
   "Settings.Performance.HiddenScope.Title": "非表示後の解放範囲",
   "Settings.Performance.HiddenScope.Description": "ウォームキャッシュを一部残すか、再作成可能なキャッシュをすべて解放します。",
   "Settings.Performance.HiddenScope.InfoTip.Title": "ウィジェット自体に影響しますか？",
-  "Settings.Performance.HiddenScope.InfoTip.Description": "**ビューは破棄されません**：どちらの範囲でもウィジェットのビューは破棄されません。",
+  "Settings.Performance.HiddenScope.InfoTip.Description": "**表示時にビューが再構築される場合があります**：解放範囲は非表示のコンテンツをアンロードし、表示時に再構築します。ウォーム範囲はビューを保持します。",
   "Settings.Performance.HiddenScope.AllRecreatable": "再作成可能なキャッシュをすべて解放",
   "Settings.Performance.HiddenScope.Warm": "ウォームキャッシュを維持",
   "Settings.Performance.HiddenCleanup.30Seconds": "30 秒",

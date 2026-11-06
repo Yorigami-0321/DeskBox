@@ -27,7 +27,7 @@
   "Settings.Performance.HiddenScope.Title": "Hidden cleanup scope",
   "Settings.Performance.HiddenScope.Description": "Keep some warm cache, or release every rebuildable cache.",
   "Settings.Performance.HiddenScope.InfoTip.Title": "Does it affect the widgets?",
-  "Settings.Performance.HiddenScope.InfoTip.Description": "**Views survive**: Neither range destroys widget views.",
+  "Settings.Performance.HiddenScope.InfoTip.Description": "**Views may be rebuilt**: The release range unloads hidden content and rebuilds it on reveal; the warm range keeps views.",
   "Settings.Performance.HiddenScope.AllRecreatable": "Release all recreatable caches",
   "Settings.Performance.HiddenScope.Warm": "Keep a warm cache",
   "Settings.Performance.HiddenCleanup.30Seconds": "30 seconds",

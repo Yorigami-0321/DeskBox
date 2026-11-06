@@ -27,7 +27,7 @@
   "Settings.Performance.HiddenScope.Title": "隐藏后清理范围",
   "Settings.Performance.HiddenScope.Description": "保留部分热缓存，或释放所有可重建缓存。",
   "Settings.Performance.HiddenScope.InfoTip.Title": "会影响格子本身吗?",
-  "Settings.Performance.HiddenScope.InfoTip.Description": "**不会销毁视图**: 两种范围都不会销毁格子视图。",
+  "Settings.Performance.HiddenScope.InfoTip.Description": "**唤出时可能重建视图**：释放范围会卸载隐藏内容并在唤出时重建；保留热缓存则不重建。",
   "Settings.Performance.HiddenScope.AllRecreatable": "释放全部可重建缓存",
   "Settings.Performance.HiddenScope.Warm": "保留热缓存",
   "Settings.Performance.HiddenCleanup.30Seconds": "30 秒",

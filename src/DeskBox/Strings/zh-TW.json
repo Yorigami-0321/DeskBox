@@ -27,7 +27,7 @@
   "Settings.Performance.HiddenScope.Title": "隱藏後清理範圍",
   "Settings.Performance.HiddenScope.Description": "保留部分熱快取，或釋放所有可重建的快取。",
   "Settings.Performance.HiddenScope.InfoTip.Title": "會影響格子本身嗎？",
-  "Settings.Performance.HiddenScope.InfoTip.Description": "**不會銷毀檢視**：兩種範圍都不會銷毀格子檢視。",
+  "Settings.Performance.HiddenScope.InfoTip.Description": "**喚出時可能重建檢視**：釋放範圍會卸載隱藏內容並在喚出時重建；保留熱快取則不重建。",
   "Settings.Performance.HiddenScope.AllRecreatable": "釋放全部可重建快取",
   "Settings.Performance.HiddenScope.Warm": "保留熱快取",
   "Settings.Performance.HiddenCleanup.30Seconds": "30 秒",

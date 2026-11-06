@@ -27,7 +27,7 @@
   "Settings.Performance.HiddenScope.Title": "Область очистки после скрытия",
   "Settings.Performance.HiddenScope.Description": "Сохранить часть прогретого кэша или освободить весь восстанавливаемый кэш.",
   "Settings.Performance.HiddenScope.InfoTip.Title": "Влияет ли это на сами виджеты?",
-  "Settings.Performance.HiddenScope.InfoTip.Description": "**Представления сохраняются**: ни одна из областей не уничтожает представления виджетов.",
+  "Settings.Performance.HiddenScope.InfoTip.Description": "**Представления могут создаваться заново**: режим освобождения выгружает скрытое содержимое и воссоздаёт его при показе; тёплый режим сохраняет представления.",
   "Settings.Performance.HiddenScope.AllRecreatable": "Освободить все восстанавливаемые кэши",
   "Settings.Performance.HiddenScope.Warm": "Сохранить прогретый кэш",
   "Settings.Performance.HiddenCleanup.30Seconds": "30 секунд",

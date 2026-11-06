@@ -74,6 +74,11 @@ public sealed class WidgetShellContentHost
         (CurrentContent is null ? 0 : 1) +
         (_activeTransition?.OutgoingContent is null ? 0 : 1);
 
+    internal bool IsContentBusy =>
+        _activeTransition is not null ||
+        _preparedContent is not null ||
+        _pendingContent is not null;
+
     public async Task SetContentAsync(IWidgetContent content)
     {
         using WidgetShellPreparedContent? prepared =
@@ -341,6 +346,26 @@ public sealed class WidgetShellContentHost
         }
 
         _isDisposed = true;
+        UnloadContentCore();
+    }
+
+    /// <summary>
+    /// Releases the current content tree while keeping the host reusable for a
+    /// later <see cref="SetContentAsync"/> call. Unlike <see cref="DisposeContent"/>,
+    /// this is not terminal; callers use it for long-hidden content sleep.
+    /// </summary>
+    internal void UnloadContent()
+    {
+        if (_isDisposed)
+        {
+            return;
+        }
+
+        UnloadContentCore();
+    }
+
+    private void UnloadContentCore()
+    {
         _contentVersion++;
         _preparedContent?.Dispose();
         _preparedContent = null;

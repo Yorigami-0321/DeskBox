@@ -27,7 +27,7 @@
   "Settings.Performance.HiddenScope.Title": "Alcance de limpieza al ocultar",
   "Settings.Performance.HiddenScope.Description": "Conserva parte de la caché activa o libera todas las cachés reconstruibles.",
   "Settings.Performance.HiddenScope.InfoTip.Title": "¿Afecta a los widgets?",
-  "Settings.Performance.HiddenScope.InfoTip.Description": "**Las vistas sobreviven**: ninguno de los dos alcances destruye las vistas de los widgets.",
+  "Settings.Performance.HiddenScope.InfoTip.Description": "**Las vistas pueden reconstruirse**: el rango de liberación descarga el contenido oculto y lo reconstruye al mostrarlo; el rango cálido conserva las vistas.",
   "Settings.Performance.HiddenScope.AllRecreatable": "Liberar todas las cachés recreables",
   "Settings.Performance.HiddenScope.Warm": "Mantener una caché activa",
   "Settings.Performance.HiddenCleanup.30Seconds": "30 segundos",

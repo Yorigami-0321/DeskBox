@@ -27,7 +27,7 @@
   "Settings.Performance.HiddenScope.Title": "نطاق التنظيف بعد الإخفاء",
   "Settings.Performance.HiddenScope.Description": "احتفظ ببعض الذاكرة المؤقتة الجاهزة، أو حرر كل الذاكرات القابلة لإعادة الإنشاء.",
   "Settings.Performance.HiddenScope.InfoTip.Title": "هل يؤثر في الأدوات نفسها؟",
-  "Settings.Performance.HiddenScope.InfoTip.Description": "**لا تُدمَّر طرق العرض**: كلا النطاقين لا يدمر طرق عرض الأدوات.",
+  "Settings.Performance.HiddenScope.InfoTip.Description": "**قد تُعاد بناء العروض**: نطاق التحرير يفرّغ المحتوى المخفي ويعيد بناءه عند العرض؛ النطاق الدافئ يحتفظ بالعروض.",
   "Settings.Performance.HiddenScope.AllRecreatable": "تحرير كل الذاكرات القابلة لإعادة الإنشاء",
   "Settings.Performance.HiddenScope.Warm": "الاحتفاظ بذاكرة مؤقتة جاهزة",
   "Settings.Performance.HiddenCleanup.30Seconds": "30 ثانية",

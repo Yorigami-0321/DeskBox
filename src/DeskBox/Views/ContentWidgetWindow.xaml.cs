@@ -54,6 +54,10 @@ public sealed partial class ContentWidgetWindow : WidgetWindowBase, IDesktopWidg
     private bool _isVisibleOnDesktop;
     private int _contentVisibilityGeneration;
     private int _queuedContentRevealGeneration = -1;
+    private Func<WidgetConfig, IWidgetContent>? _contentWakeFactory;
+    private Task? _contentWakeTask;
+    private bool _isContentSleeping;
+    private int _contentSleepGeneration;
     private SearchHistoryService? _subscribedSearchHistoryService;
 
     public ContentWidgetWindow(
@@ -724,6 +728,99 @@ public sealed partial class ContentWidgetWindow : WidgetWindowBase, IDesktopWidg
 
     internal Task ContentReadyTask => _contentLoadTask;
 
+    internal void SetContentWakeFactory(Func<WidgetConfig, IWidgetContent>? factory) =>
+        _contentWakeFactory = factory;
+
+    internal Task EnsureContentAwakeAsync(CancellationToken cancellationToken = default)
+    {
+        if (_contentWakeTask is { IsCompleted: false })
+        {
+            return _contentWakeTask;
+        }
+
+        if (!_isContentSleeping || IsClosing || _contentWakeFactory is null)
+        {
+            return Task.CompletedTask;
+        }
+
+        _contentWakeTask = WakeContentAsync(cancellationToken);
+        return _contentWakeTask;
+    }
+
+    private async Task WakeContentAsync(CancellationToken cancellationToken)
+    {
+        if (_contentHost.CurrentContent is not null)
+        {
+            _isContentSleeping = false;
+            _contentWakeTask = null;
+            return;
+        }
+
+        int generation = _contentSleepGeneration;
+        IWidgetContent content;
+        try
+        {
+            content = _contentWakeFactory!(_config);
+        }
+        catch (Exception ex)
+        {
+            App.Log($"[WidgetSleep] Wake content creation failed kind={_config.WidgetKind} id={_config.Id}: {ex}");
+            _contentWakeTask = null;
+            return;
+        }
+
+        WidgetShellContentHost.WidgetShellPreparedContent? prepared = null;
+        try
+        {
+            prepared = await _contentHost.PrepareContentAsync(content, cancellationToken);
+            if (prepared is null)
+            {
+                _contentWakeTask = null;
+                return;
+            }
+
+            if (IsClosing ||
+                !_isContentSleeping ||
+                generation != _contentSleepGeneration)
+            {
+                prepared.Dispose();
+                _contentWakeTask = null;
+                return;
+            }
+
+            using (prepared)
+            {
+                _contentHost.CommitPreparedContent(prepared)?.Complete();
+            }
+        }
+        catch (Exception ex)
+        {
+            prepared?.Dispose();
+            App.Log($"[WidgetSleep] Wake content failed kind={_config.WidgetKind} id={_config.Id}: {ex}");
+            _contentWakeTask = null;
+            return;
+        }
+
+        _isContentSleeping = false;
+        try
+        {
+            AttachCompactPresentationSource(content);
+            AttachFeedbackSource(content);
+            AttachHostContextMenuSource(content);
+            RefreshCompactPresentation();
+            ApplyTitleActionButtonConfiguration();
+        }
+        catch (Exception ex)
+        {
+            App.Log(
+                $"[WidgetSleep] Wake content attachment failed kind={_config.WidgetKind} id={_config.Id}: {ex}");
+        }
+
+        _contentWakeTask = null;
+        App.LogVerbose(
+            $"[WidgetSleep] Woke hidden content kind={_config.WidgetKind} id={_config.Id}");
+    }
+
     public void ApplyAppearancePreview()
     {
         ApplyAppearancePreview(invalidateContent: true);
@@ -787,6 +884,11 @@ return PrepareTrayShowAnimationCore(restoreBoundsForCurrentTopology: true);
 
 private bool PrepareTrayShowAnimationCore(bool restoreBoundsForCurrentTopology)
 {
+        if (_isContentSleeping)
+        {
+            _ = EnsureContentAwakeAsync();
+        }
+
         bool boundsRestored = false;
         bool prepared = WidgetTrayAnimationPreparation.TryPrepare(() =>
         {

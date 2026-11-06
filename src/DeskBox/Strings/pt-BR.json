@@ -27,7 +27,7 @@
   "Settings.Performance.HiddenScope.Title": "Escopo da limpeza ao ocultar",
   "Settings.Performance.HiddenScope.Description": "Mantenha parte do cache ativo, ou libere todos os caches reconstruíveis.",
   "Settings.Performance.HiddenScope.InfoTip.Title": "Isso afeta os widgets?",
-  "Settings.Performance.HiddenScope.InfoTip.Description": "**As exibições sobrevivem**: nenhum dos dois escopos destrói as exibições dos widgets.",
+  "Settings.Performance.HiddenScope.InfoTip.Description": "**As visualizações podem ser reconstruídas**: o escopo de liberação descarrega o conteúdo oculto e o reconstrói ao exibir; o escopo quente mantém as visualizações.",
   "Settings.Performance.HiddenScope.AllRecreatable": "Liberar todos os caches recriáveis",
   "Settings.Performance.HiddenScope.Warm": "Manter um cache ativo",
   "Settings.Performance.HiddenCleanup.30Seconds": "30 segundos",

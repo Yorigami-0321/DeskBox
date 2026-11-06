@@ -350,7 +350,10 @@ public sealed class WidgetVisualActivityContractTests
             "internal int ReleaseLongHiddenContentResources()",
             "private void DisposeCachedGroupContents()");
         Assert.Contains("DisposeCachedGroupContents();", longHiddenRelease, StringComparison.Ordinal);
-        Assert.Contains("if (Visible || IsClosing)", longHiddenRelease, StringComparison.Ordinal);
+        // The manager already filters natively hidden windows; Visible tracks
+        // logical tray state and must not keep the release path closed.
+        Assert.Contains("if (IsClosing)", longHiddenRelease, StringComparison.Ordinal);
+        Assert.DoesNotContain("if (Visible || IsClosing)", longHiddenRelease, StringComparison.Ordinal);
         Assert.DoesNotContain("OnWindowLongHidden()", fileSurface, StringComparison.Ordinal);
         Assert.DoesNotContain("ReleaseBackgroundActivityForLongHide", fileViewModel, StringComparison.Ordinal);
         Assert.DoesNotContain("ResumeBackgroundActivityAsync", fileViewModel, StringComparison.Ordinal);

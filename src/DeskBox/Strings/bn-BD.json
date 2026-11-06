@@ -27,7 +27,7 @@
   "Settings.Performance.HiddenScope.Title": "লুকানোর পর পরিষ্কারের পরিধি",
   "Settings.Performance.HiddenScope.Description": "কিছু প্রস্তুত ক্যাশ রাখুন, নয়তো সব পুনর্নির্মাণযোগ্য ক্যাশ ছেড়ে দিন।",
   "Settings.Performance.HiddenScope.InfoTip.Title": "এটি কি উইজেটের ওপর প্রভাব ফেলে?",
-  "Settings.Performance.HiddenScope.InfoTip.Description": "**ভিউ টিকে থাকে**: কোনো পরিধিই উইজেটের ভিউ ধ্বংস করে না।",
+  "Settings.Performance.HiddenScope.InfoTip.Description": "**ভিউ পুনরায় তৈরি হতে পারে**: রিলিজ পরিসর লুকানো বিষয়বস্তু আনলোড করে এবং দেখানোর সময় তা পুনরায় তৈরি করে; ওয়ার্ম পরিসর ভিউ রাখে।",
   "Settings.Performance.HiddenScope.AllRecreatable": "সব পুনর্নির্মাণযোগ্য ক্যাশ ছেড়ে দিন",
   "Settings.Performance.HiddenScope.Warm": "প্রস্তুত ক্যাশ রাখুন",
   "Settings.Performance.HiddenCleanup.30Seconds": "৩০ সেকেন্ড",

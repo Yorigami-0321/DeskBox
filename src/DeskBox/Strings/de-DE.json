@@ -27,7 +27,7 @@
   "Settings.Performance.HiddenScope.Title": "Umfang der ausgeblendeten Bereinigung",
   "Settings.Performance.HiddenScope.Description": "Einen Teil des warmen Caches behalten oder jeden wiederherstellbaren Cache freigeben.",
   "Settings.Performance.HiddenScope.InfoTip.Title": "Wirkt sich das auf die Widgets aus?",
-  "Settings.Performance.HiddenScope.InfoTip.Description": "**Ansichten bleiben erhalten**: Keine der beiden Stufen zerstört Widgetansichten.",
+  "Settings.Performance.HiddenScope.InfoTip.Description": "**Ansichten können neu aufgebaut werden**: Die Freigabestufe entlädt ausgeblendete Inhalte und baut sie beim Einblenden neu auf; die Warmstufe behält die Ansichten.",
   "Settings.Performance.HiddenScope.AllRecreatable": "Alle wiederherstellbaren Caches freigeben",
   "Settings.Performance.HiddenScope.Warm": "Warmen Cache behalten",
   "Settings.Performance.HiddenCleanup.30Seconds": "30 Sekunden",

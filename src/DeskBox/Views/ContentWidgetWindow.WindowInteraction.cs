@@ -454,6 +454,11 @@ public sealed partial class ContentWidgetWindow
 
     private void ShowWithoutActivation(bool persistVisibility)
     {
+        if (_isContentSleeping)
+        {
+            _ = EnsureContentAwakeAsync();
+        }
+
         AppWindow.Show();
         Win32Helper.ShowWindow(HWnd, Win32Helper.SW_SHOWNOACTIVATE);
         Visible = true;

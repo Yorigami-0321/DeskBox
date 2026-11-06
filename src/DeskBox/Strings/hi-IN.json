@@ -27,7 +27,7 @@
   "Settings.Performance.HiddenScope.Title": "छिपने के बाद सफ़ाई का दायरा",
   "Settings.Performance.HiddenScope.Description": "कुछ तैयार कैश रखें, या सभी पुनः बनाए जा सकने वाले कैश छोड़ दें।",
   "Settings.Performance.HiddenScope.InfoTip.Title": "क्या यह विजेट को प्रभावित करता है?",
-  "Settings.Performance.HiddenScope.InfoTip.Description": "**व्यू बचे रहते हैं**: दोनों ही दायरे विजेट के व्यू नष्ट नहीं करते।",
+  "Settings.Performance.HiddenScope.InfoTip.Description": "**व्यू फिर से बन सकते हैं**: रिलीज़ रेंज छिपी सामग्री को अनलोड करती है और दिखाते समय उसे फिर से बनाती है; वार्म रेंज व्यू रखती है।",
   "Settings.Performance.HiddenScope.AllRecreatable": "सभी पुनः बनाए जा सकने वाले कैश छोड़ें",
   "Settings.Performance.HiddenScope.Warm": "तैयार कैश रखें",
   "Settings.Performance.HiddenCleanup.30Seconds": "30 सेकंड",
