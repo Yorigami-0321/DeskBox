@@ -356,6 +356,23 @@ public abstract partial class WidgetWindowBase
 
     protected virtual Task OnCompactNextRequestedAsync() => Task.CompletedTask;
 
+    /// <summary>
+    /// Raised when the target (persisted) collapse state actually flips.
+    /// Content windows use it to sleep the content tree after a collapsed
+    /// period and to wake it on expansion.
+    /// </summary>
+    protected virtual void OnTargetCollapsedChanged(bool collapsed)
+    {
+    }
+
+    /// <summary>
+    /// Raised when the pointer enters the capsule body. Content windows use it
+    /// to wake a sleeping content tree before the hover-expand delay expires.
+    /// </summary>
+    protected virtual void OnCompactPointerEnteredForContentWarmup()
+    {
+    }
+
     protected bool TryHandleCompactActivation(KeyRoutedEventArgs e)
     {
         if (e.Handled || !_targetCollapsed ||
@@ -2176,6 +2193,7 @@ public abstract partial class WidgetWindowBase
     private void WidgetShellControl_CompactPointerEntered(object? sender, EventArgs e)
     {
         ReconcileCompactDragStateAfterPointerRelease();
+        OnCompactPointerEnteredForContentWarmup();
         bool establishesNewPointerIntent = !_isPointerOverWidget;
         MarkCompactRoutedPointerActivity();
         ReleaseSmartHoverSuppressionAfterPointerIntent(
@@ -2915,6 +2933,7 @@ public abstract partial class WidgetWindowBase
     {
         StopCollapseAnimation();
         WidgetShellControl.CancelResponsiveLayoutTransition();
+        bool targetChanged = _targetCollapsed != collapsed;
         _targetCollapsed = collapsed;
         IsWidgetCollapsedBoundsActive = collapsed;
         _compactState = collapsed ? WidgetCompactState.Collapsed : WidgetCompactState.Expanded;
@@ -2922,6 +2941,10 @@ public abstract partial class WidgetWindowBase
         WidgetShellControl.SetCollapsed(collapsed, SettingsService.Settings.WidgetCompactContentMode);
         OnCompactVisualStateChanged(collapsed);
         RefreshCompactPresentation();
+        if (targetChanged)
+        {
+            OnTargetCollapsedChanged(collapsed);
+        }
 
         if (!collapsed)
         {
@@ -3201,6 +3224,10 @@ public abstract partial class WidgetWindowBase
         OnCompactVisualStateChanged(collapsed);
         _compactState = collapsed ? WidgetCompactState.Collapsing : WidgetCompactState.Expanding;
         UpdateCompactViewState();
+        if (wasTargetCollapsed != collapsed)
+        {
+            OnTargetCollapsedChanged(collapsed);
+        }
         if (!collapsed)
         {
             StopCompactHoverRecoveryProbe();
@@ -4778,7 +4805,7 @@ public abstract partial class WidgetWindowBase
         timer.Start();
     }
 
-    private static void CancelTimer(ref OwnedOneShotDispatcherTimer? timer)
+    protected static void CancelTimer(ref OwnedOneShotDispatcherTimer? timer)
     {
         timer?.Dispose();
         timer = null;
@@ -4790,7 +4817,7 @@ public abstract partial class WidgetWindowBase
     /// the Tick handler must also be detached or every compact interaction leaves
     /// another timer and COM wrapper rooted for the rest of the process.
     /// </summary>
-    private sealed class OwnedOneShotDispatcherTimer : IDisposable
+    protected sealed class OwnedOneShotDispatcherTimer : IDisposable
     {
         private readonly DispatcherQueueTimer _timer;
         private Action? _action;

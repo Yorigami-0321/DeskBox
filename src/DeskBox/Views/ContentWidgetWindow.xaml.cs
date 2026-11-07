@@ -58,6 +58,8 @@ public sealed partial class ContentWidgetWindow : WidgetWindowBase, IDesktopWidg
     private Task? _contentWakeTask;
     private bool _isContentSleeping;
     private int _contentSleepGeneration;
+    private WidgetCompactPresentation? _sleepingCompactPresentation;
+    private OwnedOneShotDispatcherTimer? _compactContentSleepTimer;
     private SearchHistoryService? _subscribedSearchHistoryService;
 
     public ContentWidgetWindow(
@@ -144,6 +146,17 @@ public sealed partial class ContentWidgetWindow : WidgetWindowBase, IDesktopWidg
 
     protected override WidgetCompactPresentation CreateCompactPresentation()
     {
+        // While a collapsed capsule sleeps there is no content to read, but
+        // the capsule is still on screen: keep showing the face captured just
+        // before the tree was released instead of falling back to the generic
+        // title/glyph default.
+        if (_isContentSleeping &&
+            CurrentContent is null &&
+            _sleepingCompactPresentation is { } sleepingPresentation)
+        {
+            return sleepingPresentation;
+        }
+
         var localization = App.Current.LocalizationService;
         string contentMode = ResolveEffectiveCompactContentMode();
         return CurrentContent switch
@@ -540,6 +553,7 @@ public sealed partial class ContentWidgetWindow : WidgetWindowBase, IDesktopWidg
 
     protected override async Task OnCompactPrimaryActionRequestedAsync()
     {
+        await EnsureContentAwakeAsync();
         if (CurrentContent is SearchWidgetContentAdapter)
         {
             App.Current.OpenSearchPopup();
@@ -555,25 +569,31 @@ public sealed partial class ContentWidgetWindow : WidgetWindowBase, IDesktopWidg
         await todo.ViewModel.SetCompletedAsync(item.Id, true);
     }
 
-    protected override Task OnCompactPreviousRequestedAsync()
+    protected override async Task OnCompactPreviousRequestedAsync()
     {
-        return CurrentContent is MusicWidgetContentAdapter music
-            ? music.ViewModel.PreviousAsync()
-            : Task.CompletedTask;
+        await EnsureContentAwakeAsync();
+        if (CurrentContent is MusicWidgetContentAdapter music)
+        {
+            await music.ViewModel.PreviousAsync();
+        }
     }
 
-    protected override Task OnCompactPlayPauseRequestedAsync()
+    protected override async Task OnCompactPlayPauseRequestedAsync()
     {
-        return CurrentContent is MusicWidgetContentAdapter music
-            ? music.ViewModel.TogglePlayPauseAsync()
-            : Task.CompletedTask;
+        await EnsureContentAwakeAsync();
+        if (CurrentContent is MusicWidgetContentAdapter music)
+        {
+            await music.ViewModel.TogglePlayPauseAsync();
+        }
     }
 
-    protected override Task OnCompactNextRequestedAsync()
+    protected override async Task OnCompactNextRequestedAsync()
     {
-        return CurrentContent is MusicWidgetContentAdapter music
-            ? music.ViewModel.NextAsync()
-            : Task.CompletedTask;
+        await EnsureContentAwakeAsync();
+        if (CurrentContent is MusicWidgetContentAdapter music)
+        {
+            await music.ViewModel.NextAsync();
+        }
     }
 
     protected override void UpdateConfigBoundsFromPhysical(
@@ -731,6 +751,105 @@ public sealed partial class ContentWidgetWindow : WidgetWindowBase, IDesktopWidg
     internal void SetContentWakeFactory(Func<WidgetConfig, IWidgetContent>? factory) =>
         _contentWakeFactory = factory;
 
+    protected override void OnTargetCollapsedChanged(bool collapsed)
+    {
+        base.OnTargetCollapsedChanged(collapsed);
+        if (collapsed)
+        {
+            ScheduleCompactContentSleep();
+            return;
+        }
+
+        CancelTimer(ref _compactContentSleepTimer);
+        _ = EnsureContentAwakeAsync();
+    }
+
+    protected override void OnCompactPointerEnteredForContentWarmup()
+    {
+        base.OnCompactPointerEnteredForContentWarmup();
+        if (_isContentSleeping)
+        {
+            _ = EnsureContentAwakeAsync();
+        }
+    }
+
+    private void ScheduleCompactContentSleep()
+    {
+        CancelTimer(ref _compactContentSleepTimer);
+        _compactContentSleepTimer = new OwnedOneShotDispatcherTimer(
+            DispatcherQueue,
+            CompactContentSleepPolicy.Delay,
+            TrySleepCompactContent);
+        _compactContentSleepTimer.Start();
+    }
+
+    private void TrySleepCompactContent()
+    {
+        if (!CompactContentSleepPolicy.ShouldSleep(
+                isCollapsed: IsWidgetCollapsed,
+                isClosing: IsClosing,
+                contentBusy: _contentHost.IsContentBusy,
+                hasWakeFactory: _contentWakeFactory is not null,
+                hasContent: _contentHost.CurrentContent is not null,
+                alreadySleeping: _isContentSleeping))
+        {
+            return;
+        }
+
+        // Capture the capsule's static face before the tree is released; the
+        // shell keeps rendering it while the content is asleep.
+        RefreshCompactPresentation();
+        _sleepingCompactPresentation = CreateCompactPresentation();
+        DetachContentSourcesForSleep();
+        _contentSleepGeneration++;
+        _isContentSleeping = true;
+        try
+        {
+            _contentHost.UnloadContent();
+            App.Log(
+                $"[WidgetSleep] Released collapsed content kind={_config.WidgetKind} id={_config.Id}");
+            PerformanceLogger.Mark(
+                "CompactContentSleepReleased",
+                $"kind={_config.WidgetKind} id={_config.Id}");
+        }
+        catch (Exception ex)
+        {
+            App.Log(
+                $"[WidgetSleep] Releasing collapsed content failed kind={_config.WidgetKind} id={_config.Id}: {ex}");
+        }
+    }
+
+    private void DetachContentSourcesForSleep()
+    {
+        // UnloadContent disposes the tree; these subscriptions would otherwise
+        // keep the content view model (and its items) reachable until wake.
+        if (_compactPresentationSource is not null)
+        {
+            _compactPresentationSource.PropertyChanged -=
+                CompactPresentationSource_PropertyChanged;
+            _compactPresentationSource = null;
+        }
+
+        if (_feedbackSource is not null)
+        {
+            _feedbackSource.FeedbackRequested -= FeedbackSource_FeedbackRequested;
+            _feedbackSource = null;
+        }
+
+        if (_hostContextMenuSource is not null)
+        {
+            _hostContextMenuSource.HostContextMenuOpening -=
+                HostContextMenuSource_HostContextMenuOpening;
+            _hostContextMenuSource = null;
+        }
+
+        if (_subscribedSearchHistoryService is { } historyService)
+        {
+            historyService.RecentQueriesChanged -= OnRecentQueriesChanged;
+            _subscribedSearchHistoryService = null;
+        }
+    }
+
     internal Task EnsureContentAwakeAsync(CancellationToken cancellationToken = default)
     {
         if (_contentWakeTask is { IsCompleted: false })
@@ -802,6 +921,10 @@ public sealed partial class ContentWidgetWindow : WidgetWindowBase, IDesktopWidg
         }
 
         _isContentSleeping = false;
+        _sleepingCompactPresentation = null;
+        PerformanceLogger.Mark(
+            "WidgetContentWakeCompleted",
+            $"kind={_config.WidgetKind} id={_config.Id}");
         try
         {
             AttachCompactPresentationSource(content);
@@ -1244,6 +1367,10 @@ IsHideAnimationRunning = true;
 
     private void AttachCompactPresentationSource(IWidgetContent content)
     {
+        // A group host can swap members while its capsule sleeps; the old
+        // slept face and flag must not survive the incoming tree.
+        _isContentSleeping = false;
+        _sleepingCompactPresentation = null;
         if (_compactPresentationSource is not null)
         {
             _compactPresentationSource.PropertyChanged -= CompactPresentationSource_PropertyChanged;
@@ -1447,6 +1574,8 @@ IsHideAnimationRunning = true;
         {
             IsClosing = true;
             Visible = false;
+            CancelTimer(ref _compactContentSleepTimer);
+            _sleepingCompactPresentation = null;
             ReleaseAutoRestoreTimer();
             try { RemoveGroupFileDropFallbackHandlers(); } catch (Exception ex) { App.Log($"[ContentWidget] Remove group drop fallback failed during close: {ex.Message}"); }
             try { RemoveNativeFileDropBridge(); } catch (Exception ex) { App.Log($"[ContentWidget] Remove native file drop bridge failed during close: {ex.Message}"); }

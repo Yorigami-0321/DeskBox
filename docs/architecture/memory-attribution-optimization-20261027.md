@@ -60,6 +60,8 @@
 - 展开时重建（预算 100-300ms 一次性重建，可复用现有 `CompactWarmup` 通道做预热）。
 - **预期**：12 格子全折叠从 270MB → 约 130-160MB；日常「常驻几个胶囊」场景每格子驻留从 ~18MB 降到 ~5-8MB（壳 + HWND）。
 
+**P0-A 落地（2026-11-07）**：胶囊折叠 30 秒后释放 `CurrentContent`（保留 HWND + 壳 + 胶囊静态面），hover/展开/胶囊按钮动作时经现有 wake factory 重建（`CompactContentSleepPolicy`、`ContentWidgetWindow.OnTargetCollapsedChanged` / `TrySleepCompactContent`）。AOT 零售实测（3 个胶囊内容释放）：Private **189.3 → 167.6MB**、WS **115 → 50MB**；副屏（DISPLAY1）用 `SW_SHOWNOACTIVATE` 复核，释放前后胶囊标题/图标/摘要保持完整，展开按钮触发 `WidgetContentWakeCompleted` 并重新加载内容。代价：首次展开重建约百毫秒级；组内切换成员时按新内容重建胶囊面。
+
 ### P0-B：补全长隐藏释放路径
 
 - 修 `ReleaseLongHiddenContentResources` 的 `Visible` 门槛：胶囊可见但内容隐藏时也应允许释放 `CurrentContent`（现在刻意保活）。
@@ -71,6 +73,8 @@
 - 压缩每格子 XAML 树深度：chrome 元素（把手、边框、按钮层）用 `x:DeferLoadStrategy`/按需加载；共享 Style/DWM 资源已共享的部分继续保持。
 - 评估长隐藏格子直接**销毁 HWND**（roadmap 的 Cold 档）：彻底消除 7.9MB 图面 + 窗口过程开销，唤起时重建窗口。作为 P0-A 的激进版，可做成设置项（如「深度休眠」）。
 
+**P1-A 评估（2026-11-07）**：Cold 销毁 HWND 已在 B1 试点（AOT 零售负收益，已回滚），现由 P0-C 的进程级懒恢复替代。XAML 树瘦身量化结果：shell 共 201 个元素，其中 `CollapsedChromeLayer` 子树 **125 个**（62%），但 `WidgetShell.xaml.cs` 有 **379 处、123 个** compact 符号引用，集中在 hover/主题/尺寸/手势路径；延迟加载需全面判空并重接事件，预期收益远小于内容树（P0-A 实测每胶囊约 6-7MB Private），暂不实施。若要继续，应作为独立的全量 shell 重构项目评估。
+
 ### P1-B：File 格子渲染窗口下移
 
 - `RenderedItems` 初始 30 / 增长块 200 的机制保持；对 <300 项目录也启用窗口化（如 60 项），减少一次性 90 个 ItemSurface 类的全量物化。
@@ -80,6 +84,20 @@
 
 - 在 `MemorySample` 已有字段上加趋势告警（`privateMinusGcHeapEstimateMB` 连续上涨超阈值时触发一次全量重建或提示重启）。
 - 继续用 gcdump 差分巡检托管侧；native 侧若持续膨胀，再定向排查 D2D/DWrite 位面缓存。
+
+### P3（待评估）：核显 / 低功耗 GPU 优化
+
+本机为 AMD Radeon 780M（核显）+ RTX 4060 Laptop（独显）双 GPU；安装版 `D:\APP\DeskBox\DeskBox.exe` 已在 Windows 图形设置中固定 `GpuPreference=1`（核显优先），临时 AOT 测试 exe 无该偏好时会落到独显。实测 AcrylicBase / Mica / Solid 三种材质（3 个可见 File 窗口、动画全关）：
+
+| 材质 | Private | 应用 GPU 内存（dedicated/shared） | 3D 利用率 |
+|---|---|---|---|
+| AcrylicBase | 176.6MB | 36 / 18.3MB | 0% |
+| Mica | 172.8MB | 40 / 18.2MB | 0% |
+| Solid | 173.0MB | 50 / 18.3MB | 0% |
+
+结论：**应用进程侧 Private/GPU 内存在材质间无有意义差异；亚克力模糊的合成开销在 DWM**（DWM 独显 1.28GB dedicated、核显 146MB dedicated + 753MB shared），应用进程 GPU 引擎计数看不到。每窗口约 14MB 合成表面由窗口尺寸决定，WinUI 不提供降采样接口。
+
+待评估方案（未实现）：opt-in「核显/省电材质」——在电池/省电模式下把 Acrylic 自动降为 Mica 或 Solid 并关闭 rich backdrop 模糊；用 DWM GPU 计数 + 电池放电做 A/B，数据为正再决定默认值。GPU 偏好属于 Windows 按 exe 的系统设置，应用不应静默改写注册表；安装版已由用户设置。
 
 ### 不建议做的事
 
