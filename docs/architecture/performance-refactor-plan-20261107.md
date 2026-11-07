@@ -93,6 +93,13 @@ Expanded（永不折叠）窗口不再创建 `CollapsedChromeLayer`（125 个元
 | B2 | 低功耗材质模式 | 核显路径上材质按预期变化、切回独显恢复；Private 不回退；设置可关闭；无闪烁/重建异常 |
 | B3 | GPU 偏好引导 | 设置页入口可用；不写注册表；文档说明核显/独显选择的影响 |
 
+**B1 结果（2026-11-07，安装版 AOT，GpuPreference=1，主屏空闲）**：
+
+- 应用 GPU LUID 为 `0x000138AF`（核显）+ `0x00016100`（虚拟显示），确认走核显；3 个 Expanded File 窗口；每材质采样 6×2s。
+- App Private：AcrylicBase 157.5MB、Mica 158.9MB、Solid 164.3MB（Solid 反而略高，属噪声/分配器差异）。
+- DWM 核显（0x138AF）：三种材质均为 **ded=132.7MB / shared=826.8MB，完全一致**；DWM 3D 利用率 0/0.1%（静态空闲）。
+- 结论：**静态空闲下材质的 DWM GPU 内存/利用率无可测差异**，乙酰酸→Mica/Solid 的自动降级（B2）缺少数据支持；电池放电 A/B 需要安静放电窗口，暂缓。建议 B2 不做，保留 B3 的说明性引导。
+
 ## 4. 工作流 C：P2 长会话趋势告警（可选）
 
 - 在现有 `privateMinusGcHeapEstimateMB` 采样序列上做趋势检测：连续 N 个样本单调上升且超过阈值时，记录一次 `PerformanceLogger` 事件并写 `[Memory] TrendWarning` 日志；**仅日志/性能标记，不弹 UI、不自动重启**（空闲重启已覆盖无人场景）。

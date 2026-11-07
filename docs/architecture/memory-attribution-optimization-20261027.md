@@ -99,6 +99,8 @@
 
 待评估方案（未实现）：opt-in「核显/省电材质」——在电池/省电模式下把 Acrylic 自动降为 Mica 或 Solid 并关闭 rich backdrop 模糊；用 DWM GPU 计数 + 电池放电做 A/B，数据为正再决定默认值。GPU 偏好属于 Windows 按 exe 的系统设置，应用不应静默改写注册表；安装版已由用户设置。重构计划见 [performance-refactor-plan-20261107.md](performance-refactor-plan-20261107.md)。
 
+**B1 实测（2026-11-07，安装版 AOT，核显路径）**：应用 GPU LUID=0x000138AF（核显）；3 个 Expanded File 窗口下 AcrylicBase/Mica/Solid 的 App Private 157.5/158.9/164.3MB，DWM 核显内存三种材质**完全一致**（132.7MB dedicated / 826.8MB shared），DWM 3D 利用率 ~0%。静态空闲没有可测的材质 DWM 差异，B2 低功耗材质自动降级缺少数据支持；电池放电 A/B 暂缓。
+
 ### 不建议做的事
 
 - ❌ 把多格子合并成单 widget（违反基础需求）。
