@@ -49,6 +49,19 @@ Expanded（永不折叠）窗口不再创建 `CollapsedChromeLayer`（125 个元
 | A2 | Expanded 窗口不创建 compact 层（守卫 + 懒创建） | Expanded 窗口视觉树无 compact 层；Click/Smart 胶囊正常；无空引用 |
 | A3 | 运行时折叠行为切换 + 测量 | Expanded/Click/Smart 互切正常；AOT 每 Expanded 窗口 Private 下降（目标 2–3MB/窗，以实测为准）；首次胶囊 hover/expand 延迟不回归 |
 
+**A1/A2/A3 结果（2026-11-07，分支 `refactor/performance-20261107`）**：
+
+- A1 `2dafd36`：`WidgetCompactChrome` 独立控件；A2 `b5847be`：仅可折叠窗口创建；`f245ca7` 修复 AOT 警告门禁的 CS8604。
+- 隐藏启动：Expanded `compactCreated=0`、Click `compactCreated=3`，均无异常；全量 5904/5904 绿。
+- AOT 零售实测（3 个 File 窗口、同内容、Custom/Warm、无清理干扰、隐藏启动 75s）：
+
+| 变体 | Private | WS | compact 控件 |
+|---|---|---|---|
+| Expanded（不创建） | 172.4MB | 41.4MB | 0 |
+| Click + 展开（创建 3 个） | 185.5MB | 54.5MB | 3 |
+
+差值 **13.1MB / 3 窗 ≈ 4.4MB/窗**（Private 与 WS 同幅），超过原 2–3MB/窗目标。按 5 个常驻窗口估算约 22MB，9–12 窗约 40–52MB。运行时行为切换通过设置宿主 IPC 路径生效（外部直接改 settings.json 不触发主进程重载，不能作为验证手段）；启动路径已验证。
+
 ### 2.5 风险与回滚
 
 - 风险：跨控件事件顺序、hover/drag 状态、组宿主、标题图标绑定、主题/尺寸回调、tooltip/本地化、现有源码契约测试。
