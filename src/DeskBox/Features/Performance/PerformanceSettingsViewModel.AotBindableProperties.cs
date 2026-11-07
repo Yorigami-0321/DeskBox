@@ -14,6 +14,7 @@ namespace DeskBox.Features.Performance;
     nameof(AvailablePerformanceModeOptions),
     nameof(AvailableVisibleIdleCacheCleanupDelayOptions),
     nameof(ContinuousDecorativeAnimationsSummaryText),
+    nameof(IdleProcessRecycleEnabled),
     nameof(IdleWorkingSetTrimEnabled),
     nameof(ImmediateHiddenWorkingSetTrimEnabled),
     nameof(QuiescenceWorkingSetTrimEnabled),

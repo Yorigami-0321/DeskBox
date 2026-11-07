@@ -66,7 +66,7 @@ public sealed class ExternalActivationPolicyTests
         string source = File.ReadAllText(TestPaths.FromRepository("src/DeskBox/App.xaml.cs"));
         string handler = Slice(
             source,
-            "private async Task HandleExternalActivationAsync()",
+            "private async Task HandleExternalActivationAsync(",
             "private bool DrainPendingNativeNotificationActivations()");
 
         Assert.Contains("ExternalActivationPolicy.DecideBareActivation", handler, StringComparison.Ordinal);

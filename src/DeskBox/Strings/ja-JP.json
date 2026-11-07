@@ -45,6 +45,8 @@
   "Settings.Performance.CacheBudget.Description": "再作成可能なアイコン、サムネイル、デコード画像のキャッシュ上限を制御します",
   "Settings.Performance.IdleWorkingSetTrim.Title": "アイドル時にメモリを圧縮",
   "Settings.Performance.IdleWorkingSetTrim.Description": "ウィジェットが非表示の間や離席中に、未使用のメモリをシステムへ書き出します。",
+  "Settings.Performance.IdleProcessRecycle.Title": "アイドル時にバックグラウンドで再起動してメモリを解放",
+  "Settings.Performance.IdleProcessRecycle.Description": "すべてのウィジェットが 30 分間非表示のままになると、DeskBox はバックグラウンドで再起動し、予約されたメモリをシステムに返します。",
   "Settings.Performance.ImmediateHiddenWorkingSetTrim.Title": "非表示後すぐにメモリを削減（試験的）",
   "Settings.Performance.ImmediateHiddenWorkingSetTrim.Description": "すべての格子を隠して 3 秒後に常駐メモリを削減。再表示時にわずかな遅延の可能性",
   "Settings.Performance.QuiescenceWorkingSetTrim.Title": "操作後にメモリを圧縮",

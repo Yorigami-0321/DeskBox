@@ -45,6 +45,8 @@
   "Settings.Performance.CacheBudget.Description": "控制可重建的图标、缩略图和解码图片缓存上限",
   "Settings.Performance.IdleWorkingSetTrim.Title": "空闲时压缩内存占用",
   "Settings.Performance.IdleWorkingSetTrim.Description": "格子隐藏或你离开时，把暂不使用的内存换出到系统。",
+  "Settings.Performance.IdleProcessRecycle.Title": "空闲时后台重启释放内存",
+  "Settings.Performance.IdleProcessRecycle.Description": "所有格子隐藏满 30 分钟且无操作后，DeskBox 会在后台自动重启，把系统保留的内存归还给系统。",
   "Settings.Performance.ImmediateHiddenWorkingSetTrim.Title": "隐藏后立即释放内存(实验性)",
   "Settings.Performance.ImmediateHiddenWorkingSetTrim.Description": "全部格子隐藏 3 秒后释放内存；再次显示可能短暂延迟",
   "Settings.Performance.QuiescenceWorkingSetTrim.Title": "操作结束后压缩内存占用",

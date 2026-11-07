@@ -45,6 +45,8 @@
   "Settings.Performance.CacheBudget.Description": "يتحكم في حد ذاكرة الأيقونات والصور المصغرة والصور المفكوكة القابلة لإعادة الإنشاء",
   "Settings.Performance.IdleWorkingSetTrim.Title": "ضغط الذاكرة عند الخمول",
   "Settings.Performance.IdleWorkingSetTrim.Description": "عند إخفاء الأدوات أو أثناء غيابك، تُفرَّغ الذاكرة غير المستخدمة إلى النظام.",
+  "Settings.Performance.IdleProcessRecycle.Title": "إعادة التشغيل في الخلفية عند الخمول",
+  "Settings.Performance.IdleProcessRecycle.Description": "بعد بقاء جميع الأدوات مخفية لمدة 30 دقيقة، تعيد DeskBox تشغيل نفسها في الخلفية وتعيد الذاكرة المحجوزة إلى النظام.",
   "Settings.Performance.ImmediateHiddenWorkingSetTrim.Title": "تقليل الذاكرة فور الإخفاء (تجريبي)",
   "Settings.Performance.ImmediateHiddenWorkingSetTrim.Description": "يقلّص الذاكرة بعد 3 ثوانٍ من إخفاء كل الأدوات؛ عند إعادة العرض قد يحدث تأخر قصير",
   "Settings.Performance.QuiescenceWorkingSetTrim.Title": "ضغط الذاكرة بعد التفاعل",

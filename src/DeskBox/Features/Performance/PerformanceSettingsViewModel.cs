@@ -268,6 +268,9 @@ public sealed partial class PerformanceSettingsViewModel : ObservableObject
     [ObservableProperty]
     public partial bool QuiescenceWorkingSetTrimEnabled { get; set; }
 
+    [ObservableProperty]
+    public partial bool IdleProcessRecycleEnabled { get; set; }
+
     public IReadOnlyList<string> AvailableContinuousDecorativeAnimationOptions =>
         PerformanceOptionKinds.SupportedDecorativeAnimationOptions;
 
@@ -383,6 +386,7 @@ public sealed partial class PerformanceSettingsViewModel : ObservableObject
                 presentation.ImmediateHiddenWorkingSetTrimEnabled;
             QuiescenceWorkingSetTrimEnabled =
                 presentation.QuiescenceWorkingSetTrimEnabled;
+            IdleProcessRecycleEnabled = presentation.IdleProcessRecycleEnabled;
         }
         finally
         {
@@ -399,6 +403,7 @@ public sealed partial class PerformanceSettingsViewModel : ObservableObject
         OnPropertyChanged(nameof(IdleWorkingSetTrimEnabled));
         OnPropertyChanged(nameof(ImmediateHiddenWorkingSetTrimEnabled));
         OnPropertyChanged(nameof(QuiescenceWorkingSetTrimEnabled));
+        OnPropertyChanged(nameof(IdleProcessRecycleEnabled));
     }
 
     /// <summary>
@@ -447,6 +452,16 @@ public sealed partial class PerformanceSettingsViewModel : ObservableObject
         }
 
         _settings.SetQuiescenceWorkingSetTrimEnabled(value);
+    }
+
+    partial void OnIdleProcessRecycleEnabledChanged(bool value)
+    {
+        if (_isSyncingPresentation)
+        {
+            return;
+        }
+
+        _settings.SetIdleProcessRecycleEnabled(value);
     }
 
     private SettingsOption CreateCleanupDelayOption(int value, string key) =>

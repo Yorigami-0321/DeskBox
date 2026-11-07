@@ -43,4 +43,15 @@ public sealed class StartupLaunchPolicyTests
             ["DeskBox.exe"],
             "--some-argument"));
     }
+
+    [Fact]
+    public void IsLazyRestoreLaunch_AcceptsOnlyTheDedicatedArgument()
+    {
+        Assert.True(StartupLaunchPolicy.IsLazyRestoreLaunch(
+            ["DeskBox.exe", "--startup", "--lazy-restore"]));
+        Assert.True(StartupLaunchPolicy.IsLazyRestoreLaunch(
+            ["DeskBox.exe", "--LAZY-RESTORE"]));
+        Assert.False(StartupLaunchPolicy.IsLazyRestoreLaunch(
+            ["DeskBox.exe", "--startup"]));
+    }
 }

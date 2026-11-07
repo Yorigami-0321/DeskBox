@@ -202,7 +202,6 @@ public sealed class SettingsServiceTests : IDisposable
 
         Assert.Equal(SettingsLoadRecoveryState.Primary, service.LastLoadRecoveryState);
         Assert.Equal(SettingsMigrationPipeline.CurrentSchemaVersion, service.Settings.SchemaVersion);
-        Assert.Equal(15, service.Settings.SchemaVersion);
 
         // Widgets survive the chain (and the layout-store adoption): both
         // instances keep their identity, kind, and legacy geometry — the 5→6
@@ -263,7 +262,9 @@ public sealed class SettingsServiceTests : IDisposable
         // The migrated profile is persisted back at the current schema.
         using JsonDocument persisted = JsonDocument.Parse(
             await File.ReadAllTextAsync(settingsPath));
-        Assert.Equal(15, persisted.RootElement.GetProperty("schemaVersion").GetInt32());
+        Assert.Equal(
+            SettingsMigrationPipeline.CurrentSchemaVersion,
+            persisted.RootElement.GetProperty("schemaVersion").GetInt32());
         Assert.True(persisted.RootElement.GetProperty("fileStacksEnabled").GetBoolean());
         Assert.False(persisted.RootElement.GetProperty("fileStackAutoStacking").GetBoolean());
 
@@ -272,7 +273,7 @@ public sealed class SettingsServiceTests : IDisposable
         var reloaded = new SettingsService(_settingsRoot);
         await reloaded.LoadAsync();
         Assert.Equal(SettingsLoadRecoveryState.Primary, reloaded.LastLoadRecoveryState);
-        Assert.Equal(15, reloaded.Settings.SchemaVersion);
+        Assert.Equal(SettingsMigrationPipeline.CurrentSchemaVersion, reloaded.Settings.SchemaVersion);
         Assert.True(reloaded.Settings.FileStacksEnabled);
         Assert.False(reloaded.Settings.FileStackAutoStacking);
         Assert.Equal(2, reloaded.Settings.Widgets.Count);

@@ -16,7 +16,8 @@ internal enum BackgroundMemoryCleanupStage
     None = 0,
     SoftCache = 1,
     DeepFinalizerCollection = 2,
-    LongHiddenMaintenance = 4
+    LongHiddenMaintenance = 4,
+    IdleProcessRecycle = 8
 }
 
 internal static class MemoryCleanupPolicy
@@ -27,6 +28,31 @@ internal static class MemoryCleanupPolicy
     /// </summary>
     internal const long VisibleIdleWorkingSetThresholdBytes = 240L * 1024 * 1024;
     internal const long VisibleIdlePrivateBytesThreshold = 260L * 1024 * 1024;
+
+    /// <summary>
+    /// In-process cleanup frees objects but WinUI/D3D keep the committed
+    /// native blocks, so a restart only pays for itself once the process is
+    /// meaningfully above the post-restart baseline.
+    /// </summary>
+    internal const long IdleProcessRecycleMinimumPrivateBytes = 150L * 1024 * 1024;
+
+    /// <summary>
+    /// A freshly restarted hidden session loads the same widgets, so without
+    /// a spacing floor the 30-minute idle delay would restart the process
+    /// again and again while it stays hidden.
+    /// </summary>
+    internal static readonly TimeSpan IdleProcessRecycleMinimumSpacing =
+        TimeSpan.FromHours(6);
+
+    public static bool ShouldRecycleIdleProcess(
+        bool updateDownloadInProgress,
+        long privateBytes,
+        TimeSpan timeSinceLastRecycle)
+    {
+        return !updateDownloadInProgress &&
+            privateBytes >= IdleProcessRecycleMinimumPrivateBytes &&
+            timeSinceLastRecycle >= IdleProcessRecycleMinimumSpacing;
+    }
 
     public static bool IsVisibleIdleCandidate(MemoryCleanupActivitySnapshot snapshot)
     {
@@ -83,7 +109,8 @@ internal static class MemoryCleanupPolicy
         TimeSpan hiddenDuration,
         int softDelaySeconds,
         int deepDelaySeconds,
-        BackgroundMemoryCleanupStage completedStages)
+        BackgroundMemoryCleanupStage completedStages,
+        int idleRecycleDelaySeconds = PerformanceSettingsPolicy.CleanupNever)
     {
         BackgroundMemoryCleanupStage due = BackgroundMemoryCleanupStage.None;
         AddIfDue(
@@ -104,6 +131,12 @@ internal static class MemoryCleanupPolicy
             hiddenDuration,
             completedStages,
             ref due);
+        AddIfDue(
+            BackgroundMemoryCleanupStage.IdleProcessRecycle,
+            idleRecycleDelaySeconds,
+            hiddenDuration,
+            completedStages,
+            ref due);
         return due;
     }
 
@@ -111,7 +144,8 @@ internal static class MemoryCleanupPolicy
         TimeSpan hiddenDuration,
         int softDelaySeconds,
         int deepDelaySeconds,
-        BackgroundMemoryCleanupStage completedStages)
+        BackgroundMemoryCleanupStage completedStages,
+        int idleRecycleDelaySeconds = PerformanceSettingsPolicy.CleanupNever)
     {
         TimeSpan? nextDelay = null;
         ConsiderPendingStage(
@@ -129,6 +163,12 @@ internal static class MemoryCleanupPolicy
         ConsiderPendingStage(
             BackgroundMemoryCleanupStage.LongHiddenMaintenance,
             deepDelaySeconds,
+            hiddenDuration,
+            completedStages,
+            ref nextDelay);
+        ConsiderPendingStage(
+            BackgroundMemoryCleanupStage.IdleProcessRecycle,
+            idleRecycleDelaySeconds,
             hiddenDuration,
             completedStages,
             ref nextDelay);

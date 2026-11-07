@@ -227,11 +227,13 @@ public sealed class PerformanceSettingsEditorTests : IDisposable
         editor.IdleWorkingSetTrimEnabled = false;
         editor.ImmediateHiddenWorkingSetTrimEnabled = true;
         editor.QuiescenceWorkingSetTrimEnabled = false;
+        editor.IdleProcessRecycleEnabled = true;
 
         PerformanceSettingsSlice performance = settings.Settings.Performance;
         Assert.False(performance.IdleWorkingSetTrimEnabled);
         Assert.True(performance.ImmediateHiddenWorkingSetTrimEnabled);
         Assert.False(performance.QuiescenceWorkingSetTrimEnabled);
+        Assert.True(performance.IdleProcessRecycleEnabled);
         // Trim switches never switch the preset mode to custom.
         Assert.Equal(
             PerformanceOptionKinds.ModeBalanced,
@@ -390,6 +392,10 @@ public sealed class PerformanceSettingsEditorTests : IDisposable
             xaml,
             StringComparison.Ordinal);
         Assert.Contains(
+            "IsOn=\"{Binding IdleProcessRecycleEnabled, Mode=TwoWay}\"",
+            xaml,
+            StringComparison.Ordinal);
+        Assert.Contains(
             "Content=\"{Binding ContinuousDecorativeAnimationsSummaryText}\"",
             xaml,
             StringComparison.Ordinal);
@@ -416,7 +422,8 @@ public sealed class PerformanceSettingsEditorTests : IDisposable
         Assert.DoesNotContain("nameof(SelectedAttachmentStorageMode)", bindable, StringComparison.Ordinal);
         Assert.Equal(39, CountOccurrences(bindable, "nameof("));
         Assert.Contains("nameof(SelectedPerformanceMode)", editorBridge, StringComparison.Ordinal);
-        Assert.Equal(14, CountOccurrences(editorBridge, "nameof("));
+        Assert.Contains("nameof(IdleProcessRecycleEnabled)", editorBridge, StringComparison.Ordinal);
+        Assert.Equal(15, CountOccurrences(editorBridge, "nameof("));
     }
 
     [Fact]

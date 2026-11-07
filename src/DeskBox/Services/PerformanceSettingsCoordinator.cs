@@ -43,7 +43,8 @@ public sealed class PerformanceSettingsCoordinator : IPerformanceSettings
             effective.AllowCompactAmbientAnimations,
             performance.IdleWorkingSetTrimEnabled,
             performance.ImmediateHiddenWorkingSetTrimEnabled,
-            performance.QuiescenceWorkingSetTrimEnabled);
+            performance.QuiescenceWorkingSetTrimEnabled,
+            performance.IdleProcessRecycleEnabled);
     }
 
     public void SetPerformanceMode(string? mode)
@@ -203,6 +204,19 @@ public sealed class PerformanceSettingsCoordinator : IPerformanceSettings
         }
 
         performance.QuiescenceWorkingSetTrimEnabled = enabled;
+        _settings.SaveDebounced();
+    }
+
+    public void SetIdleProcessRecycleEnabled(bool enabled)
+    {
+        ThrowIfStopped();
+        PerformanceSettingsSlice performance = _settings.Settings.Performance;
+        if (performance.IdleProcessRecycleEnabled == enabled)
+        {
+            return;
+        }
+
+        performance.IdleProcessRecycleEnabled = enabled;
         _settings.SaveDebounced();
     }
 

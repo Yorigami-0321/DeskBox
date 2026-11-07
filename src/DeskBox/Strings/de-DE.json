@@ -45,6 +45,8 @@
   "Settings.Performance.CacheBudget.Description": "Begrenzt wiederherstellbare Symbol-, Miniaturansicht- und dekodierte Bild-Caches",
   "Settings.Performance.IdleWorkingSetTrim.Title": "Speicher im Leerlauf komprimieren",
   "Settings.Performance.IdleWorkingSetTrim.Description": "Solange Widgets ausgeblendet sind oder Sie abwesend sind, wird ungenutzter Speicher an das System ausgelagert.",
+  "Settings.Performance.IdleProcessRecycle.Title": "Im Leerlauf im Hintergrund neu starten",
+  "Settings.Performance.IdleProcessRecycle.Description": "Wenn alle Widgets 30 Minuten lang ausgeblendet sind, startet sich DeskBox im Hintergrund neu und gibt reservierten Speicher an das System zurück.",
   "Settings.Performance.ImmediateHiddenWorkingSetTrim.Title": "Speicher sofort nach dem Ausblenden reduzieren (experimentell)",
   "Settings.Performance.ImmediateHiddenWorkingSetTrim.Description": "Verkleinert den belegten Arbeitsspeicher 3 Sekunden nach dem Ausblenden aller Widgets; beim erneuten Einblenden kurze Verzögerung möglich",
   "Settings.Performance.QuiescenceWorkingSetTrim.Title": "Speicher nach Interaktionen komprimieren",

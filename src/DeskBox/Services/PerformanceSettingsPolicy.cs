@@ -14,7 +14,9 @@ public readonly record struct EffectivePerformanceSettings(
     int VisibleIdleCacheCleanupDelaySeconds,
     int TransientWindowReleaseDelaySeconds,
     string CacheBudget,
-    string HiddenCacheCleanupScope)
+    string HiddenCacheCleanupScope,
+    bool IdleProcessRecycleEnabled,
+    int IdleProcessRecycleDelaySeconds)
 {
     public bool AllowContinuousDecorativeAnimations =>
         AllowTextMarqueeAnimations ||
@@ -66,6 +68,7 @@ public static class PerformanceSettingsPolicy
     public const int CleanupAfter5Minutes = PerformanceOptionKinds.CleanupAfter5Minutes;
     public const int CleanupAfter10Minutes = PerformanceOptionKinds.CleanupAfter10Minutes;
     public const int CleanupAfter15Minutes = PerformanceOptionKinds.CleanupAfter15Minutes;
+    public const int CleanupAfter30Minutes = 30 * 60;
 
     public const string DefaultMode = ModeResourceSaver;
     public const int DefaultHiddenCacheCleanupDelaySeconds = CleanupAfter30Seconds;
@@ -75,6 +78,8 @@ public static class PerformanceSettingsPolicy
     public const string DefaultHiddenCacheCleanupScope =
         HiddenCacheCleanupScopeAllRecreatable;
     public const bool DefaultIdleWorkingSetTrimEnabled = true;
+    public const bool DefaultIdleProcessRecycleEnabled = false;
+    public const int DefaultIdleProcessRecycleDelaySeconds = CleanupAfter30Minutes;
     public const bool DefaultImmediateHiddenWorkingSetTrimEnabled = true;
     public const bool DefaultQuiescenceWorkingSetTrimEnabled = true;
     public const bool DefaultContinuousDecorativeAnimationsEnabled = true;
@@ -143,6 +148,19 @@ public static class PerformanceSettingsPolicy
                 ? delaySeconds
                 : DefaultTransientWindowReleaseDelaySeconds;
 
+    public static int NormalizeIdleProcessRecycleDelaySeconds(int delaySeconds) =>
+        delaySeconds == CleanupNever
+            ? CleanupNever
+            : delaySeconds is
+            CleanupAfter30Seconds or
+            CleanupAfter1Minute or
+            CleanupAfter5Minutes or
+            CleanupAfter10Minutes or
+            CleanupAfter15Minutes or
+            CleanupAfter30Minutes
+                ? delaySeconds
+                : DefaultIdleProcessRecycleDelaySeconds;
+
     public static EffectivePerformanceSettings Resolve(AppSettings settings)
     {
         ArgumentNullException.ThrowIfNull(settings);
@@ -161,7 +179,9 @@ public static class PerformanceSettingsPolicy
                 CleanupAfter5Minutes,
                 CleanupAfter2Minutes,
                 CacheBudgetSmall,
-                HiddenCacheCleanupScopeAllRecreatable),
+                HiddenCacheCleanupScopeAllRecreatable,
+                settings.IdleProcessRecycleEnabled,
+                ResolveIdleProcessRecycleDelaySeconds(settings)),
             ModeCustom => ResolveCustom(settings),
             _ => new(
                 ModeBalanced,
@@ -174,7 +194,9 @@ public static class PerformanceSettingsPolicy
                 CleanupAfter10Minutes,
                 CleanupAfter10Minutes,
                 CacheBudgetBalanced,
-                HiddenCacheCleanupScopeAllRecreatable)
+                HiddenCacheCleanupScopeAllRecreatable,
+                settings.IdleProcessRecycleEnabled,
+                ResolveIdleProcessRecycleDelaySeconds(settings))
         };
     }
 
@@ -189,6 +211,8 @@ public static class PerformanceSettingsPolicy
             settings.VisibleIdleCacheCleanupDelaySeconds);
         int transientWindowDelay = NormalizeTransientWindowReleaseDelaySeconds(
             settings.TransientWindowReleaseDelaySeconds);
+        int idleProcessRecycleDelay = NormalizeIdleProcessRecycleDelaySeconds(
+            settings.IdleProcessRecycleDelaySeconds);
         string cacheBudget = NormalizeCacheBudget(settings.PerformanceCacheBudget);
         string hiddenCleanupScope = NormalizeHiddenCacheCleanupScope(
             settings.HiddenCacheCleanupScope);
@@ -226,6 +250,10 @@ public static class PerformanceSettingsPolicy
             settings.TransientWindowReleaseDelaySeconds,
             transientWindowDelay,
             value => settings.TransientWindowReleaseDelaySeconds = value);
+        changed |= SetIfChanged(
+            settings.IdleProcessRecycleDelaySeconds,
+            idleProcessRecycleDelay,
+            value => settings.IdleProcessRecycleDelaySeconds = value);
         changed |= SetIfChanged(
             settings.PerformanceCacheBudget,
             cacheBudget,
@@ -346,8 +374,17 @@ public static class PerformanceSettingsPolicy
                 settings.TransientWindowReleaseDelaySeconds),
             cacheBudget,
             NormalizeHiddenCacheCleanupScope(
-                settings.HiddenCacheCleanupScope));
+                settings.HiddenCacheCleanupScope),
+            settings.IdleProcessRecycleEnabled,
+            ResolveIdleProcessRecycleDelaySeconds(settings));
     }
+
+    private static int ResolveIdleProcessRecycleDelaySeconds(
+        AppSettings settings) =>
+        settings.IdleProcessRecycleEnabled
+            ? NormalizeIdleProcessRecycleDelaySeconds(
+                settings.IdleProcessRecycleDelaySeconds)
+            : CleanupNever;
 
     private static bool SetIfChanged<T>(
         T current,

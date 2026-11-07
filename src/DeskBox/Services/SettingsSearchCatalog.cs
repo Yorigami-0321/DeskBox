@@ -229,6 +229,7 @@ internal static class SettingsSearchCatalog
         new("PerformanceSettings", "Settings.Performance.IdleWorkingSetTrim.Title", "Settings.Performance.IdleWorkingSetTrim.Description"),
         new("PerformanceSettings", "Settings.Performance.ImmediateHiddenWorkingSetTrim.Title", "Settings.Performance.ImmediateHiddenWorkingSetTrim.Description"),
         new("PerformanceSettings", "Settings.Performance.QuiescenceWorkingSetTrim.Title", "Settings.Performance.QuiescenceWorkingSetTrim.Description"),
+        new("PerformanceSettings", "Settings.Performance.IdleProcessRecycle.Title", "Settings.Performance.IdleProcessRecycle.Description"),
         new("PerformanceSettings", "Settings.Performance.DecorativeAnimations.Title", "Settings.Performance.DecorativeAnimations.Description"),
         new("Maintenance", "Settings.DataBackup.Title", "Settings.DataBackup.Description"),
         new("Maintenance", "Settings.CloudBackup.Title", "Settings.CloudBackup.Description"),

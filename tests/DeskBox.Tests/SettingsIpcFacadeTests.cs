@@ -604,14 +604,20 @@ public sealed class SettingsIpcFacadeTests : IDisposable
             ManagedStorageMigrationOptions? options)
         {
             MigrationRoot = newRootPath;
-            options?.Progress?.Report(new ManagedStorageMigrationProgress(
-                ManagedStorageMigrationPhase.Copying,
-                1,
-                2,
-                0,
-                0,
-                null));
-            await Task.Delay(10);
+            // Progress rides an asynchronous push queue that tolerates loss,
+            // so a single report can be overtaken by the completing response;
+            // report periodically like the real migration does.
+            for (int i = 0; i < 10; i++)
+            {
+                options?.Progress?.Report(new ManagedStorageMigrationProgress(
+                    ManagedStorageMigrationPhase.Copying,
+                    1,
+                    2,
+                    0,
+                    0,
+                    null));
+                await Task.Delay(20);
+            }
             return MigrationResult;
         }
 

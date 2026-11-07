@@ -27,7 +27,8 @@ public sealed class BackupRestoreActions : IBackupRestoreActions
         _cloud = cloud;
         _local = local;
         _shutdownForRestart = shutdownForRestart;
-        _scheduleRelaunch = scheduleRelaunch ?? AppRelaunchService.ScheduleAfterCurrentProcessExit;
+        _scheduleRelaunch = scheduleRelaunch ??
+            (() => AppRelaunchService.ScheduleAfterCurrentProcessExit());
     }
 
     public bool IsCurrentEndpoint(BackupEndpoint endpoint) =>

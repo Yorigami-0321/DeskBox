@@ -3,6 +3,25 @@ namespace DeskBox.Tests;
 public sealed class DeskBoxUpdaterTests
 {
     [Fact]
+    public void RestartOnlyArguments_ParseAppArgumentsForBackgroundRelaunch()
+    {
+        DeskBox.Updater.Program.UpdateOptions options =
+            DeskBox.Updater.Program.UpdateOptions.Parse(
+            [
+                "--restart-only",
+                "--pid", "4242",
+                "--app", @"D:\Apps\DeskBox.exe",
+                "--app-arg", "--startup",
+                "--app-arg", "--lazy-restore"
+            ]);
+
+        Assert.True(options.RestartOnly);
+        Assert.Equal(4242, options.ParentProcessId);
+        Assert.Equal(@"D:\Apps\DeskBox.exe", options.AppPath);
+        Assert.Equal(["--startup", "--lazy-restore"], options.AppArguments);
+    }
+
+    [Fact]
     public void InstallerArguments_ShowProgressAndLockTheExistingDirectory()
     {
         const string InstallDirectory = @"D:\Apps\DeskBox";

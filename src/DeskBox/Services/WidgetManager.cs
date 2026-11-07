@@ -856,7 +856,7 @@ public sealed partial class WidgetManager
     /// <summary>
     /// Restore every enabled widget for the new application session.
     /// </summary>
-    public async Task RestoreWidgetsAsync()
+    public async Task RestoreWidgetsAsync(bool createWindows = true)
     {
         await RecoverManagedStorageCommitAsync();
         RepairLegacyContentFeatureFileShells();
@@ -907,6 +907,22 @@ public sealed partial class WidgetManager
                 configs))
         {
             _settingsService.SaveDebounced(notifySubscribers: false);
+        }
+
+        if (!createWindows)
+        {
+            // Idle-recycle relaunch: the user cannot see any widget, so
+            // restoring every hidden HWND would immediately recreate the
+            // memory the recycle just released. The first explicit reveal
+            // (tray/hotkey/desktop double-click) goes through
+            // PrepareWidgetForBatchShowAsync, which creates missing windows
+            // from these same configs.
+            _startupHiddenSessionActive = true;
+            App.Log(
+                "[WidgetManager] Lazy restore launch: widget windows stay " +
+                $"uncreated until the first reveal count={configs.Count}");
+            App.ScheduleBackgroundMemoryCleanup("lazy-restore-startup");
+            return;
         }
 
         using var perfScope = PerformanceLogger.Measure("WidgetManager.RestoreWidgets", $"count={configs.Count}");

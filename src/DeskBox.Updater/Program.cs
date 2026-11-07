@@ -65,7 +65,11 @@ internal static class Program
                 }
 
                 WaitForParentExit(options.ParentProcessId);
-                return RestartApp(options.AppPath) ? 0 : 3;
+                return RestartApp(
+                    options.AppPath,
+                    appArguments: options.AppArguments)
+                    ? 0
+                    : 3;
             }
 
             // Wait for the parent to exit BEFORE touching the installer or
@@ -85,7 +89,9 @@ internal static class Program
             int exitCode = RunInstaller(options);
             if (exitCode == 0 && !string.IsNullOrWhiteSpace(options.AppPath) && File.Exists(options.AppPath))
             {
-                _ = RestartApp(options.AppPath);
+                _ = RestartApp(
+                    options.AppPath,
+                    appArguments: options.AppArguments);
             }
             else if (exitCode != 0)
             {
@@ -439,7 +445,10 @@ internal static class Program
             : "failed";
     }
 
-    private static bool RestartApp(string appPath, string? updateInstallOutcome = null)
+    private static bool RestartApp(
+        string appPath,
+        string? updateInstallOutcome = null,
+        IReadOnlyList<string>? appArguments = null)
     {
         // An elevated updater (it inherits the app's token, and app-update
         // flows on fully elevated desktops run elevated) must not hand that
@@ -456,7 +465,7 @@ internal static class Program
             {
                 if (DeskBox.UpdaterPlatform.ShellUnelevatedLaunch.TryStartAtShellIntegrity(
                         appPath,
-                        BuildRestartArguments(updateInstallOutcome),
+                        BuildRestartArguments(updateInstallOutcome, appArguments),
                         Log))
                 {
                     Log($"Restarting app at shell integrity: {appPath} (attempt {attempt})");
@@ -482,7 +491,11 @@ internal static class Program
         // keeps that outcome searchable in the log.
         for (int attempt = 1; attempt <= 3; attempt++)
         {
-            if (TryStartApp(appPath, Path.GetDirectoryName(appPath), updateInstallOutcome))
+            if (TryStartApp(
+                    appPath,
+                    Path.GetDirectoryName(appPath),
+                    updateInstallOutcome,
+                    appArguments))
             {
                 Log($"Restarting app: {appPath} (attempt {attempt})");
                 return true;
@@ -497,17 +510,30 @@ internal static class Program
         return TryRestartViaStartMenuShortcut(appPath, updateInstallOutcome);
     }
 
-    private static string? BuildRestartArguments(string? updateInstallOutcome)
+    private static string? BuildRestartArguments(
+        string? updateInstallOutcome,
+        IReadOnlyList<string>? appArguments = null)
     {
-        return string.IsNullOrWhiteSpace(updateInstallOutcome)
-            ? null
-            : $"{UpdateInstallResultArgument} {updateInstallOutcome.Trim()}";
+        var parts = new List<string>();
+        if (!string.IsNullOrWhiteSpace(updateInstallOutcome))
+        {
+            parts.Add(UpdateInstallResultArgument);
+            parts.Add(updateInstallOutcome.Trim());
+        }
+
+        if (appArguments is not null)
+        {
+            parts.AddRange(appArguments);
+        }
+
+        return parts.Count == 0 ? null : string.Join(' ', parts);
     }
 
     private static bool TryStartApp(
         string targetPath,
         string? workingDirectory,
-        string? updateInstallOutcome)
+        string? updateInstallOutcome,
+        IReadOnlyList<string>? appArguments = null)
     {
         try
         {
@@ -521,6 +547,14 @@ internal static class Program
             {
                 startInfo.ArgumentList.Add(UpdateInstallResultArgument);
                 startInfo.ArgumentList.Add(updateInstallOutcome);
+            }
+
+            if (appArguments is not null)
+            {
+                foreach (string argument in appArguments)
+                {
+                    startInfo.ArgumentList.Add(argument);
+                }
             }
 
             Process.Start(startInfo);
@@ -579,13 +613,14 @@ internal static class Program
         }
     }
 
-    private sealed class UpdateOptions
+    internal sealed class UpdateOptions
     {
         public int ParentProcessId { get; private init; }
         public string InstallerPath { get; private init; } = string.Empty;
         public string AppPath { get; private init; } = string.Empty;
         public string InstallDirectory { get; private init; } = string.Empty;
         public string InstallerLanguage { get; private init; } = string.Empty;
+        public IReadOnlyList<string> AppArguments { get; private init; } = [];
         public bool Silent { get; private init; }
         public bool RestartOnly { get; private init; }
 
@@ -596,6 +631,7 @@ internal static class Program
             string appPath = string.Empty;
             string installDirectory = string.Empty;
             string installerLanguage = string.Empty;
+            var appArguments = new List<string>();
             bool silent = false;
             bool restartOnly = false;
 
@@ -633,6 +669,10 @@ internal static class Program
                 {
                     appPath = value;
                 }
+                else if (string.Equals(arg, "--app-arg", StringComparison.OrdinalIgnoreCase))
+                {
+                    appArguments.Add(value);
+                }
                 else if (string.Equals(arg, "--install-dir", StringComparison.OrdinalIgnoreCase))
                 {
                     installDirectory = value;
@@ -650,6 +690,7 @@ internal static class Program
                 AppPath = appPath,
                 InstallDirectory = installDirectory,
                 InstallerLanguage = installerLanguage,
+                AppArguments = appArguments,
                 Silent = silent,
                 RestartOnly = restartOnly
             };

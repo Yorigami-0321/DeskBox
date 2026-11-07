@@ -98,3 +98,71 @@
 | Debug 构建同上 | +120-160MB | 建议日常用 AOT 零售构建 |
 
 核心判断：**代码没有严重 bug 或泄漏，但「折叠不释放、隐藏回收被 Visible 锁死」两个设计决策叠加，让多格子架构的每窗口成本在用户最常见的胶囊常驻场景下全额驻留**——这是 300MB 体感的直接来源。P0-A/B 落地即可治本，且完全保持多格子架构。
+
+## 后续进展（2026-11-07 补记）
+
+### P0 已落地
+
+- `1f52f9c`：设置页托管存储检查移出 UI 线程。
+- `d9ab66e`：`AllRecreatable` 深度清理阶段释放长隐藏窗口的内容树（`ReleaseLongHiddenInactiveContent`，含 `WidgetShellContentHost` 释放与视觉活动契约测试）。
+- AOT 零售实测（ResourceSaver、3 个 File 窗口：1 组 + 2 独立）：隐藏清理后 Private ~189MB、**WS 降至 ~52MB**；1.6.0 AOT 主进程 Private 已比 1.5.9 低（186 vs 225MB）。
+
+### A2：GPU/DirectComposition trace 确认残留块归因
+
+提权抓取 GPU + DesktopComposition + VirtualAllocation + XAMLActivity trace（约 3.36GB ETL，已清理），交叉确认隐藏释放后仍驻留的三个 ~14–15MB 私有块：
+
+- `Microsoft-Windows-Direct3D11`：DeskBox 进程创建 **1920×1920×4B（≈14.1MB）、1904×1904×4B（≈13.8MB）、1902×1902×4B（≈13.8MB）** 的 Texture2D，尺寸/数量与残留私有块吻合。
+- `Microsoft-Windows-XAML`：1904×1904 的 `SystemMemorySurfaceAllocate` 有对应 `SystemMemorySurfaceFree`（随内容树释放）。
+- DComp `CAP_RELEASE_SURFACE` 无 14MB 级表面（最大 1024×1024）。
+
+**结论：残留块是窗口级 D3D11/Composition 纹理，不是内容树或普通 native heap；内容树释放无法回收它们。**
+
+### B1：长隐藏独立 File 窗口 Cold 关闭试点——负收益，已回滚
+
+试点内容：`AllRecreatable` 深度清理阶段关闭完全隐藏、非组的独立 File 窗口（`_fileWidgets`），唤出走现有重建路径。Debug 口径功能验证通过（冷关闭 2 窗、托盘唤出重建成功、全量测试绿），但 **AOT 零售口径为负收益**：
+
+| 口径 | Private(MB) | WS(MB) |
+|---|---|---|
+| B1 初始（3 窗口） | 187.7 | 248.6 |
+| B1 隐藏 60s 冷关闭 2 窗后（30s 稳态） | **189.4（不降）** | 74.8 |
+| 仅 P0（同场景对照） | 189.3 | **52.1** |
+
+原因：关窗确实释放了 composition 对象（`ownedCompositionReleased=2`），但 Windows heap/D3D 分配器保留提交内存，native commit 没有还给 OS；WS 反而比仅 P0 更差，且引入滚动/导航状态丢失与窗口重建风险。
+
+**处置：B1 两处改动（`App.xaml.cs`、`WidgetManager.Memory.cs`）已回滚，工作区回到 `d9ab66e`；不建议沿此路径做 B2（连组窗口销毁），证据不支持继续 Cold。**
+
+若仍要压 Private commit，需换层级：进程级隔离/重启回收，或深入 WinUI/D3D 分配器治理，须单独设计。当前确定收益 = 设置页修复 + P0（隐藏态 WS ~52MB）。
+
+### P0-C：空闲进程重启试点——稳态零收益（2026-11-07）
+
+思路：全部格子隐藏且连续空闲达到阈值后，提前安排进程重启，把 WinUI/D3D 保留的 native commit 还给 OS。实现包含：性能设置开关（默认关闭）、后台清理新增 `IdleProcessRecycle` 阶段、更新下载/Private 下限（150MB）/6 小时间隔三重阳门、重启走 `AppRelaunchService` 并带 `--startup` 保持无人值守启动。
+
+AOT 零售实测（11 格子真实配置，3 个 File 窗口隐藏，阈值 60s，重启后观察 75s 稳态）：
+
+| 口径 | 重启前 Private | 重启后 Private | 结论 |
+|---|---|---|---|
+| ResourceSaver / AllRecreatable | 167.3MB（WS 33MB） | 167.5MB（WS 56MB） | 0 收益 |
+| Custom / Warm（用户日常配置） | 171.6MB（WS 42MB） | 170.7MB（WS 39MB） | ≈0 收益 |
+
+原因：重启后的新实例会立即恢复全部已启用格子（即使隐藏），内容树与窗口基线约 170MB；96MB 的「底座」是 0 格子状态，永远到不了。也就是说，**稳态隐藏内存 ≈ 新进程基线**，周期性重启没有可回收的增量；B1 的分配器保留结论在这里同样成立。
+
+**附带的真实回归与修复**：`feat/160-kickoff`（#589）在启动排水路径无条件调用 `HandleExternalActivationAsync()`，其「无激活」分支会执行交互式兜底（恢复全部格子 + 打开设置）。实测 `--startup` 启动后所有格子被重新显示、设置进程被拉起，**静默启动完全失效**。已修复：启动排水在 `--startup` 场景跳过交互兜底；空闲重启的重启参数也显式带 `--startup`（updater 新增 `--app-arg` 透传）。
+
+**判定（周期性重启单独）**：稳态零收益，不能只靠重启。
+
+### P0-C 续：重启 + 懒恢复试点——有效（2026-11-07）
+
+在重启的基础上增加「懒恢复」：`--lazy-restore` 启动时只做配置/拓扑归一化，**不创建任何隐藏格子窗口**；首次显式唤出（托盘/热键/桌面双击）走已有的 `PrepareWidgetForBatchShowAsync` 按配置创建窗口。AOT 零售实测（真实 11 格子配置、Warm、3 个 File 窗口、阈值 60s）：
+
+| 阶段 | Private | WS |
+|---|---|---|
+| 懒恢复前（隐藏稳态） | 168.6MB | 36MB |
+| 重启后（零窗口懒恢复） | **97.5–100.2MB** | 140–146MB |
+| 首次托盘唤出后 | 174MB | 240MB→裁剪后 4–6MB |
+
+- **空闲 Private 净省约 68MB**（168.6 → 100.2MB），窗口在首次唤出时创建，日志确认 `Raise prepared` + `RestoreWidgetPositions` + `LoadFolderContents` 全部执行。
+- 懒恢复实例 Private < 150MB 下限，不会再次触发回收（无重启循环）；6 小时间隔闸门继续防止频繁重启。
+- 代价：回收后的**首次**唤出多一次窗口创建/内容加载（实测 ~0.3–1s 量级），之后与正常实例一致。
+- 启动激活回归修复（上节）是懒恢复可用的前提：重启实例必须走无人值守启动，不能弹设置/强制显示。
+
+**结论：保留「空闲重启 + 懒恢复」，默认关闭（用户在性能设置中开启）；周期性重启单独使用没有意义。**

@@ -536,6 +536,10 @@ public const int DefaultSearchMaxResults = 100;
             PerformanceSettingsPolicy.DefaultImmediateHiddenWorkingSetTrimEnabled;
         settings.Performance.QuiescenceWorkingSetTrimEnabled =
             PerformanceSettingsPolicy.DefaultQuiescenceWorkingSetTrimEnabled;
+        settings.IdleProcessRecycleEnabled =
+            PerformanceSettingsPolicy.DefaultIdleProcessRecycleEnabled;
+        settings.IdleProcessRecycleDelaySeconds =
+            PerformanceSettingsPolicy.DefaultIdleProcessRecycleDelaySeconds;
         settings.PerformanceCacheBudget =
             PerformanceSettingsPolicy.DefaultCacheBudget;
         settings.EnableContinuousDecorativeAnimations =

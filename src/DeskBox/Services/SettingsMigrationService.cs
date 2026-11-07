@@ -21,7 +21,7 @@ public interface ISettingsMigration
 public sealed class SettingsMigrationPipeline
 {
     /// <summary>The current schema version that the application expects.</summary>
-    public const int CurrentSchemaVersion = 15;
+    public const int CurrentSchemaVersion = 16;
 
     private readonly List<ISettingsMigration> _migrations = [];
 
@@ -43,6 +43,7 @@ public sealed class SettingsMigrationPipeline
         _migrations.Add(new Migration_12_To_13());
         _migrations.Add(new Migration_13_To_14());
         _migrations.Add(new Migration_14_To_15());
+        _migrations.Add(new Migration_15_To_16());
     }
 
     /// <summary>
@@ -727,6 +728,21 @@ internal sealed class Migration_13_To_14 : ISettingsMigration
 internal sealed class Migration_14_To_15 : ISettingsMigration
 {
     public int FromVersion => 14;
+
+    public void Migrate(AppSettings settings)
+    {
+    }
+}
+
+/// <summary>
+/// v16 adds the idle process recycle preference
+/// (PerformanceSettingsSlice.IdleProcessRecycleEnabled/DelaySeconds).
+/// Purely additive: settings written before v16 leave the recycle disabled,
+/// which is the correct conservative default.
+/// </summary>
+internal sealed class Migration_15_To_16 : ISettingsMigration
+{
+    public int FromVersion => 15;
 
     public void Migrate(AppSettings settings)
     {

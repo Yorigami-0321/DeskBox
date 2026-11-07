@@ -2587,6 +2587,19 @@ Text="DeskBox" />
 
                         <toolkit:SettingsCard
                             HorizontalContentAlignment="Right"
+                            svc:Localized.DescriptionKey="Settings.Performance.IdleProcessRecycle.Description"
+                            svc:Localized.HeaderKey="Settings.Performance.IdleProcessRecycle.Title">
+                            <toolkit:SettingsCard.HeaderIcon>
+                                <FontIcon Glyph="&#xE950;" />
+                            </toolkit:SettingsCard.HeaderIcon>
+                            <ToggleSwitch svc:Localized.AutomationNameKey="Settings.Performance.IdleProcessRecycle.Title"
+                                AutomationProperties.AutomationId="IdleProcessRecycleToggle"
+                                OnContent="" OffContent="" MinWidth="0"
+                                IsOn="{Binding IdleProcessRecycleEnabled, Mode=TwoWay}" />
+                        </toolkit:SettingsCard>
+
+                        <toolkit:SettingsCard
+                            HorizontalContentAlignment="Right"
                             svc:Localized.DescriptionKey="Settings.Performance.DecorativeAnimations.Description"
                             svc:Localized.HeaderKey="Settings.Performance.DecorativeAnimations.Title">
                             <toolkit:SettingsCard.HeaderIcon>

@@ -11,11 +11,20 @@ public static class AppRelaunchService
     // graceful-shutdown tail instead of a detached helper process.
     public static bool PendingOsRestartOnShutdown { get; set; }
 
-    public static AppRelaunchScheduleResult ScheduleAfterCurrentProcessExit()
+    /// <summary>
+    /// Store builds relaunch through the WinAppSDK restart agent; when the
+    /// restart came from the idle process recycle it must keep the unattended
+    /// startup contract (no settings window, no forced widget reveal).
+    /// </summary>
+    public static bool PendingBackgroundRestartOnShutdown { get; set; }
+
+    public static AppRelaunchScheduleResult ScheduleAfterCurrentProcessExit(
+        bool startInBackground = false)
     {
         if (AppDistributionService.Current.IsMicrosoftStore)
         {
             PendingOsRestartOnShutdown = true;
+            PendingBackgroundRestartOnShutdown = startInBackground;
             return AppRelaunchScheduleResult.StartedSuccessfully;
         }
 
@@ -47,6 +56,14 @@ public static class AppRelaunchService
             startInfo.ArgumentList.Add(Environment.ProcessId.ToString(CultureInfo.InvariantCulture));
             startInfo.ArgumentList.Add("--app");
             startInfo.ArgumentList.Add(appPath);
+            if (startInBackground)
+            {
+                startInfo.ArgumentList.Add("--app-arg");
+                startInfo.ArgumentList.Add("--startup");
+                startInfo.ArgumentList.Add("--app-arg");
+                startInfo.ArgumentList.Add("--lazy-restore");
+            }
+
             Process.Start(startInfo);
             return AppRelaunchScheduleResult.StartedSuccessfully;
         }

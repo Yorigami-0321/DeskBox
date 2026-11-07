@@ -325,4 +325,60 @@ public sealed class PerformanceSettingsPolicyTests
         Assert.Equal(15 * 60, normalized[1]);
         Assert.Equal(10 * 60, normalized[2]);
     }
+
+    [Fact]
+    public void IdleProcessRecycle_DefaultsOffWithItsStageDisabled()
+    {
+        var settings = new AppSettings();
+
+        EffectivePerformanceSettings effective =
+            PerformanceSettingsPolicy.Resolve(settings);
+
+        Assert.False(effective.IdleProcessRecycleEnabled);
+        Assert.Equal(
+            PerformanceSettingsPolicy.CleanupNever,
+            effective.IdleProcessRecycleDelaySeconds);
+    }
+
+    [Fact]
+    public void IdleProcessRecycle_ResolvesConfiguredDelayAndNormalizesGarbage()
+    {
+        var settings = new AppSettings
+        {
+            IdleProcessRecycleEnabled = true,
+            IdleProcessRecycleDelaySeconds = 60
+        };
+
+        EffectivePerformanceSettings effective =
+            PerformanceSettingsPolicy.Resolve(settings);
+        Assert.True(effective.IdleProcessRecycleEnabled);
+        Assert.Equal(60, effective.IdleProcessRecycleDelaySeconds);
+
+        settings.IdleProcessRecycleDelaySeconds = 17;
+        Assert.True(PerformanceSettingsPolicy.Normalize(settings));
+        Assert.Equal(
+            PerformanceSettingsPolicy.DefaultIdleProcessRecycleDelaySeconds,
+            settings.IdleProcessRecycleDelaySeconds);
+        Assert.Equal(
+            PerformanceSettingsPolicy.DefaultIdleProcessRecycleDelaySeconds,
+            PerformanceSettingsPolicy.Resolve(settings)
+                .IdleProcessRecycleDelaySeconds);
+    }
+
+    [Fact]
+    public void ApplyDefaultPreferences_ResetsIdleProcessRecycle()
+    {
+        var settings = new AppSettings
+        {
+            IdleProcessRecycleEnabled = true,
+            IdleProcessRecycleDelaySeconds = 60
+        };
+
+        SettingsService.ApplyDefaultPreferences(settings);
+
+        Assert.False(settings.IdleProcessRecycleEnabled);
+        Assert.Equal(
+            PerformanceSettingsPolicy.DefaultIdleProcessRecycleDelaySeconds,
+            settings.IdleProcessRecycleDelaySeconds);
+    }
 }

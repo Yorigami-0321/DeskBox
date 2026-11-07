@@ -45,6 +45,8 @@
   "Settings.Performance.CacheBudget.Description": "Contrôle la limite des caches recréables d’icônes, de miniatures et d’images décodées",
   "Settings.Performance.IdleWorkingSetTrim.Title": "Compresser la mémoire en cas d’inactivité",
   "Settings.Performance.IdleWorkingSetTrim.Description": "Quand les widgets sont masqués ou que vous êtes absent, la mémoire inutilisée est évacuée vers le système.",
+  "Settings.Performance.IdleProcessRecycle.Title": "Redémarrer en arrière-plan en cas d'inactivité",
+  "Settings.Performance.IdleProcessRecycle.Description": "Lorsque tous les widgets restent masqués pendant 30 minutes, DeskBox redémarre en arrière-plan et rend la mémoire réservée au système.",
   "Settings.Performance.ImmediateHiddenWorkingSetTrim.Title": "Réduire la mémoire dès le masquage (expérimental)",
   "Settings.Performance.ImmediateHiddenWorkingSetTrim.Description": "Réduit la mémoire 3 s après le masquage de tous les widgets ; l'affichage suivant peut être brièvement retardé",
   "Settings.Performance.QuiescenceWorkingSetTrim.Title": "Compresser la mémoire après les interactions",

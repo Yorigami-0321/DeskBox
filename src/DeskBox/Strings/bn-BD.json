@@ -45,6 +45,8 @@
   "Settings.Performance.CacheBudget.Description": "পুনরায় তৈরি করা যায় এমন আইকন, থাম্বনেইল ও ডিকোড করা ছবির ক্যাশ সীমা নিয়ন্ত্রণ করে",
   "Settings.Performance.IdleWorkingSetTrim.Title": "নিষ্ক্রিয় থাকলে মেমরি সংকুচিত করুন",
   "Settings.Performance.IdleWorkingSetTrim.Description": "উইজেট লুকানো থাকলে বা আপনি অনুপস্থিত থাকলে অব্যবহৃত মেমরি সিস্টেমে সরিয়ে দেওয়া হয়।",
+  "Settings.Performance.IdleProcessRecycle.Title": "নিষ্ক্রিয় থাকলে ব্যাকগ্রাউন্ডে পুনরায় চালু করুন",
+  "Settings.Performance.IdleProcessRecycle.Description": "সব উইজেট ৩০ মিনিট লুকানো থাকলে DeskBox ব্যাকগ্রাউন্ডে পুনরায় চালু হয়ে সংরক্ষিত মেমরি সিস্টেমকে ফিরিয়ে দেয়।",
   "Settings.Performance.ImmediateHiddenWorkingSetTrim.Title": "লুকানোর সঙ্গে সঙ্গে মেমরি কমান (পরীক্ষামূলক)",
   "Settings.Performance.ImmediateHiddenWorkingSetTrim.Description": "সব উইজেট লুকানোর ৩ সেকেন্ড পরে রেসিডেন্ট মেমরি কমায়; আবার দেখালে সামান্য বিলম্ব হতে পারে",
   "Settings.Performance.QuiescenceWorkingSetTrim.Title": "ইন্টারঅ্যাকশনের পরে মেমরি সংকুচিত করুন",

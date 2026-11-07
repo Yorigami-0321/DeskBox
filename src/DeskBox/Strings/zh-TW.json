@@ -45,6 +45,8 @@
   "Settings.Performance.CacheBudget.Description": "控制可重建的圖示、縮圖與解碼影像快取上限",
   "Settings.Performance.IdleWorkingSetTrim.Title": "閒置時壓縮記憶體佔用",
   "Settings.Performance.IdleWorkingSetTrim.Description": "格子隱藏或你離開時，把暫不使用的記憶體換出到系統。",
+  "Settings.Performance.IdleProcessRecycle.Title": "閒置時背景重新啟動釋放記憶體",
+  "Settings.Performance.IdleProcessRecycle.Description": "所有格子隱藏滿 30 分鐘且無操作後，DeskBox 會在背景自動重新啟動，把系統保留的記憶體歸還給系統。",
   "Settings.Performance.ImmediateHiddenWorkingSetTrim.Title": "隱藏後立即釋放記憶體（實驗性）",
   "Settings.Performance.ImmediateHiddenWorkingSetTrim.Description": "全部格子隱藏 3 秒後釋放記憶體；再次顯示可能短暫延遲",
   "Settings.Performance.QuiescenceWorkingSetTrim.Title": "操作結束後壓縮記憶體佔用",

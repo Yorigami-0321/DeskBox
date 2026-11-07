@@ -130,6 +130,76 @@ public sealed class RuntimeActivityPolicyTests
         Assert.Equal(TimeSpan.FromSeconds(270), deepDelay);
     }
 
+    [Fact]
+    public void BackgroundMemorySchedule_AddsIdleRecycleOnlyAfterItsDelay()
+    {
+        BackgroundMemoryCleanupStage completed =
+            BackgroundMemoryCleanupStage.SoftCache |
+            BackgroundMemoryCleanupStage.DeepFinalizerCollection |
+            BackgroundMemoryCleanupStage.LongHiddenMaintenance;
+
+        BackgroundMemoryCleanupStage notDue =
+            MemoryCleanupPolicy.GetDueBackgroundStages(
+                TimeSpan.FromSeconds(59),
+                softDelaySeconds: 30,
+                deepDelaySeconds: 60,
+                completedStages: completed,
+                idleRecycleDelaySeconds: 60);
+        Assert.False(
+            notDue.HasFlag(BackgroundMemoryCleanupStage.IdleProcessRecycle));
+
+        BackgroundMemoryCleanupStage due =
+            MemoryCleanupPolicy.GetDueBackgroundStages(
+                TimeSpan.FromSeconds(60),
+                softDelaySeconds: 30,
+                deepDelaySeconds: 60,
+                completedStages: completed,
+                idleRecycleDelaySeconds: 60);
+        Assert.True(
+            due.HasFlag(BackgroundMemoryCleanupStage.IdleProcessRecycle));
+    }
+
+    [Fact]
+    public void BackgroundMemorySchedule_DisabledIdleRecycleCompletesWithoutStage()
+    {
+        TimeSpan? delay =
+            MemoryCleanupPolicy.GetDelayUntilNextBackgroundStage(
+                TimeSpan.FromMinutes(10),
+                softDelaySeconds: 30,
+                deepDelaySeconds: 60,
+                completedStages: BackgroundMemoryCleanupStage.SoftCache |
+                    BackgroundMemoryCleanupStage.DeepFinalizerCollection |
+                    BackgroundMemoryCleanupStage.LongHiddenMaintenance,
+                idleRecycleDelaySeconds: PerformanceSettingsPolicy.CleanupNever);
+
+        Assert.Null(delay);
+    }
+
+    [Fact]
+    public void IdleRecycle_RequiresBloatNoUpdateDownloadAndSpacing()
+    {
+        long threshold = MemoryCleanupPolicy.IdleProcessRecycleMinimumPrivateBytes;
+        TimeSpan longAgo = TimeSpan.FromHours(7);
+        TimeSpan recently = TimeSpan.FromMinutes(30);
+
+        Assert.False(MemoryCleanupPolicy.ShouldRecycleIdleProcess(
+            updateDownloadInProgress: false,
+            privateBytes: threshold - 1,
+            timeSinceLastRecycle: longAgo));
+        Assert.True(MemoryCleanupPolicy.ShouldRecycleIdleProcess(
+            updateDownloadInProgress: false,
+            privateBytes: threshold,
+            timeSinceLastRecycle: longAgo));
+        Assert.False(MemoryCleanupPolicy.ShouldRecycleIdleProcess(
+            updateDownloadInProgress: true,
+            privateBytes: threshold * 2,
+            timeSinceLastRecycle: longAgo));
+        Assert.False(MemoryCleanupPolicy.ShouldRecycleIdleProcess(
+            updateDownloadInProgress: false,
+            privateBytes: threshold * 2,
+            timeSinceLastRecycle: recently));
+    }
+
     [Theory]
     [InlineData(1, 5)]
     [InlineData(2, 10)]

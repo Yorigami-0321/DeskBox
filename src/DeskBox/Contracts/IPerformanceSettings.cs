@@ -42,4 +42,11 @@ public interface IPerformanceSettings
     void SetDecorativeAnimationEnabled(string option, bool enabled);
 
     void SetQuiescenceWorkingSetTrimEnabled(bool enabled);
+
+    /// <summary>
+    /// Enables the idle process recycle: after every widget has stayed hidden
+    /// for the configured delay, the app restarts itself to return the native
+    /// commit the WinUI/D3D allocators keep reserved.
+    /// </summary>
+    void SetIdleProcessRecycleEnabled(bool enabled);
 }

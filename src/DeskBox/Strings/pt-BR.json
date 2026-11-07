@@ -45,6 +45,8 @@
   "Settings.Performance.CacheBudget.Description": "Controla o limite dos caches recriáveis de ícones, miniaturas e imagens decodificadas",
   "Settings.Performance.IdleWorkingSetTrim.Title": "Comprimir memória quando ocioso",
   "Settings.Performance.IdleWorkingSetTrim.Description": "Quando os widgets estão ocultos ou você está ausente, a memória não usada é passada para o sistema.",
+  "Settings.Performance.IdleProcessRecycle.Title": "Reiniciar em segundo plano quando ocioso",
+  "Settings.Performance.IdleProcessRecycle.Description": "Quando todos os widgets permanecem ocultos por 30 minutos, o DeskBox reinicia em segundo plano e devolve ao sistema a memória reservada.",
   "Settings.Performance.ImmediateHiddenWorkingSetTrim.Title": "Reduzir memória imediatamente ao ocultar (experimental)",
   "Settings.Performance.ImmediateHiddenWorkingSetTrim.Description": "Reduz a memória residente 3 segundos após ocultar todos os widgets; ao mostrar de novo pode haver pequeno atraso",
   "Settings.Performance.QuiescenceWorkingSetTrim.Title": "Comprimir memória após interações",

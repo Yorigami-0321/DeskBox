@@ -54,4 +54,15 @@ public sealed class PerformanceSettingsSlice
 
     /// <summary>Whether capsule glow, particle, breathing, and indeterminate ambient effects may run.</summary>
     public bool EnableCompactAmbientAnimations { get; set; } = true;
+
+    /// <summary>
+    /// Restart the main process after every widget has stayed hidden for
+    /// <see cref="IdleProcessRecycleDelaySeconds"/>. In-process cleanup frees
+    /// objects but the WinUI/D3D allocators keep the committed native memory,
+    /// so only a fresh process returns it to the system.
+    /// </summary>
+    public bool IdleProcessRecycleEnabled { get; set; }
+
+    /// <summary>Continuous idle delay before the idle process recycle; <c>-1</c> disables it.</summary>
+    public int IdleProcessRecycleDelaySeconds { get; set; } = 30 * 60;
 }

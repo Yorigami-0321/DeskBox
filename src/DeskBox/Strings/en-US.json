@@ -45,6 +45,8 @@
   "Settings.Performance.CacheBudget.Description": "Controls the limit for recreatable icon, thumbnail, and decoded-image caches",
   "Settings.Performance.IdleWorkingSetTrim.Title": "Compress memory when idle",
   "Settings.Performance.IdleWorkingSetTrim.Description": "When widgets are hidden or you are away, pages unused memory out to the system.",
+  "Settings.Performance.IdleProcessRecycle.Title": "Restart in the background when idle",
+  "Settings.Performance.IdleProcessRecycle.Description": "After every widget stays hidden for 30 minutes, DeskBox restarts itself in the background and returns reserved memory to the system.",
   "Settings.Performance.ImmediateHiddenWorkingSetTrim.Title": "Release memory immediately after hiding (experimental)",
   "Settings.Performance.ImmediateHiddenWorkingSetTrim.Description": "Releases memory 3 seconds after all widgets hide; showing them again may lag briefly",
   "Settings.Performance.QuiescenceWorkingSetTrim.Title": "Compress memory after interactions",

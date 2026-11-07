@@ -499,5 +499,7 @@ public sealed class SettingsSliceContractBaselineTests
         "cloudBackupLastSuccessUtcTicks",
         "cloudBackupLastFailureUtcTicks",
         "cloudBackupLastUnverifiedUtcTicks",
+        "idleProcessRecycleEnabled",
+        "idleProcessRecycleDelaySeconds",
     ];
 }

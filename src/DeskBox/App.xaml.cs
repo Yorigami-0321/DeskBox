@@ -1,5 +1,6 @@
 ﻿// Copyright (c) DeskBox. All rights reserved.
 
+using System.Globalization;
 using CommunityToolkit.Mvvm.Input;
 using DeskBox.Controls.WidgetContents;
 using DeskBox.Core.Persistence;
@@ -218,6 +219,7 @@ public partial class App : Application
     private bool _externalActivationHandling;
     private DateTimeOffset? _lastBareExternalActivationAtUtc;
     private readonly bool _processStartupLaunchDetected;
+    private readonly bool _lazyRestoreLaunch;
     private readonly StartupElevationAssessment _startupElevationAssessment = new(false, false, false, false);
 
     /// <summary>
@@ -329,6 +331,8 @@ public partial class App : Application
         _processStartupLaunchDetected = StartupLaunchPolicy.IsStartupLaunch(
             Environment.GetCommandLineArgs(),
             isStartupTaskActivation: IsStartupTaskActivation());
+        _lazyRestoreLaunch = StartupLaunchPolicy.IsLazyRestoreLaunch(
+            Environment.GetCommandLineArgs());
         _activationEvent = new EventWaitHandle(
             false,
             EventResetMode.AutoReset,
@@ -1550,7 +1554,8 @@ public partial class App : Application
 
             try
             {
-                await widgetManager.RestoreWidgetsAsync();
+                await widgetManager.RestoreWidgetsAsync(
+                    createWindows: !_lazyRestoreLaunch);
             }
             catch (Exception ex)
             {
@@ -3780,7 +3785,12 @@ public partial class App : Application
                 // stale argument (an unexpected toggle/open-storage).
                 // Running the same handler drains those files harmlessly —
                 // no event means no envelope work, just the file take.
-                await HandleExternalActivationAsync();
+                // A startup launch is unattended: the handler must not run
+                // the interactive bare-activation flow (restore every widget
+                // and open settings) or silent startup would be undone the
+                // moment the startup pipeline finishes.
+                await HandleExternalActivationAsync(
+                    allowInteractiveBareFallback: !_processStartupLaunchDetected);
             }
         }
         finally
@@ -3789,7 +3799,8 @@ public partial class App : Application
         }
     }
 
-    private async Task HandleExternalActivationAsync()
+    private async Task HandleExternalActivationAsync(
+        bool allowInteractiveBareFallback = true)
     {
         // An activation racing shutdown would re-show windows the teardown
         // sequence just closed (it runs after the settings-window step has
@@ -3850,6 +3861,13 @@ public partial class App : Application
                     continue;
                 }
 
+                if (!allowInteractiveBareFallback)
+                {
+                    Log(
+                        "[Activation] Background launch: skipped interactive " +
+                        "activation flows");
+                    continue;
+                }
                 DateTimeOffset activationAtUtc = DateTimeOffset.UtcNow;
                 bool settingsWindowOpen = IsSettingsHostVisible;
                 bool coalesceBareActivation =
@@ -5563,6 +5581,56 @@ public partial class App : Application
         internal int MaintainedContentHostCount;
     }
 
+    private static long GetCurrentPrivateBytes()
+    {
+        using Process process = Process.GetCurrentProcess();
+        process.Refresh();
+        return process.PrivateMemorySize64;
+    }
+
+    private static string IdleRecycleStatePath => Path.Combine(
+        DeskBoxDataPathService.Current.RootPath,
+        "idle-recycle-last.txt");
+
+    private static TimeSpan GetTimeSinceLastIdleRecycle()
+    {
+        try
+        {
+            if (!File.Exists(IdleRecycleStatePath))
+            {
+                return TimeSpan.MaxValue;
+            }
+
+            string text = File.ReadAllText(IdleRecycleStatePath).Trim();
+            return DateTimeOffset.TryParse(
+                text,
+                CultureInfo.InvariantCulture,
+                DateTimeStyles.RoundtripKind,
+                out DateTimeOffset last)
+                ? DateTimeOffset.UtcNow - last
+                : TimeSpan.MaxValue;
+        }
+        catch (Exception ex)
+        {
+            Log($"[IdleRecycle] Failed to read the last-recycle stamp: {ex.Message}");
+            return TimeSpan.MaxValue;
+        }
+    }
+
+    private static void RecordIdleRecycle()
+    {
+        try
+        {
+            File.WriteAllText(
+                IdleRecycleStatePath,
+                DateTimeOffset.UtcNow.ToString("O", CultureInfo.InvariantCulture));
+        }
+        catch (Exception ex)
+        {
+            Log($"[IdleRecycle] Failed to persist the last-recycle stamp: {ex.Message}");
+        }
+    }
+
     private static MemoryCleanupDiagnosticSnapshot
         CaptureMemoryCleanupDiagnosticSnapshot()
     {
@@ -5703,10 +5771,13 @@ public partial class App : Application
             CaptureMemoryCleanupDiagnosticSnapshot();
         int softDelaySeconds = performance.HiddenCacheCleanupDelaySeconds;
         int deepDelaySeconds = performance.HiddenDeepCleanupDelaySeconds;
+        int idleRecycleDelaySeconds =
+            performance.IdleProcessRecycleDelaySeconds;
         string cleanupScope = performance.HiddenCacheCleanupScope;
 
         if (softDelaySeconds == PerformanceSettingsPolicy.CleanupNever &&
-            deepDelaySeconds == PerformanceSettingsPolicy.CleanupNever)
+            deepDelaySeconds == PerformanceSettingsPolicy.CleanupNever &&
+            idleRecycleDelaySeconds == PerformanceSettingsPolicy.CleanupNever)
         {
             Log(
                 $"[Memory] Background cleanup disabled generation={generation} " +
@@ -5760,6 +5831,7 @@ public partial class App : Application
             $"generation={generation} reason={reason} mode={performance.Mode} " +
             $"softDelaySeconds={softDelaySeconds} " +
             $"deepDelaySeconds={deepDelaySeconds} " +
+            $"idleRecycleDelaySeconds={idleRecycleDelaySeconds} " +
             $"cleanupScope={cleanupScope} " +
             $"policy=conditional-deep-finalizer,no-working-set-trim,no-view-rebuild";
         Log($"[Memory] Background cleanup scheduled {scheduleDetails}");
@@ -5792,6 +5864,7 @@ public partial class App : Application
                     scheduledTimestamp,
                     softDelaySeconds,
                     deepDelaySeconds,
+                    idleRecycleDelaySeconds,
                     cleanupScope,
                     before,
                     cancellationSource))) == true;
@@ -5836,6 +5909,7 @@ public partial class App : Application
         long scheduledTimestamp,
         int softDelaySeconds,
         int deepDelaySeconds,
+        int idleRecycleDelaySeconds,
         string cleanupScope,
         MemoryCleanupDiagnosticSnapshot before,
         CancellationTokenSource cancellationSource)
@@ -5871,7 +5945,8 @@ public partial class App : Application
                         hiddenDuration,
                         softDelaySeconds,
                         deepDelaySeconds,
-                        state.CompletedStages);
+                        state.CompletedStages,
+                        idleRecycleDelaySeconds);
                 if (nextDelay is null)
                 {
                     state.Status = "completed";
@@ -5894,7 +5969,8 @@ public partial class App : Application
                         hiddenDuration,
                         softDelaySeconds,
                         deepDelaySeconds,
-                        state.CompletedStages);
+                        state.CompletedStages,
+                        idleRecycleDelaySeconds);
                 if (dueStages == BackgroundMemoryCleanupStage.None)
                 {
                     await Task.Yield();
@@ -6084,6 +6160,93 @@ public partial class App : Application
                         BackgroundMemoryCleanupStage.LongHiddenMaintenance;
                     activityBackoffAttempt = 0;
                     loggedWaitReason = null;
+                }
+
+                if (dueStages.HasFlag(
+                        BackgroundMemoryCleanupStage.IdleProcessRecycle))
+                {
+                    if (AppUpdateService.IsDownloadInProgress)
+                    {
+                        state.Detail = "waiting:update-download";
+                        activityBackoffAttempt++;
+                        TimeSpan retryDelay =
+                            MemoryCleanupPolicy.GetCappedBackgroundRetryDelay(
+                                activityBackoffAttempt,
+                                BackgroundMemoryCleanupRetryDelaySeconds,
+                                BackgroundMemoryCleanupMaximumRetryDelaySeconds);
+                        if (!string.Equals(
+                                loggedWaitReason,
+                                state.Detail,
+                                StringComparison.Ordinal))
+                        {
+                            loggedWaitReason = state.Detail;
+                            Log(
+                                $"[IdleRecycle] Waiting generation={generation} " +
+                                $"reason=update-download " +
+                                $"retrySeconds={retryDelay.TotalSeconds:F0}");
+                        }
+
+                        await Task.Delay(retryDelay, cancellationToken);
+                        continue;
+                    }
+
+                    long privateBytes = GetCurrentPrivateBytes();
+                    TimeSpan sinceLastRecycle = GetTimeSinceLastIdleRecycle();
+                    if (!MemoryCleanupPolicy.ShouldRecycleIdleProcess(
+                            updateDownloadInProgress: false,
+                            privateBytes,
+                            sinceLastRecycle))
+                    {
+                        string skipReason =
+                            privateBytes <
+                            MemoryCleanupPolicy.IdleProcessRecycleMinimumPrivateBytes
+                                ? $"private-below-threshold:{privateBytes / (1024.0 * 1024):F1}MB"
+                                : "recycled-recently";
+                        Log(
+                            $"[IdleRecycle] Skipped generation={generation} " +
+                            $"reason={skipReason}");
+                        PerformanceLogger.Mark(
+                            "IdleProcessRecycleSkipped",
+                            $"generation={generation} reason={skipReason}");
+                        state.CompletedStages |=
+                            BackgroundMemoryCleanupStage.IdleProcessRecycle;
+                        activityBackoffAttempt = 0;
+                        loggedWaitReason = null;
+                        continue;
+                    }
+
+                    string recycleDetails =
+                        $"generation={generation} " +
+                        $"privateMB={privateBytes / (1024.0 * 1024):F1} " +
+                        $"hiddenSeconds={hiddenDuration.TotalSeconds:F1}";
+                    Log($"[IdleRecycle] Restarting idle process {recycleDetails}");
+                    PerformanceLogger.Mark(
+                        "IdleProcessRecycleTriggered",
+                        recycleDetails);
+                    AppRelaunchScheduleResult relaunch =
+                        AppRelaunchService.ScheduleAfterCurrentProcessExit(
+                            startInBackground: true);
+                    if (!relaunch.Started)
+                    {
+                        Log(
+                            $"[IdleRecycle] Relaunch scheduling failed " +
+                            $"generation={generation}: {relaunch.ErrorMessage}");
+                        PerformanceLogger.Mark(
+                            "IdleProcessRecycleRelaunchFailed",
+                            $"generation={generation} " +
+                            $"error={relaunch.ErrorMessage}");
+                        state.CompletedStages |=
+                            BackgroundMemoryCleanupStage.IdleProcessRecycle;
+                        activityBackoffAttempt = 0;
+                        loggedWaitReason = null;
+                        continue;
+                    }
+
+                    state.Status = "recycled";
+                    state.Detail = $"privateMB={privateBytes / (1024.0 * 1024):F1}";
+                    RecordIdleRecycle();
+                    await ShutdownForRestartAsync();
+                    return;
                 }
             }
         }
@@ -6672,13 +6835,16 @@ public partial class App : Application
                         try
                         {
                             Microsoft.Windows.AppLifecycle.AppInstance.Restart(
-                                string.Empty);
+                                AppRelaunchService.PendingBackgroundRestartOnShutdown
+                                    ? "--startup --lazy-restore"
+                                    : string.Empty);
                         }
                         catch (Exception restartEx)
                         {
                             Log($"[Shutdown] Store relaunch failed: {restartEx}");
                         }
                         AppRelaunchService.PendingOsRestartOnShutdown = false;
+                        AppRelaunchService.PendingBackgroundRestartOnShutdown = false;
                     }
                     Exit();
                 }

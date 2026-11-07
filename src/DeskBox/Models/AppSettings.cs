@@ -824,4 +824,10 @@ public class AppSettings
 
     /// <inheritdoc cref="CloudBackupSettingsSlice.CloudBackupLastUnverifiedUtcTicks"/>
     public long CloudBackupLastUnverifiedUtcTicks { get => CloudBackup.CloudBackupLastUnverifiedUtcTicks; set => CloudBackup.CloudBackupLastUnverifiedUtcTicks = value; }
+
+    /// <inheritdoc cref="PerformanceSettingsSlice.IdleProcessRecycleEnabled"/>
+    public bool IdleProcessRecycleEnabled { get => Performance.IdleProcessRecycleEnabled; set => Performance.IdleProcessRecycleEnabled = value; }
+
+    /// <inheritdoc cref="PerformanceSettingsSlice.IdleProcessRecycleDelaySeconds"/>
+    public int IdleProcessRecycleDelaySeconds { get => Performance.IdleProcessRecycleDelaySeconds; set => Performance.IdleProcessRecycleDelaySeconds = value; }
 }

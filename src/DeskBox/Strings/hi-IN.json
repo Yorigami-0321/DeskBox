@@ -45,6 +45,8 @@
   "Settings.Performance.CacheBudget.Description": "पुनः बनाए जा सकने वाले आइकन, थंबनेल और डिकोड की गई छवि कैश की सीमा नियंत्रित करता है",
   "Settings.Performance.IdleWorkingSetTrim.Title": "निष्क्रिय होने पर मेमोरी संकुचित करें",
   "Settings.Performance.IdleWorkingSetTrim.Description": "विजेट छिपे हों या आप अनुपस्थित हों, तब अप्रयुक्त मेमोरी सिस्टम को सौंप दी जाती है।",
+  "Settings.Performance.IdleProcessRecycle.Title": "निष्क्रिय होने पर पृष्ठभूमि में पुनः आरंभ करें",
+  "Settings.Performance.IdleProcessRecycle.Description": "जब सभी विजेट 30 मिनट तक छिपे रहते हैं, तो DeskBox पृष्ठभूमि में पुनः आरंभ होकर आरक्षित मेमोरी सिस्टम को लौटा देता है।",
   "Settings.Performance.ImmediateHiddenWorkingSetTrim.Title": "छिपाने के तुरंत बाद मेमोरी कम करें (प्रायोगिक)",
   "Settings.Performance.ImmediateHiddenWorkingSetTrim.Description": "सभी विजेट छिपने के 3 सेकंड बाद रेज़िडेंट मेमोरी कम करता है; फिर दिखाने पर थोड़ी देरी हो सकती है",
   "Settings.Performance.QuiescenceWorkingSetTrim.Title": "इंटरैक्शन के बाद मेमोरी संकुचित करें",

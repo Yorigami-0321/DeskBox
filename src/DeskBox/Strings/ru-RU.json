@@ -45,6 +45,8 @@
   "Settings.Performance.CacheBudget.Description": "Ограничивает восстанавливаемый кэш значков, эскизов и декодированных изображений",
   "Settings.Performance.IdleWorkingSetTrim.Title": "Сжимать память при простое",
   "Settings.Performance.IdleWorkingSetTrim.Description": "Когда виджеты скрыты или вас нет, неиспользуемая память выгружается в систему.",
+  "Settings.Performance.IdleProcessRecycle.Title": "Перезапуск в фоне при простое",
+  "Settings.Performance.IdleProcessRecycle.Description": "Когда все виджеты скрыты 30 минут, DeskBox перезапускается в фоне и возвращает системе зарезервированную память.",
   "Settings.Performance.ImmediateHiddenWorkingSetTrim.Title": "Сокращать память сразу после скрытия (экспериментально)",
   "Settings.Performance.ImmediateHiddenWorkingSetTrim.Description": "Уменьшает занятую память через 3 с после скрытия всех виджетов; при повторном показе возможна краткая задержка",
   "Settings.Performance.QuiescenceWorkingSetTrim.Title": "Сжимать память после действий",

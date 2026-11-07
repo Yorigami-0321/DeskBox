@@ -81,4 +81,5 @@ public sealed record PerformancePresentationSettings(
     bool AllowCompactAmbientAnimations,
     bool IdleWorkingSetTrimEnabled,
     bool ImmediateHiddenWorkingSetTrimEnabled,
-    bool QuiescenceWorkingSetTrimEnabled);
+    bool QuiescenceWorkingSetTrimEnabled,
+    bool IdleProcessRecycleEnabled);

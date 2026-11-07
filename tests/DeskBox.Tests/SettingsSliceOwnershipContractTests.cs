@@ -48,7 +48,9 @@ public sealed class SettingsSliceOwnershipContractTests
         // and lastRunVersion.
         // +2 = autoDownloadUpdates + showUpdateToastNotification (background
         // auto-download and update toasts).
-        Assert.Equal(243, FacadeProperties.Length);
+        // +2 = idleProcessRecycleEnabled + idleProcessRecycleDelaySeconds
+        // (schema v16 additive idle process recycle preference).
+        Assert.Equal(245, FacadeProperties.Length);
 
         foreach (PropertyInfo facade in FacadeProperties)
         {
@@ -304,7 +306,7 @@ public sealed class SettingsSliceOwnershipContractTests
         ["src/DeskBox/Services/JumpListService.cs"] = 1,
         ["src/DeskBox/Services/LocalizationService.cs"] = 3,
         ["src/DeskBox/Services/ManagedStorageDesktopShortcutService.cs"] = 12,
-        ["src/DeskBox/Services/PerformanceSettingsPolicy.cs"] = 78,
+        ["src/DeskBox/Services/PerformanceSettingsPolicy.cs"] = 86,
         ["src/DeskBox/Services/QuickCaptureClipboardService.cs"] = 6,
         ["src/DeskBox/Services/SearchEngineService.cs"] = 7,
         ["src/DeskBox/Services/SearchHotkeyService.cs"] = 13,
@@ -315,7 +317,7 @@ public sealed class SettingsSliceOwnershipContractTests
 // layout domain before the preview broadcast (batch 3d follow-up).
         // +3: the appearance-preview swap preserves the onboarding markers too
         // (batch R7).
-        ["src/DeskBox/Services/SettingsService.cs"] = 621,
+        ["src/DeskBox/Services/SettingsService.cs"] = 623,
         ["src/DeskBox/Services/ThemeService.cs"] = 11,
         ["src/DeskBox/Views/SettingsSections/DisplaySettingsSection.xaml.cs"] = 14,
         ["src/DeskBox/Services/TodoReminderService.cs"] = 8,
