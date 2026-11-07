@@ -268,8 +268,9 @@ public sealed class WidgetTitleIconCustomizationTests : IDisposable
     [Fact]
     public void ShellBindsCustomIconOntoEveryTitleIconHost()
     {
-        string xaml = File.ReadAllText(
-            TestPaths.FromRepository("src/DeskBox/Controls/WidgetShell.xaml"));
+        string xaml =
+            File.ReadAllText(TestPaths.FromRepository("src/DeskBox/Controls/WidgetShell.xaml")) +
+            File.ReadAllText(TestPaths.FromRepository("src/DeskBox/Controls/WidgetCompactChrome.xaml"));
 
         Assert.Equal(3, CountOccurrences(xaml, "CustomEmoji=\"{x:Bind TitleIconCustomEmoji"));
         Assert.Equal(3, CountOccurrences(xaml, "CustomImageSource=\"{x:Bind TitleIconCustomSource"));

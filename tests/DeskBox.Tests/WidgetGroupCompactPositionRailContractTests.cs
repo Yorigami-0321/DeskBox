@@ -5,8 +5,9 @@ public sealed class WidgetGroupCompactPositionRailContractTests
     [Fact]
     public void CollapsedGroup_UsesPositionRailWithoutChangingExpandedLayout()
     {
-        string shellXaml = File.ReadAllText(TestPaths.FromRepository(
-            "src/DeskBox/Controls/WidgetShell.xaml"));
+        string shellXaml =
+            File.ReadAllText(TestPaths.FromRepository("src/DeskBox/Controls/WidgetShell.xaml")) +
+            File.ReadAllText(TestPaths.FromRepository("src/DeskBox/Controls/WidgetCompactChrome.xaml"));
         string shellCode = File.ReadAllText(TestPaths.FromRepository(
             "src/DeskBox/Controls/WidgetShell.xaml.cs"));
 

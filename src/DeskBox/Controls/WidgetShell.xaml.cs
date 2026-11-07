@@ -425,9 +425,15 @@ public sealed partial class WidgetShell : UserControl
     public event EventHandler? GroupPickerClosed;
     public event EventHandler? HostedContentChanged;
 
+    private WidgetCompactChrome? _compactChrome;
+
     public WidgetShell()
     {
         InitializeComponent();
+        _compactChrome = new WidgetCompactChrome();
+        CompactChromeHost.Children.Add(_compactChrome);
+        SyncCompactChromeIdentity();
+        SubscribeCompactChromeEvents();
         Visual contentTransitionVisual =
             ElementCompositionPreview.GetElementVisual(
                 ContentTransitionViewport);
@@ -453,9 +459,9 @@ public sealed partial class WidgetShell : UserControl
         GroupTitleSwitcher.DissolveRequested += (_, _) => GroupDissolveRequested?.Invoke(this, EventArgs.Empty);
         GroupTitleSwitcher.PickerOpened += (_, _) => GroupPickerOpened?.Invoke(this, EventArgs.Empty);
         GroupTitleSwitcher.PickerClosed += (_, _) => GroupPickerClosed?.Invoke(this, EventArgs.Empty);
-        CompactTitleIcon.SetCompactPresentationMode(true);
-        SetProtectedCursor(CompactMoveHitRegion, InputSystemCursorShape.SizeAll);
-        SetProtectedCursor(CompactReorderHandle, InputSystemCursorShape.SizeAll);
+        _compactChrome.CompactTitleIcon.SetCompactPresentationMode(true);
+        SetProtectedCursor(_compactChrome.CompactMoveHitRegion, InputSystemCursorShape.SizeAll);
+        SetProtectedCursor(_compactChrome.CompactReorderHandle, InputSystemCursorShape.SizeAll);
         ShellRoot.AddHandler(UIElement.DragEnterEvent, new DragEventHandler(ShellRoot_DragEnter), true);
         ShellRoot.AddHandler(UIElement.DragLeaveEvent, new DragEventHandler(ShellRoot_DragLeave), true);
         ShellRoot.AddHandler(UIElement.DropEvent, new DragEventHandler(ShellRoot_Drop), true);
@@ -483,7 +489,7 @@ public sealed partial class WidgetShell : UserControl
         {
             _rightButtonsTransform = RightActionButtons.RenderTransform as TranslateTransform;
         };
-        CompactLiveTrack.SizeChanged += (_, _) => RestartCompactLiveIndeterminateForTrackSize();
+        _compactChrome.CompactLiveTrack.SizeChanged += (_, _) => RestartCompactLiveIndeterminateForTrackSize();
         Loaded += (_, _) =>
         {
             ApplyChromeMode();
@@ -748,12 +754,12 @@ public sealed partial class WidgetShell : UserControl
     public Button SizeLockActionButton => SizeLockButton;
     public Button AddActionButton => AddButton;
     public Button CollapseActionButton => CollapseButton;
-    public Button CompactExpandActionButton => CompactExpandButton;
+    public Button CompactExpandActionButton => _compactChrome.CompactExpandButton;
     public FrameworkElement OverlayDragHandleElement => OverlayDragHandle;
 
-    public FrameworkElement CompactMoveHandleElement => CompactMoveHitRegion;
-    public FrameworkElement CompactBodyElement => CompactTextContainer;
-    public FrameworkElement CompactReorderHandleElement => CompactReorderHandle;
+    public FrameworkElement CompactMoveHandleElement => _compactChrome.CompactMoveHitRegion;
+    public FrameworkElement CompactBodyElement => _compactChrome.CompactTextContainer;
+    public FrameworkElement CompactReorderHandleElement => _compactChrome.CompactReorderHandle;
 
     public void SetCompactHintTexts(string moveText, string expandText)
     {
@@ -765,7 +771,7 @@ public sealed partial class WidgetShell : UserControl
     public void HideCompactHint()
     {
         _isCompactMoveHintLatched = false;
-        CompactHintPresenter.Visibility = Visibility.Collapsed;
+        _compactChrome.CompactHintPresenter.Visibility = Visibility.Collapsed;
     }
 
     private void UpdateCompactHint()
@@ -777,12 +783,12 @@ public sealed partial class WidgetShell : UserControl
                 : null;
         if (string.IsNullOrWhiteSpace(text))
         {
-            CompactHintPresenter.Visibility = Visibility.Collapsed;
+            _compactChrome.CompactHintPresenter.Visibility = Visibility.Collapsed;
             return;
         }
 
-        CompactHintText.Text = text;
-        CompactHintPresenter.Visibility = Visibility.Visible;
+        _compactChrome.CompactHintText.Text = text;
+        _compactChrome.CompactHintPresenter.Visibility = Visibility.Visible;
     }
     public Button MoreActionButton => MoreButton;
     public Button CloseActionButton => CloseButton;
@@ -793,7 +799,7 @@ public sealed partial class WidgetShell : UserControl
     public FrameworkElement AddActionIcon => AddButtonIcon;
     public FrameworkElement MoreActionIcon => MoreButtonIcon;
     public FrameworkElement CloseActionIcon => CloseButtonIcon;
-    public FrameworkElement DragHandleElement => _isCollapsed ? CollapsedChromeLayer : OverlayDragHandle;
+    public FrameworkElement DragHandleElement => _isCollapsed ? _compactChrome.CollapsedChromeLayer : OverlayDragHandle;
     public FrameworkElement GroupNavigationElement => GroupTitleSwitcher;
 
     /// <summary>
@@ -808,8 +814,8 @@ public sealed partial class WidgetShell : UserControl
             !_isPointerOverCompactIdentity &&
             !_isPointerOverCompactExpansionZone &&
             !IsPointerOverCompactActionRegion() &&
-            CompactActionRegionHighlight.Opacity <= 0.001 &&
-            CompactTextHoverBackground.Opacity <= 0.001)
+            _compactChrome.CompactActionRegionHighlight.Opacity <= 0.001 &&
+            _compactChrome.CompactTextHoverBackground.Opacity <= 0.001)
         {
             return;
         }
@@ -829,9 +835,9 @@ public sealed partial class WidgetShell : UserControl
         // every native hide/show cycle.
         _compactActionHighlightStoryboard.StopAndClear();
         _compactTextHoverStoryboard.StopAndClear();
-        CompactActionRegionHighlight.Opacity = 0;
-        CompactTextHoverBackground.Opacity = 0;
-        CompactReorderGlyph.Opacity = 0.58;
+        _compactChrome.CompactActionRegionHighlight.Opacity = 0;
+        _compactChrome.CompactTextHoverBackground.Opacity = 0;
+        _compactChrome.CompactReorderGlyph.Opacity = 0.58;
         ApplyCompactActionVisibility(animate: false);
         UpdateCompactReorderHandleVisual(animate: false);
         UpdateOverlayDragHandleVisual(animate: false);
@@ -853,10 +859,10 @@ public sealed partial class WidgetShell : UserControl
 
             if (_isCollapsed)
             {
-                return CompactMoveHitRegion.Visibility == Visibility.Visible &&
-                       CompactMoveHitRegion.ActualWidth > 0 &&
-                       CompactMoveHitRegion.ActualHeight > 0
-                    ? CompactMoveHitRegion
+                return _compactChrome.CompactMoveHitRegion.Visibility == Visibility.Visible &&
+                       _compactChrome.CompactMoveHitRegion.ActualWidth > 0 &&
+                       _compactChrome.CompactMoveHitRegion.ActualHeight > 0
+                    ? _compactChrome.CompactMoveHitRegion
                     : null;
             }
 
@@ -934,13 +940,13 @@ public sealed partial class WidgetShell : UserControl
     private void UpdateCompactGroupPositionRail(
         WidgetGroupPresentation? presentation)
     {
-        CompactGroupPositionRail.Children.Clear();
+        _compactChrome.CompactGroupPositionRail.Children.Clear();
         bool showRail = presentation is not null &&
             presentation.Members.Count > 1;
-        CompactGroupPositionRail.Visibility = showRail
+        _compactChrome.CompactGroupPositionRail.Visibility = showRail
             ? Visibility.Visible
             : Visibility.Collapsed;
-        CompactGroupPositionRailColumn.Width = new GridLength(
+        _compactChrome.CompactGroupPositionRailColumn.Width = new GridLength(
             showRail ? 10 : 0);
         if (!showRail)
         {
@@ -968,7 +974,7 @@ public sealed partial class WidgetShell : UserControl
         foreach (WidgetGroupPositionRailSlot slot in slots)
         {
             bool active = slot.IsActive;
-            CompactGroupPositionRail.Children.Add(new Border
+            _compactChrome.CompactGroupPositionRail.Children.Add(new Border
             {
                 Width = 3,
                 Height = active ? 7 : 3,
@@ -1129,8 +1135,8 @@ public sealed partial class WidgetShell : UserControl
     public void SetCompactReorderEnabled(bool enabled)
     {
         _isCompactReorderEnabled = enabled;
-        CompactReorderHandle.Visibility = enabled ? Visibility.Visible : Visibility.Collapsed;
-        CompactReorderHandle.IsHitTestVisible = enabled && _isCollapsed;
+        _compactChrome.CompactReorderHandle.Visibility = enabled ? Visibility.Visible : Visibility.Collapsed;
+        _compactChrome.CompactReorderHandle.IsHitTestVisible = enabled && _isCollapsed;
         UpdateCompactActionRegionWidth();
         UpdateCompactReorderHandleVisual(animate: false);
     }
@@ -2004,19 +2010,19 @@ public sealed partial class WidgetShell : UserControl
             ApplyChromeMode();
         }
 
-        CollapsedChromeLayer.Visibility = Visibility.Visible;
-        CollapsedChromeLayer.IsHitTestVisible = false;
-        CollapsedChromeLayer.Opacity = 1;
+        _compactChrome.CollapsedChromeLayer.Visibility = Visibility.Visible;
+        _compactChrome.CollapsedChromeLayer.IsHitTestVisible = false;
+        _compactChrome.CollapsedChromeLayer.Opacity = 1;
         // Keep the real expanded tree visible while the HWND grows. The compact
         // layer sits above it and fades away, so newly revealed pixels already
         // contain live content instead of an empty placeholder that only appears
         // when the transition completes.
         TitleBarGrid.Opacity = 1;
         ShellContentPresenter.Opacity = 1;
-        CompactIdentityHost.Opacity = collapsed ? 0 : 1;
-        CompactTextContainer.Opacity = collapsed ? 0 : 1;
-        CompactBadge.Opacity = collapsed ? 0 : 1;
-        CompactLiveIndicatorHost.Opacity = collapsed ? 0 : 1;
+        _compactChrome.CompactIdentityHost.Opacity = collapsed ? 0 : 1;
+        _compactChrome.CompactTextContainer.Opacity = collapsed ? 0 : 1;
+        _compactChrome.CompactBadge.Opacity = collapsed ? 0 : 1;
+        _compactChrome.CompactLiveIndicatorHost.Opacity = collapsed ? 0 : 1;
         ApplyCompactInnerCornerRadii();
         SetBackgroundCornerRadius(_transitionOuterCornerRadiusFrom);
         _lastCompactTransitionCornerRadius = _transitionOuterCornerRadiusFrom;
@@ -2038,7 +2044,7 @@ public sealed partial class WidgetShell : UserControl
         {
             double compactOpacity =
                 _compactTransitionProfile.GetCompactSurfaceOpacity(collapsed, value);
-            CollapsedChromeLayer.Opacity = compactOpacity;
+            _compactChrome.CollapsedChromeLayer.Opacity = compactOpacity;
 
             // Expansion reveals the already-laid-out live tree as the physical
             // window grows. Collapse may still fade that tree beneath the incoming
@@ -2051,10 +2057,10 @@ public sealed partial class WidgetShell : UserControl
                 _compactTransitionProfile.GetCompactIdentityOpacity(collapsed, value);
             double compactTextOpacity =
                 _compactTransitionProfile.GetCompactTextOpacity(collapsed, value);
-            CompactIdentityHost.Opacity = compactIdentityOpacity;
-            CompactTextContainer.Opacity = compactTextOpacity;
-            CompactBadge.Opacity = compactTextOpacity;
-            CompactLiveIndicatorHost.Opacity = compactTextOpacity;
+            _compactChrome.CompactIdentityHost.Opacity = compactIdentityOpacity;
+            _compactChrome.CompactTextContainer.Opacity = compactTextOpacity;
+            _compactChrome.CompactBadge.Opacity = compactTextOpacity;
+            _compactChrome.CompactLiveIndicatorHost.Opacity = compactTextOpacity;
         }
 
         // The XAML/background corner geometry still follows the real HWND
@@ -2092,13 +2098,13 @@ public sealed partial class WidgetShell : UserControl
                 fullBleedScale = Lerp(1.0, 1.02, 1 - fullBleedOpacity);
             }
 
-            CompactFullBleedBackground.Opacity = fullBleedOpacity;
-            CompactFullBleedOverlay.Opacity =
+            _compactChrome.CompactFullBleedBackground.Opacity = fullBleedOpacity;
+            _compactChrome.CompactFullBleedOverlay.Opacity =
                 fullBleedOpacity * ResolveFullBleedOverlayOpacity();
             if (!_isCompactCompositionTransitionActive)
             {
-                FullBleedScaleTransform.ScaleX = fullBleedScale;
-                FullBleedScaleTransform.ScaleY = fullBleedScale;
+                _compactChrome.FullBleedScaleTransform.ScaleX = fullBleedScale;
+                _compactChrome.FullBleedScaleTransform.ScaleY = fullBleedScale;
             }
         }
     }
@@ -2142,22 +2148,22 @@ public sealed partial class WidgetShell : UserControl
                     ShellContentPresenter,
                     progress => _compactTransitionProfile.GetLiveContentTranslationY(collapsed, progress));
                 StartCompactOpacityAnimation(
-                    CompactIdentityHost,
+                    _compactChrome.CompactIdentityHost,
                     progress => _compactTransitionProfile.GetCompactIdentityOpacity(collapsed, progress));
                 StartCompactOpacityAnimation(
-                    CompactTextContainer,
+                    _compactChrome.CompactTextContainer,
                     progress => _compactTransitionProfile.GetCompactTextOpacity(collapsed, progress));
                 StartCompactOpacityAnimation(
-                    CompactBadge,
+                    _compactChrome.CompactBadge,
                     progress => _compactTransitionProfile.GetCompactTextOpacity(collapsed, progress));
                 StartCompactOpacityAnimation(
-                    CompactLiveIndicatorHost,
+                    _compactChrome.CompactLiveIndicatorHost,
                     progress => _compactTransitionProfile.GetCompactTextOpacity(collapsed, progress));
             }
             else
             {
                 StartCompactOpacityAnimation(
-                    CollapsedChromeLayer,
+                    _compactChrome.CollapsedChromeLayer,
                     progress => _compactTransitionProfile.GetCompactSurfaceOpacity(collapsed, progress));
             }
 
@@ -2166,13 +2172,13 @@ public sealed partial class WidgetShell : UserControl
             if (hasFullBleed)
             {
                 StartCompactScaleAnimation(
-                    CompactFullBleedBackground,
+                    _compactChrome.CompactFullBleedBackground,
                     progress => ResolveFullBleedTransition(collapsed, progress).Scale);
                 StartCompactOpacityAnimation(
-                    CompactFullBleedBackground,
+                    _compactChrome.CompactFullBleedBackground,
                     progress => ResolveFullBleedTransition(collapsed, progress).Opacity);
                 StartCompactOpacityAnimation(
-                    CompactFullBleedOverlay,
+                    _compactChrome.CompactFullBleedOverlay,
                     progress => ResolveFullBleedTransition(collapsed, progress).Opacity *
                         ResolveFullBleedOverlayOpacity());
             }
@@ -2282,15 +2288,15 @@ public sealed partial class WidgetShell : UserControl
 
         foreach (FrameworkElement element in new FrameworkElement[]
         {
-            CollapsedChromeLayer,
+            _compactChrome.CollapsedChromeLayer,
             TitleBarGrid,
             ShellContentPresenter,
-            CompactIdentityHost,
-            CompactTextContainer,
-            CompactBadge,
-            CompactLiveIndicatorHost,
-            CompactFullBleedBackground,
-            CompactFullBleedOverlay
+            _compactChrome.CompactIdentityHost,
+            _compactChrome.CompactTextContainer,
+            _compactChrome.CompactBadge,
+            _compactChrome.CompactLiveIndicatorHost,
+            _compactChrome.CompactFullBleedBackground,
+            _compactChrome.CompactFullBleedOverlay
         })
         {
             Visual visual = ElementCompositionPreview.GetElementVisual(element);
@@ -2321,12 +2327,12 @@ public sealed partial class WidgetShell : UserControl
             // Synchronize both layers: an unchanged XAML value alone does not undo
             // an opacity written directly to the backing Composition visual.
             double restoredOpacity = 1;
-            if (element == CompactFullBleedBackground)
+            if (element == _compactChrome.CompactFullBleedBackground)
             {
                 restoredOpacity = hasFullBleed ? 1 : 0;
                 element.Opacity = restoredOpacity;
             }
-            else if (element == CompactFullBleedOverlay)
+            else if (element == _compactChrome.CompactFullBleedOverlay)
             {
                 restoredOpacity = hasFullBleed ? ResolveFullBleedOverlayOpacity() : 0;
                 element.Opacity = restoredOpacity;
@@ -2366,14 +2372,14 @@ public sealed partial class WidgetShell : UserControl
         _lastCompactTransitionCornerRadius = double.NaN;
         TitleBarGrid.Opacity = 1;
         ShellContentPresenter.Opacity = 1;
-        CollapsedChromeLayer.Opacity = 1;
-        CompactIdentityHost.Opacity = 1;
-        CompactTextContainer.Opacity = 1;
-        CompactBadge.Opacity = 1;
-        CompactLiveIndicatorHost.Opacity = 1;
-        CollapsedChromeLayer.IsHitTestVisible = true;
-        FullBleedScaleTransform.ScaleX = 1;
-        FullBleedScaleTransform.ScaleY = 1;
+        _compactChrome.CollapsedChromeLayer.Opacity = 1;
+        _compactChrome.CompactIdentityHost.Opacity = 1;
+        _compactChrome.CompactTextContainer.Opacity = 1;
+        _compactChrome.CompactBadge.Opacity = 1;
+        _compactChrome.CompactLiveIndicatorHost.Opacity = 1;
+        _compactChrome.CollapsedChromeLayer.IsHitTestVisible = true;
+        _compactChrome.FullBleedScaleTransform.ScaleX = 1;
+        _compactChrome.FullBleedScaleTransform.ScaleY = 1;
         TitleIdentityHost.Opacity = 1;
         GroupTitleSwitcher.Opacity = 1;
     }
@@ -2415,7 +2421,7 @@ public sealed partial class WidgetShell : UserControl
                     if (previous.MusicProgress.HasValue &&
                         presentation.MusicProgress is { } musicProgress)
                     {
-                        CompactMusicProgressTransform.ScaleX =
+                        _compactChrome.CompactMusicProgressTransform.ScaleX =
                             Math.Clamp(musicProgress, 0, 1);
                     }
                     else
@@ -2454,16 +2460,16 @@ public sealed partial class WidgetShell : UserControl
         }
 
         _compactPresentation = presentation;
-        CompactTitleText.Text = presentation.Title;
-        CompactTitleMarqueeClone.Text = presentation.Title;
-        CompactSummaryText.Text = presentation.Summary;
-        CompactSummaryMarqueeClone.Text = presentation.Summary;
-        CompactTitleIcon.Glyph = presentation.Glyph;
-        CompactTitleIcon.LabelText = presentation.Title;
+        _compactChrome.CompactTitleText.Text = presentation.Title;
+        _compactChrome.CompactTitleMarqueeClone.Text = presentation.Title;
+        _compactChrome.CompactSummaryText.Text = presentation.Summary;
+        _compactChrome.CompactSummaryMarqueeClone.Text = presentation.Summary;
+        _compactChrome.CompactTitleIcon.Glyph = presentation.Glyph;
+        _compactChrome.CompactTitleIcon.LabelText = presentation.Title;
 
         bool useFullBleed = presentation.UseFullBleedBackground && presentation.Thumbnail is not null;
-        CompactFullBleedBackground.Source = useFullBleed ? presentation.Thumbnail : null;
-        CompactFullBleedClip.Opacity = useFullBleed
+        _compactChrome.CompactFullBleedBackground.Source = useFullBleed ? presentation.Thumbnail : null;
+        _compactChrome.CompactFullBleedClip.Opacity = useFullBleed
             ? ResolveFullBleedBackgroundOpacity()
             : 1.0;
         ApplyFullBleedOverlayTheme();
@@ -2473,39 +2479,39 @@ public sealed partial class WidgetShell : UserControl
         bool showPausedDim = useFullBleed &&
             (presentation.ShowMediaControls || presentation.ShowVinyl) &&
             !presentation.IsPlaying;
-        CompactPausedDim.Visibility = showPausedDim
+        _compactChrome.CompactPausedDim.Visibility = showPausedDim
             ? Visibility.Visible
             : Visibility.Collapsed;
 
-        CompactThumbnail.Source = useFullBleed ? null : presentation.Thumbnail;
-        CompactThumbnailHost.Visibility = !useFullBleed && presentation.Thumbnail is not null
+        _compactChrome.CompactThumbnail.Source = useFullBleed ? null : presentation.Thumbnail;
+        _compactChrome.CompactThumbnailHost.Visibility = !useFullBleed && presentation.Thumbnail is not null
             ? Visibility.Visible
             : Visibility.Collapsed;
         // White border for thumbnail (quick capture)
         if (!useFullBleed && presentation.Thumbnail is not null)
         {
-            CompactThumbnailHost.BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(0x99, 0xFF, 0xFF, 0xFF));
-            CompactThumbnailHost.BorderThickness = new Thickness(1);
+            _compactChrome.CompactThumbnailHost.BorderBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(0x99, 0xFF, 0xFF, 0xFF));
+            _compactChrome.CompactThumbnailHost.BorderThickness = new Thickness(1);
         }
         else
         {
-            CompactThumbnailHost.ClearValue(Border.BorderBrushProperty);
-            CompactThumbnailHost.ClearValue(Border.BorderThicknessProperty);
+            _compactChrome.CompactThumbnailHost.ClearValue(Border.BorderBrushProperty);
+            _compactChrome.CompactThumbnailHost.ClearValue(Border.BorderThicknessProperty);
         }
 
         // Rotating vinyl disc (music capsule). Label reuses the album cover.
         bool showVinyl = presentation.ShowVinyl && presentation.Thumbnail is not null;
-        CompactVinylHost.Visibility = showVinyl ? Visibility.Visible : Visibility.Collapsed;
-        CompactVinylLabelBrush.ImageSource = showVinyl ? presentation.Thumbnail : null;
+        _compactChrome.CompactVinylHost.Visibility = showVinyl ? Visibility.Visible : Visibility.Collapsed;
+        _compactChrome.CompactVinylLabelBrush.ImageSource = showVinyl ? presentation.Thumbnail : null;
 
         bool hasIconImage = presentation.IconImage is not null;
-        CompactIconImage.Source = presentation.IconImage;
-        CompactIconImage.Visibility = hasIconImage
+        _compactChrome.CompactIconImage.Source = presentation.IconImage;
+        _compactChrome.CompactIconImage.Visibility = hasIconImage
             ? Visibility.Visible
             : Visibility.Collapsed;
 
         // When an icon image (e.g. weather) is shown, the default widget glyph must be
-        // hidden. We cannot just set CompactTitleIcon.Visibility = Collapsed, because
+        // hidden. We cannot just set _compactChrome.CompactTitleIcon.Visibility = Collapsed, because
         // WidgetTitleIcon re-applies Visibility = Visible on its own Loaded /
         // ActualThemeChanged and whenever an appearance property changes. So the hide
         // has to go through the control's own Mode = Hidden, which makes it keep
@@ -2519,7 +2525,7 @@ public sealed partial class WidgetShell : UserControl
         // When the icon should be visible we honor the user's global icon-mode
         // preference so the compact glyph still respects their setting.
         bool showTitleIcon = !hasIconImage && !useFullBleed && presentation.Thumbnail is null && !showVinyl;
-        CompactTitleIcon.Visibility = showTitleIcon ? Visibility.Visible : Visibility.Collapsed;
+        _compactChrome.CompactTitleIcon.Visibility = showTitleIcon ? Visibility.Visible : Visibility.Collapsed;
         // When the icon is visible we honor the user's global icon-mode
         // preference so the compact glyph still respects their setting; fall back
         // to Color if the service isn't ready yet.
@@ -2529,24 +2535,24 @@ public sealed partial class WidgetShell : UserControl
         {
             visibleIconMode = settings.WidgetTitleIconMode;
         }
-        CompactTitleIcon.Mode = showTitleIcon
+        _compactChrome.CompactTitleIcon.Mode = showTitleIcon
             ? visibleIconMode
             : WidgetTitleIconModeNames.Hidden;
 
         // Per-widget icon color override (e.g. file type color)
         if (presentation.IconColor is not null)
         {
-            CompactTitleIcon.AccentColor = presentation.IconColor.Value;
+            _compactChrome.CompactTitleIcon.AccentColor = presentation.IconColor.Value;
         }
         else
         {
-            CompactTitleIcon.ClearValue(WidgetTitleIcon.AccentColorProperty);
+            _compactChrome.CompactTitleIcon.ClearValue(WidgetTitleIcon.AccentColorProperty);
         }
 
-        CompactPrimaryActionIcon.Glyph = presentation.PrimaryActionGlyph;
-        CompactPreviousButton.IsEnabled = presentation.CanGoPrevious;
-        CompactNextButton.IsEnabled = presentation.CanGoNext;
-        CompactPlayPauseIcon.Kind = presentation.IsPlaying
+        _compactChrome.CompactPrimaryActionIcon.Glyph = presentation.PrimaryActionGlyph;
+        _compactChrome.CompactPreviousButton.IsEnabled = presentation.CanGoPrevious;
+        _compactChrome.CompactNextButton.IsEnabled = presentation.CanGoNext;
+        _compactChrome.CompactPlayPauseIcon.Kind = presentation.IsPlaying
             ? MusicTransportIconKind.Pause
             : MusicTransportIconKind.Play;
         ApplyCompactActionLabels(presentation.IsPlaying);
@@ -2555,11 +2561,11 @@ public sealed partial class WidgetShell : UserControl
 
         // Badge
         bool hasBadge = !string.IsNullOrWhiteSpace(presentation.BadgeText);
-        CompactBadge.Visibility = hasBadge ? Visibility.Visible : Visibility.Collapsed;
+        _compactChrome.CompactBadge.Visibility = hasBadge ? Visibility.Visible : Visibility.Collapsed;
         if (hasBadge)
         {
-            CompactBadgeText.Text = presentation.BadgeText;
-            CompactBadge.Background = presentation.BadgeIsWarning
+            _compactChrome.CompactBadgeText.Text = presentation.BadgeText;
+            _compactChrome.CompactBadge.Background = presentation.BadgeIsWarning
                 ? ResolveCriticalBadgeBrush()
                 : new SolidColorBrush(
                     App.Current.ThemeService?.GetEffectiveAccentColor() ??
@@ -2600,8 +2606,8 @@ public sealed partial class WidgetShell : UserControl
             return;
         }
 
-        double logicalWidth = CollapsedChromeLayer.ActualWidth > 0
-            ? CollapsedChromeLayer.ActualWidth
+        double logicalWidth = _compactChrome.CollapsedChromeLayer.ActualWidth > 0
+            ? _compactChrome.CollapsedChromeLayer.ActualWidth
             : ActualWidth;
         _compactWidthTier = WidgetCompactBoundsCalculator.ResolveWidthTier(logicalWidth);
         _showCompactSummary = !_isMinimalCompactStyle &&
@@ -2610,10 +2616,10 @@ public sealed partial class WidgetShell : UserControl
         _usesStackedCompactText = _showCompactSummary &&
             _compactPresentation.UseStackedText;
 
-        CompactTextHost.Orientation = _usesStackedCompactText
+        _compactChrome.CompactTextHost.Orientation = _usesStackedCompactText
             ? Orientation.Vertical
             : Orientation.Horizontal;
-        CompactTextHost.Spacing = _showCompactSummary
+        _compactChrome.CompactTextHost.Spacing = _showCompactSummary
             ? (_usesStackedCompactText ? 1 : 6)
             : 0;
 
@@ -2646,18 +2652,18 @@ public sealed partial class WidgetShell : UserControl
         }
         double identityBaseSize = Math.Max(identityVisualSize, identityHitSize);
         double groupRailWidth = _groupPresentation is not null
-            ? CompactGroupPositionRailColumn.Width.Value
+            ? _compactChrome.CompactGroupPositionRailColumn.Width.Value
             : 0;
-        CompactIdentityHost.Width = identityBaseSize + groupRailWidth;
-        CompactIdentityHost.Height = Math.Max(identityVisualSize, identityHitSize);
-        CompactIdentityVisualHost.Opacity = (showVinyl || !useFullBleed) ? 1 : 0;
+        _compactChrome.CompactIdentityHost.Width = identityBaseSize + groupRailWidth;
+        _compactChrome.CompactIdentityHost.Height = Math.Max(identityVisualSize, identityHitSize);
+        _compactChrome.CompactIdentityVisualHost.Opacity = (showVinyl || !useFullBleed) ? 1 : 0;
         if (!_isCompactTransitionActive)
         {
-            CompactIdentityHost.Opacity = 1;
+            _compactChrome.CompactIdentityHost.Opacity = 1;
         }
-        CompactThumbnailHost.Width = identityVisualSize;
-        CompactThumbnailHost.Height = identityVisualSize;
-        CompactTitleIcon.IconSize = _compactWidthTier == WidgetCompactWidthTier.Narrow
+        _compactChrome.CompactThumbnailHost.Width = identityVisualSize;
+        _compactChrome.CompactThumbnailHost.Height = identityVisualSize;
+        _compactChrome.CompactTitleIcon.IconSize = _compactWidthTier == WidgetCompactWidthTier.Narrow
             ? 13
             : _usesStackedCompactText ? 16 : 14;
 
@@ -2667,19 +2673,19 @@ public sealed partial class WidgetShell : UserControl
             _compactWidthTier != WidgetCompactWidthTier.Narrow;
         bool showExtendedMedia = showMediaPlayPause &&
             _compactWidthTier == WidgetCompactWidthTier.Wide;
-        CompactPrimaryActionButton.Visibility = showPrimaryAction
+        _compactChrome.CompactPrimaryActionButton.Visibility = showPrimaryAction
             ? Visibility.Visible
             : Visibility.Collapsed;
-        CompactPreviousButton.Visibility = showExtendedMedia
+        _compactChrome.CompactPreviousButton.Visibility = showExtendedMedia
             ? Visibility.Visible
             : Visibility.Collapsed;
-        CompactPlayPauseButton.Visibility = showMediaPlayPause
+        _compactChrome.CompactPlayPauseButton.Visibility = showMediaPlayPause
             ? Visibility.Visible
             : Visibility.Collapsed;
-        CompactNextButton.Visibility = showExtendedMedia
+        _compactChrome.CompactNextButton.Visibility = showExtendedMedia
             ? Visibility.Visible
             : Visibility.Collapsed;
-        CompactExpandButton.Visibility = _usesSmartCompactBehavior
+        _compactChrome.CompactExpandButton.Visibility = _usesSmartCompactBehavior
             ? Visibility.Collapsed
             : Visibility.Visible;
 
@@ -2727,7 +2733,7 @@ public sealed partial class WidgetShell : UserControl
             Duration = new Duration(TimeSpan.FromSeconds(4.0)),
             RepeatBehavior = RepeatBehavior.Forever
         };
-        Storyboard.SetTarget(rotate, CompactVinylRotateTransform);
+        Storyboard.SetTarget(rotate, _compactChrome.CompactVinylRotateTransform);
         Storyboard.SetTargetProperty(rotate, "(RotateTransform.Angle)");
         _compactVinylRotationStoryboard.Children.Add(rotate);
     }
@@ -2740,7 +2746,7 @@ public sealed partial class WidgetShell : UserControl
         bool shouldRotate = _isHostVisualActivityEnabled &&
             IsLoaded &&
             _isCollapsed &&
-            CompactVinylHost.Visibility == Visibility.Visible &&
+            _compactChrome.CompactVinylHost.Visibility == Visibility.Visible &&
             isPlaying &&
             VinylRotationAnimationsEnabled() &&
             SystemAnimationsEnabled();
@@ -2765,11 +2771,11 @@ public sealed partial class WidgetShell : UserControl
     {
         Button[] actionButtons =
         [
-            CompactPrimaryActionButton,
-            CompactPreviousButton,
-            CompactPlayPauseButton,
-            CompactNextButton,
-            CompactExpandButton
+            _compactChrome.CompactPrimaryActionButton,
+            _compactChrome.CompactPreviousButton,
+            _compactChrome.CompactPlayPauseButton,
+            _compactChrome.CompactNextButton,
+            _compactChrome.CompactExpandButton
         ];
         Button[] visibleButtons = actionButtons
             .Where(button => button.Visibility == Visibility.Visible)
@@ -2779,7 +2785,7 @@ public sealed partial class WidgetShell : UserControl
             double.IsNaN(button.Width)
                 ? Math.Max(0, button.MinWidth)
                 : Math.Max(0, button.Width));
-        double buttonSpacing = Math.Max(0, visibleButtons.Length - 1) * CompactActionHost.Spacing;
+        double buttonSpacing = Math.Max(0, visibleButtons.Length - 1) * _compactChrome.CompactActionHost.Spacing;
         double trailingWidth = _isCompactReorderEnabled
             ? CompactReorderHandleWidth + CompactActionTrailingPadding
             : visibleButtons.Length > 0
@@ -2787,20 +2793,20 @@ public sealed partial class WidgetShell : UserControl
                 : 0;
         double actionRegionWidth = buttonWidth + buttonSpacing + trailingWidth;
 
-        CompactActionHost.Margin = new Thickness(0, 0, trailingWidth, 0);
-        CompactActionRegionHighlight.Width = actionRegionWidth;
-        CompactActionRegionTrigger.Width = actionRegionWidth;
+        _compactChrome.CompactActionHost.Margin = new Thickness(0, 0, trailingWidth, 0);
+        _compactChrome.CompactActionRegionHighlight.Width = actionRegionWidth;
+        _compactChrome.CompactActionRegionTrigger.Width = actionRegionWidth;
     }
 
     private void UpdateCompactTextViewportWidths()
     {
-        if (_compactPresentation is null || CompactTextContainer.ActualWidth <= 0)
+        if (_compactPresentation is null || _compactChrome.CompactTextContainer.ActualWidth <= 0)
         {
             return;
         }
 
         StopCompactMarquee();
-        double availableWidth = Math.Max(24, CompactTextContainer.ActualWidth);
+        double availableWidth = Math.Max(24, _compactChrome.CompactTextContainer.ActualWidth);
         double titleWidth;
         double summaryWidth = 0;
         if (!_showCompactSummary)
@@ -2820,10 +2826,10 @@ public sealed partial class WidgetShell : UserControl
             summaryWidth = Math.Max(20, contentWidth - titleWidth);
         }
 
-        SetCompactTextViewportWidth(CompactTitleViewport, CompactTitleText, titleWidth);
+        SetCompactTextViewportWidth(_compactChrome.CompactTitleViewport, _compactChrome.CompactTitleText, titleWidth);
         if (_showCompactSummary)
         {
-            SetCompactTextViewportWidth(CompactSummaryViewport, CompactSummaryText, summaryWidth);
+            SetCompactTextViewportWidth(_compactChrome.CompactSummaryViewport, _compactChrome.CompactSummaryText, summaryWidth);
         }
         QueueCompactMarquee();
     }
@@ -2846,13 +2852,13 @@ public sealed partial class WidgetShell : UserControl
     private void ApplyCompactActionLabels(bool isPlaying)
     {
         var localization = App.Current.LocalizationService;
-        SetAccessibleLabel(CompactPrimaryActionButton, localization.T("Todo.Menu.MarkCompleted"));
-        SetAccessibleLabel(CompactPreviousButton, localization.T("Music.Control.Previous"));
+        SetAccessibleLabel(_compactChrome.CompactPrimaryActionButton, localization.T("Todo.Menu.MarkCompleted"));
+        SetAccessibleLabel(_compactChrome.CompactPreviousButton, localization.T("Music.Control.Previous"));
         SetAccessibleLabel(
-            CompactPlayPauseButton,
+            _compactChrome.CompactPlayPauseButton,
             localization.T(isPlaying ? "Music.Control.Pause" : "Music.Control.Play"));
-        SetAccessibleLabel(CompactNextButton, localization.T("Music.Control.Next"));
-        SetAccessibleLabel(CompactExpandButton, localization.T("Widget.Compact.Expand"));
+        SetAccessibleLabel(_compactChrome.CompactNextButton, localization.T("Music.Control.Next"));
+        SetAccessibleLabel(_compactChrome.CompactExpandButton, localization.T("Widget.Compact.Expand"));
     }
 
     private static void SetAccessibleLabel(FrameworkElement element, string label)
@@ -2886,26 +2892,26 @@ public sealed partial class WidgetShell : UserControl
 
     private void ApplyCompactInnerCornerRadii()
     {
-        CompactThumbnailHost.CornerRadius = new CornerRadius(_compactMediaCornerRadius);
-        CompactTitleIcon.SetSurfaceCornerRadiusOverride(_compactMediaCornerRadius);
-        CompactActionRegionHighlight.CornerRadius = new CornerRadius(_compactInnerCornerRadius);
+        _compactChrome.CompactThumbnailHost.CornerRadius = new CornerRadius(_compactMediaCornerRadius);
+        _compactChrome.CompactTitleIcon.SetSurfaceCornerRadiusOverride(_compactMediaCornerRadius);
+        _compactChrome.CompactActionRegionHighlight.CornerRadius = new CornerRadius(_compactInnerCornerRadius);
 
         // Full-bleed layers follow outer radius
         var outerCR = new CornerRadius(_compactOuterCornerRadius);
-        CompactFullBleedClip.CornerRadius = outerCR;
-        CompactPausedDim.CornerRadius = outerCR;
-        CompactEdgeGlow.CornerRadius = outerCR;
-        CompactColorField.CornerRadius = outerCR;
-        CompactFullBleedOverlay.CornerRadius = outerCR;
-        CompactShimmer.CornerRadius = outerCR;
+        _compactChrome.CompactFullBleedClip.CornerRadius = outerCR;
+        _compactChrome.CompactPausedDim.CornerRadius = outerCR;
+        _compactChrome.CompactEdgeGlow.CornerRadius = outerCR;
+        _compactChrome.CompactColorField.CornerRadius = outerCR;
+        _compactChrome.CompactFullBleedOverlay.CornerRadius = outerCR;
+        _compactChrome.CompactShimmer.CornerRadius = outerCR;
 
         foreach (var button in new[]
         {
-            CompactPrimaryActionButton,
-            CompactPreviousButton,
-            CompactPlayPauseButton,
-            CompactNextButton,
-            CompactExpandButton
+            _compactChrome.CompactPrimaryActionButton,
+            _compactChrome.CompactPreviousButton,
+            _compactChrome.CompactPlayPauseButton,
+            _compactChrome.CompactNextButton,
+            _compactChrome.CompactExpandButton
         })
         {
             button.CornerRadius = new CornerRadius(_compactInnerCornerRadius);
@@ -2917,10 +2923,10 @@ public sealed partial class WidgetShell : UserControl
 
     private void ApplyCompactTextVisibility()
     {
-        CompactSummaryViewport.Visibility = _showCompactSummary
+        _compactChrome.CompactSummaryViewport.Visibility = _showCompactSummary
             ? Visibility.Visible
             : Visibility.Collapsed;
-        CompactTextSeparator.Visibility = _showCompactSummary && !_usesStackedCompactText
+        _compactChrome.CompactTextSeparator.Visibility = _showCompactSummary && !_usesStackedCompactText
             ? Visibility.Visible
             : Visibility.Collapsed;
     }
@@ -2931,11 +2937,11 @@ public sealed partial class WidgetShell : UserControl
         if (_compactPresentation?.Progress is { } progress && double.IsFinite(progress))
         {
             StopCompactLiveIndeterminate();
-            CompactLiveProgressTransform.TranslateX = 0;
+            _compactChrome.CompactLiveProgressTransform.TranslateX = 0;
 
             double value = Math.Clamp(progress, 0, 1);
-            CompactLiveTrack.Visibility = Visibility.Visible;
-            CompactLiveProgress.Visibility = Visibility.Visible;
+            _compactChrome.CompactLiveTrack.Visibility = Visibility.Visible;
+            _compactChrome.CompactLiveProgress.Visibility = Visibility.Visible;
             bool isPlaying = _compactPresentation?.IsPlaying == true;
             bool isAttention = _compactPresentation?.IsAttention == true;
             bool isFullBleed = _compactPresentation?.UseFullBleedBackground == true;
@@ -2943,20 +2949,20 @@ public sealed partial class WidgetShell : UserControl
             // Full-bleed mode: white progress bar, thicker, more visible
             if (isFullBleed)
             {
-                CompactLiveIndicatorHost.Height = 3;
-                CompactLiveTrack.Background = new SolidColorBrush(Windows.UI.Color.FromArgb(0x40, 0xFF, 0xFF, 0xFF));
-                CompactLiveTrack.Opacity = 1;
-                CompactLiveProgress.Background = new SolidColorBrush(Windows.UI.Color.FromArgb(0xE6, 0xFF, 0xFF, 0xFF));
+                _compactChrome.CompactLiveIndicatorHost.Height = 3;
+                _compactChrome.CompactLiveTrack.Background = new SolidColorBrush(Windows.UI.Color.FromArgb(0x40, 0xFF, 0xFF, 0xFF));
+                _compactChrome.CompactLiveTrack.Opacity = 1;
+                _compactChrome.CompactLiveProgress.Background = new SolidColorBrush(Windows.UI.Color.FromArgb(0xE6, 0xFF, 0xFF, 0xFF));
             }
             else
             {
-                CompactLiveIndicatorHost.Height = 2;
-                CompactLiveTrack.ClearValue(Border.BackgroundProperty);
-                CompactLiveTrack.Opacity = isAttention ? 0.3 : 0.16;
-                CompactLiveProgress.ClearValue(Border.BackgroundProperty);
+                _compactChrome.CompactLiveIndicatorHost.Height = 2;
+                _compactChrome.CompactLiveTrack.ClearValue(Border.BackgroundProperty);
+                _compactChrome.CompactLiveTrack.Opacity = isAttention ? 0.3 : 0.16;
+                _compactChrome.CompactLiveProgress.ClearValue(Border.BackgroundProperty);
             }
 
-            CompactLiveProgressTransform.ScaleX = value;
+            _compactChrome.CompactLiveProgressTransform.ScaleX = value;
 
             // Todo progress: overdue=orange, normal=accent→green gradient
             if (!isPlaying && !isFullBleed)
@@ -2964,7 +2970,7 @@ public sealed partial class WidgetShell : UserControl
                 if (isAttention)
                 {
                     // Overdue: orange
-                    CompactLiveProgress.Background = new SolidColorBrush(Windows.UI.Color.FromArgb(0xFF, 0xF9, 0x73, 0x16));
+                    _compactChrome.CompactLiveProgress.Background = new SolidColorBrush(Windows.UI.Color.FromArgb(0xFF, 0xF9, 0x73, 0x16));
                 }
                 else
                 {
@@ -2974,21 +2980,21 @@ public sealed partial class WidgetShell : UserControl
                     byte r = (byte)(accent.R + (0x22 - accent.R) * value);
                     byte g = (byte)(accent.G + (0xC5 - accent.G) * value);
                     byte b = (byte)(accent.B + (0x5E - accent.B) * value);
-                    CompactLiveProgress.Background = new SolidColorBrush(Windows.UI.Color.FromArgb(0xFF, r, g, b));
+                    _compactChrome.CompactLiveProgress.Background = new SolidColorBrush(Windows.UI.Color.FromArgb(0xFF, r, g, b));
                 }
             }
             else if (!isFullBleed)
             {
-                CompactLiveProgress.ClearValue(Border.BackgroundProperty);
+                _compactChrome.CompactLiveProgress.ClearValue(Border.BackgroundProperty);
             }
 
             if (isPlaying)
             {
-                CompactLiveProgress.Opacity = isFullBleed ? 0.95 : 0.7;
+                _compactChrome.CompactLiveProgress.Opacity = isFullBleed ? 0.95 : 0.7;
             }
             else
             {
-                CompactLiveProgress.Opacity = isAttention ? 1 : (isPlaying ? (isFullBleed ? 0.95 : 0.7) : 0.4);
+                _compactChrome.CompactLiveProgress.Opacity = isAttention ? 1 : (isPlaying ? (isFullBleed ? 0.95 : 0.7) : 0.4);
             }
 
             return;
@@ -3000,24 +3006,24 @@ public sealed partial class WidgetShell : UserControl
         // indeterminate segment so the capsule still reflects live activity.
         if (_compactPresentation is { IsProgressIndeterminate: true })
         {
-            CompactLiveTrack.Visibility = Visibility.Visible;
-            CompactLiveProgress.Visibility = Visibility.Visible;
+            _compactChrome.CompactLiveTrack.Visibility = Visibility.Visible;
+            _compactChrome.CompactLiveProgress.Visibility = Visibility.Visible;
             bool isFullBleed = _compactPresentation?.UseFullBleedBackground == true;
             if (isFullBleed)
             {
-                CompactLiveIndicatorHost.Height = 3;
-                CompactLiveTrack.Background = new SolidColorBrush(Windows.UI.Color.FromArgb(0x40, 0xFF, 0xFF, 0xFF));
-                CompactLiveTrack.Opacity = 1;
-                CompactLiveProgress.Background = new SolidColorBrush(Windows.UI.Color.FromArgb(0xE6, 0xFF, 0xFF, 0xFF));
-                CompactLiveProgress.Opacity = 0.9;
+                _compactChrome.CompactLiveIndicatorHost.Height = 3;
+                _compactChrome.CompactLiveTrack.Background = new SolidColorBrush(Windows.UI.Color.FromArgb(0x40, 0xFF, 0xFF, 0xFF));
+                _compactChrome.CompactLiveTrack.Opacity = 1;
+                _compactChrome.CompactLiveProgress.Background = new SolidColorBrush(Windows.UI.Color.FromArgb(0xE6, 0xFF, 0xFF, 0xFF));
+                _compactChrome.CompactLiveProgress.Opacity = 0.9;
             }
             else
             {
-                CompactLiveIndicatorHost.Height = 2;
-                CompactLiveTrack.ClearValue(Border.BackgroundProperty);
-                CompactLiveTrack.Opacity = 0.18;
-                CompactLiveProgress.ClearValue(Border.BackgroundProperty);
-                CompactLiveProgress.Opacity = 0.7;
+                _compactChrome.CompactLiveIndicatorHost.Height = 2;
+                _compactChrome.CompactLiveTrack.ClearValue(Border.BackgroundProperty);
+                _compactChrome.CompactLiveTrack.Opacity = 0.18;
+                _compactChrome.CompactLiveProgress.ClearValue(Border.BackgroundProperty);
+                _compactChrome.CompactLiveProgress.Opacity = 0.7;
             }
 
             if (_compactLiveTranslationAnimation is null)
@@ -3030,12 +3036,12 @@ public sealed partial class WidgetShell : UserControl
 
         // No progress and not indeterminate: hide.
         StopCompactLiveIndeterminate();
-        CompactLiveTrack.Visibility = Visibility.Collapsed;
-        CompactLiveProgress.Visibility = Visibility.Collapsed;
-        CompactLiveTrack.Opacity = 0;
-        CompactLiveProgress.Opacity = 0;
-        CompactLiveProgressTransform.ScaleX = 0;
-        CompactLiveProgressTransform.TranslateX = 0;
+        _compactChrome.CompactLiveTrack.Visibility = Visibility.Collapsed;
+        _compactChrome.CompactLiveProgress.Visibility = Visibility.Collapsed;
+        _compactChrome.CompactLiveTrack.Opacity = 0;
+        _compactChrome.CompactLiveProgress.Opacity = 0;
+        _compactChrome.CompactLiveProgressTransform.ScaleX = 0;
+        _compactChrome.CompactLiveProgressTransform.TranslateX = 0;
     }
 
     /// <summary>
@@ -3049,27 +3055,27 @@ public sealed partial class WidgetShell : UserControl
         WidgetCompactPresentation? p = _compactPresentation;
         if (p is null || !p.MusicProgress.HasValue)
         {
-            CompactMusicProgressHost.Visibility = Visibility.Collapsed;
+            _compactChrome.CompactMusicProgressHost.Visibility = Visibility.Collapsed;
             return;
         }
 
-        CompactMusicProgressHost.Visibility = Visibility.Visible;
+        _compactChrome.CompactMusicProgressHost.Visibility = Visibility.Visible;
         double value = Math.Clamp(p.MusicProgress.Value, 0, 1);
-        CompactMusicProgressTransform.ScaleX = value;
+        _compactChrome.CompactMusicProgressTransform.ScaleX = value;
 
         bool isFullBleed = p.UseFullBleedBackground && p.Thumbnail is not null;
         if (isFullBleed)
         {
             // On a cover-art background, invert to white so the bar stays visible.
-            CompactMusicProgressFill.Background = new SolidColorBrush(
+            _compactChrome.CompactMusicProgressFill.Background = new SolidColorBrush(
                 Windows.UI.Color.FromArgb(0xE6, 0xFF, 0xFF, 0xFF));
-            CompactMusicProgressTrack.Background = new SolidColorBrush(
+            _compactChrome.CompactMusicProgressTrack.Background = new SolidColorBrush(
                 Windows.UI.Color.FromArgb(0x40, 0xFF, 0xFF, 0xFF));
         }
         else
         {
-            CompactMusicProgressFill.ClearValue(Border.BackgroundProperty);
-            CompactMusicProgressTrack.ClearValue(Border.BackgroundProperty);
+            _compactChrome.CompactMusicProgressFill.ClearValue(Border.BackgroundProperty);
+            _compactChrome.CompactMusicProgressTrack.ClearValue(Border.BackgroundProperty);
         }
     }
 
@@ -3079,8 +3085,8 @@ public sealed partial class WidgetShell : UserControl
 
         // Show the segment right away so the bar is visible from the very first
         // frame, even before the timer fires its first tick.
-        CompactLiveProgressTransform.ScaleX = _compactLiveIndeterminateSegment;
-        CompactLiveProgressTransform.TranslateX = 0;
+        _compactChrome.CompactLiveProgressTransform.ScaleX = _compactLiveIndeterminateSegment;
+        _compactChrome.CompactLiveProgressTransform.TranslateX = 0;
 
         if (!_isHostVisualActivityEnabled ||
             !IsLoaded ||
@@ -3089,9 +3095,9 @@ public sealed partial class WidgetShell : UserControl
             !SystemAnimationsEnabled())
         {
             StopCompactLiveIndeterminate();
-            CompactLiveProgressTransform.ScaleX = 1;
-            CompactLiveProgressTransform.TranslateX = 0;
-            CompactLiveProgress.Opacity = isFullBleed ? 0.72 : 0.5;
+            _compactChrome.CompactLiveProgressTransform.ScaleX = 1;
+            _compactChrome.CompactLiveProgressTransform.TranslateX = 0;
+            _compactChrome.CompactLiveProgress.Opacity = isFullBleed ? 0.72 : 0.5;
             return;
         }
 
@@ -3102,9 +3108,9 @@ public sealed partial class WidgetShell : UserControl
 
         double maxTranslate = Math.Max(
             0,
-            CompactLiveTrack.ActualWidth * (1 - _compactLiveIndeterminateSegment));
-        ElementCompositionPreview.SetIsTranslationEnabled(CompactLiveProgress, true);
-        Visual visual = ElementCompositionPreview.GetElementVisual(CompactLiveProgress);
+            _compactChrome.CompactLiveTrack.ActualWidth * (1 - _compactLiveIndeterminateSegment));
+        ElementCompositionPreview.SetIsTranslationEnabled(_compactChrome.CompactLiveProgress, true);
+        Visual visual = ElementCompositionPreview.GetElementVisual(_compactChrome.CompactLiveProgress);
         ScalarKeyFrameAnimation translation = _compositionResources.GetScalar(
             visual.Compositor, WidgetAnimationTemplate.CompactLiveTranslation);
         translation.InsertKeyFrame(0, 0);
@@ -3131,7 +3137,7 @@ public sealed partial class WidgetShell : UserControl
             return;
         }
 
-        Visual visual = ElementCompositionPreview.GetElementVisual(CompactLiveProgress);
+        Visual visual = ElementCompositionPreview.GetElementVisual(_compactChrome.CompactLiveProgress);
         visual.StopAnimation("Translation.X");
         visual.StopAnimation(nameof(Visual.Opacity));
         _compactLiveTranslationAnimation = null;
@@ -3175,7 +3181,7 @@ public sealed partial class WidgetShell : UserControl
         }
 
         _compactLiveBreathingAnimation = StartSineOpacityBreathing(
-            CompactLiveProgress,
+            _compactChrome.CompactLiveProgress,
             baseOpacity: 0.6,
             amplitude: 0.2,
             phaseStepPerTick: 0.06);
@@ -3185,7 +3191,7 @@ public sealed partial class WidgetShell : UserControl
     {
         StopSineOpacityBreathing(
             _compactLiveBreathingAnimation,
-            CompactLiveProgress,
+            _compactChrome.CompactLiveProgress,
             resetOpacity: 0.6,
             out _compactLiveBreathingAnimation);
     }
@@ -3204,8 +3210,8 @@ public sealed partial class WidgetShell : UserControl
         if (!SystemAnimationsEnabled())
         {
             _compactFullBleedVisibilityStoryboard.StopAndClear();
-            CompactFullBleedBackground.Opacity = targetBgOpacity;
-            CompactFullBleedOverlay.Opacity = targetOverlayOpacity;
+            _compactChrome.CompactFullBleedBackground.Opacity = targetBgOpacity;
+            _compactChrome.CompactFullBleedOverlay.Opacity = targetOverlayOpacity;
             return;
         }
 
@@ -3219,7 +3225,7 @@ public sealed partial class WidgetShell : UserControl
             Duration = new Duration(duration),
             EasingFunction = easing
         };
-        Storyboard.SetTarget(bgAnim, CompactFullBleedBackground);
+        Storyboard.SetTarget(bgAnim, _compactChrome.CompactFullBleedBackground);
         Storyboard.SetTargetProperty(bgAnim, "Opacity");
         storyboard.Children.Add(bgAnim);
 
@@ -3229,7 +3235,7 @@ public sealed partial class WidgetShell : UserControl
             Duration = new Duration(duration),
             EasingFunction = easing
         };
-        Storyboard.SetTarget(overlayAnim, CompactFullBleedOverlay);
+        Storyboard.SetTarget(overlayAnim, _compactChrome.CompactFullBleedOverlay);
         Storyboard.SetTargetProperty(overlayAnim, "Opacity");
         storyboard.Children.Add(overlayAnim);
 
@@ -3260,24 +3266,24 @@ public sealed partial class WidgetShell : UserControl
 
         byte channel = isDark ? (byte)0x00 : (byte)0xFF;
         bool useUniformOverlay = _compactPresentation?.UseUniformFullBleedOverlay == true;
-        CompactFullBleedStop0.Color = Color.FromArgb(
+        _compactChrome.CompactFullBleedStop0.Color = Color.FromArgb(
             useUniformOverlay ? (byte)0xFF : (byte)0xD9,
             channel,
             channel,
             channel);
-        CompactFullBleedStop1.Color = Color.FromArgb(
+        _compactChrome.CompactFullBleedStop1.Color = Color.FromArgb(
             useUniformOverlay ? (byte)0xFF : (byte)0x8C,
             channel,
             channel,
             channel);
-        CompactFullBleedStop2.Color = Color.FromArgb(
+        _compactChrome.CompactFullBleedStop2.Color = Color.FromArgb(
             useUniformOverlay ? (byte)0xFF : (byte)0x40,
             channel,
             channel,
             channel);
 
         // Paused dim overlay: darken in dark theme, lighten (brighten) in light theme.
-        CompactPausedDim.Background = SharedBrushCache.GetOrCreate(isDark
+        _compactChrome.CompactPausedDim.Background = SharedBrushCache.GetOrCreate(isDark
             ? Color.FromArgb(0x1A, 0x00, 0x00, 0x00)
             : Color.FromArgb(0x40, 0xFF, 0xFF, 0xFF));
     }
@@ -3289,19 +3295,19 @@ public sealed partial class WidgetShell : UserControl
         bool hasColorField = p.BackgroundColorStart is not null && p.BackgroundColorEnd is not null;
         if (hasColorField)
         {
-            ColorFieldStop1.Color = p.BackgroundColorStart!.Value;
-            ColorFieldStop2.Color = p.BackgroundColorEnd!.Value;
-            CompactColorField.Opacity = 1;
+            _compactChrome.ColorFieldStop1.Color = p.BackgroundColorStart!.Value;
+            _compactChrome.ColorFieldStop2.Color = p.BackgroundColorEnd!.Value;
+            _compactChrome.CompactColorField.Opacity = 1;
         }
         else
         {
-            CompactColorField.Opacity = 0;
+            _compactChrome.CompactColorField.Opacity = 0;
         }
     }
 
     private void ApplyCompactForegroundTheme(WidgetCompactPresentation presentation)
     {
-        CollapsedChromeLayer.RequestedTheme = presentation.UseLightForeground switch
+        _compactChrome.CollapsedChromeLayer.RequestedTheme = presentation.UseLightForeground switch
         {
             true => ElementTheme.Dark,
             false => ElementTheme.Light,
@@ -3313,15 +3319,15 @@ public sealed partial class WidgetShell : UserControl
     {
         if (p.EdgeGlowColor is not null)
         {
-            CompactEdgeGlowBrush.Color = p.EdgeGlowColor.Value;
-            CompactEdgeGlow.BorderThickness = new Thickness(1.5);
-            CompactEdgeGlow.Opacity = 0.56;
+            _compactChrome.CompactEdgeGlowBrush.Color = p.EdgeGlowColor.Value;
+            _compactChrome.CompactEdgeGlow.BorderThickness = new Thickness(1.5);
+            _compactChrome.CompactEdgeGlow.Opacity = 0.56;
             StartEdgeGlowPulse();
         }
         else
         {
             StopEdgeGlowPulse();
-            CompactEdgeGlow.Opacity = 0;
+            _compactChrome.CompactEdgeGlow.Opacity = 0;
         }
     }
 
@@ -3344,7 +3350,7 @@ public sealed partial class WidgetShell : UserControl
             return;
         }
 
-        Visual visual = ElementCompositionPreview.GetElementVisual(CompactEdgeGlow);
+        Visual visual = ElementCompositionPreview.GetElementVisual(_compactChrome.CompactEdgeGlow);
         ScalarKeyFrameAnimation animation = _compositionResources.GetScalar(
             visual.Compositor, WidgetAnimationTemplate.EdgeGlow);
         InsertSineKeyFrames(animation, midpoint: 0.48f, amplitude: 0.1f);
@@ -3362,7 +3368,7 @@ public sealed partial class WidgetShell : UserControl
         }
 
         ElementCompositionPreview
-            .GetElementVisual(CompactEdgeGlow)
+            .GetElementVisual(_compactChrome.CompactEdgeGlow)
             .StopAnimation(nameof(Visual.Opacity));
         _edgeGlowPulseAnimation = null;
     }
@@ -3444,7 +3450,7 @@ public sealed partial class WidgetShell : UserControl
                 };
                 Canvas.SetLeft(line, rng.NextDouble() * CompactParticleCanvasWidth);
                 Canvas.SetTop(line, rng.NextDouble() * CompactParticleCanvasHeight);
-                CompactParticleCanvas.Children.Add(line);
+                _compactChrome.CompactParticleCanvas.Children.Add(line);
                 _particles.Add(new CompactParticleAnimationState(
                     line,
                     0.5 + rng.NextDouble() * 0.4,
@@ -3462,7 +3468,7 @@ public sealed partial class WidgetShell : UserControl
                 };
                 Canvas.SetLeft(dot, rng.NextDouble() * CompactParticleCanvasWidth);
                 Canvas.SetTop(dot, rng.NextDouble() * CompactParticleCanvasHeight);
-                CompactParticleCanvas.Children.Add(dot);
+                _compactChrome.CompactParticleCanvas.Children.Add(dot);
                 _particles.Add(new CompactParticleAnimationState(
                     dot,
                     0.15 + rng.NextDouble() * 0.15,
@@ -3485,7 +3491,7 @@ public sealed partial class WidgetShell : UserControl
             ReleaseParticleAnimation(particle);
         }
 
-        CompactParticleCanvas.Children.Clear();
+        _compactChrome.CompactParticleCanvas.Children.Clear();
         _particles.Clear();
         _activeParticleKind = CompactParticleKind.None;
     }
@@ -3650,7 +3656,7 @@ public sealed partial class WidgetShell : UserControl
     private void ApplySpectrum(WidgetCompactPresentation p)
     {
         // Bottom glow removed - progress bar is sufficient
-        CompactBottomGlow.Visibility = Visibility.Collapsed;
+        _compactChrome.CompactBottomGlow.Visibility = Visibility.Collapsed;
         StopBottomGlow();
     }
 
@@ -3658,7 +3664,7 @@ public sealed partial class WidgetShell : UserControl
     {
         StopSineOpacityBreathing(
             _bottomGlowAnimation,
-            CompactBottomGlow,
+            _compactChrome.CompactBottomGlow,
             resetOpacity: 0.6,
             out _bottomGlowAnimation);
     }
@@ -3669,7 +3675,7 @@ public sealed partial class WidgetShell : UserControl
 
     private void ApplyShimmer(WidgetCompactPresentation p)
     {
-        CompactShimmer.Opacity = 0;
+        _compactChrome.CompactShimmer.Opacity = 0;
         StopBreathBorder();
     }
 
@@ -3677,7 +3683,7 @@ public sealed partial class WidgetShell : UserControl
     {
         StopSineOpacityBreathing(
             _breathBorderAnimation,
-            CompactEdgeGlow,
+            _compactChrome.CompactEdgeGlow,
             resetOpacity: 0.35,
             out _breathBorderAnimation);
     }
@@ -3786,7 +3792,7 @@ public sealed partial class WidgetShell : UserControl
                 WidgetMotion.FeedbackMilliseconds),
             AutoReverse = true, EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseOut }
         };
-        Storyboard.SetTarget(anim, CompactEdgeGlow);
+        Storyboard.SetTarget(anim, _compactChrome.CompactEdgeGlow);
         Storyboard.SetTargetProperty(anim, "Opacity");
         sb.Children.Add(anim);
         _compactEdgeGlowFlashStoryboard.Begin(sb);
@@ -3795,8 +3801,8 @@ public sealed partial class WidgetShell : UserControl
     private void TriggerCapsuleBounce()
     {
         if (!SystemAnimationsEnabled()) return;
-        CompactIdentityPulseTransform.ScaleX = 0.92;
-        CompactIdentityPulseTransform.ScaleY = 0.92;
+        _compactChrome.CompactIdentityPulseTransform.ScaleX = 0.92;
+        _compactChrome.CompactIdentityPulseTransform.ScaleY = 0.92;
         var animX = new DoubleAnimation
         {
             To = 1,
@@ -3811,9 +3817,9 @@ public sealed partial class WidgetShell : UserControl
                 WidgetMotion.TransitionMilliseconds),
             EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut }
         };
-        Storyboard.SetTarget(animX, CompactIdentityPulseTransform);
+        Storyboard.SetTarget(animX, _compactChrome.CompactIdentityPulseTransform);
         Storyboard.SetTargetProperty(animX, "ScaleX");
-        Storyboard.SetTarget(animY, CompactIdentityPulseTransform);
+        Storyboard.SetTarget(animY, _compactChrome.CompactIdentityPulseTransform);
         Storyboard.SetTargetProperty(animY, "ScaleY");
         var sb = new Storyboard();
         sb.Children.Add(animX);
@@ -3828,9 +3834,9 @@ public sealed partial class WidgetShell : UserControl
             return;
         }
 
-        CompactLiveEventIndicator.Opacity = 0;
-        CompactTextHost.Opacity = 1;
-        CompactTextTransform.X = 0;
+        _compactChrome.CompactLiveEventIndicator.Opacity = 0;
+        _compactChrome.CompactTextHost.Opacity = 1;
+        _compactChrome.CompactTextTransform.X = 0;
 
         var indicatorAnimation = new DoubleAnimationUsingKeyFrames();
         indicatorAnimation.KeyFrames.Add(new DiscreteDoubleKeyFrame
@@ -3857,7 +3863,7 @@ public sealed partial class WidgetShell : UserControl
             Value = 0,
             EasingFunction = new CubicEase { EasingMode = EasingMode.EaseIn }
         });
-        Storyboard.SetTarget(indicatorAnimation, CompactLiveEventIndicator);
+        Storyboard.SetTarget(indicatorAnimation, _compactChrome.CompactLiveEventIndicator);
         Storyboard.SetTargetProperty(indicatorAnimation, "Opacity");
 
         var textOpacityAnimation = new DoubleAnimation
@@ -3868,7 +3874,7 @@ public sealed partial class WidgetShell : UserControl
                 WidgetMotion.TransitionMilliseconds),
             EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut }
         };
-        Storyboard.SetTarget(textOpacityAnimation, CompactTextHost);
+        Storyboard.SetTarget(textOpacityAnimation, _compactChrome.CompactTextHost);
         Storyboard.SetTargetProperty(textOpacityAnimation, "Opacity");
 
         var textOffsetAnimation = new DoubleAnimation
@@ -3879,7 +3885,7 @@ public sealed partial class WidgetShell : UserControl
                 WidgetMotion.TransitionMilliseconds),
             EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut }
         };
-        Storyboard.SetTarget(textOffsetAnimation, CompactTextTransform);
+        Storyboard.SetTarget(textOffsetAnimation, _compactChrome.CompactTextTransform);
         Storyboard.SetTargetProperty(textOffsetAnimation, "X");
 
         var storyboard = new Storyboard();
@@ -3890,9 +3896,9 @@ public sealed partial class WidgetShell : UserControl
             storyboard,
             onCompleted: () =>
         {
-            CompactLiveEventIndicator.Opacity = 0;
-            CompactTextHost.Opacity = 1;
-            CompactTextTransform.X = 0;
+            _compactChrome.CompactLiveEventIndicator.Opacity = 0;
+            _compactChrome.CompactTextHost.Opacity = 1;
+            _compactChrome.CompactTextTransform.X = 0;
         });
     }
 
@@ -4018,25 +4024,25 @@ public sealed partial class WidgetShell : UserControl
     private (TextBlock Primary, TextBlock Clone, Grid Track, FrameworkElement Viewport, double NaturalWidth)?
         ResolveCompactMarqueeElements()
     {
-        double titleWidth = MeasureCompactTextWidth(CompactTitleText);
-        if (CanUseCompactMarqueeTarget(CompactTitleViewport, titleWidth))
+        double titleWidth = MeasureCompactTextWidth(_compactChrome.CompactTitleText);
+        if (CanUseCompactMarqueeTarget(_compactChrome.CompactTitleViewport, titleWidth))
         {
             return (
-                CompactTitleText,
-                CompactTitleMarqueeClone,
-                CompactTitleMarqueeTrack,
-                CompactTitleViewport,
+                _compactChrome.CompactTitleText,
+                _compactChrome.CompactTitleMarqueeClone,
+                _compactChrome.CompactTitleMarqueeTrack,
+                _compactChrome.CompactTitleViewport,
                 titleWidth);
         }
 
-        double summaryWidth = MeasureCompactTextWidth(CompactSummaryText);
-        if (_showCompactSummary && CanUseCompactMarqueeTarget(CompactSummaryViewport, summaryWidth))
+        double summaryWidth = MeasureCompactTextWidth(_compactChrome.CompactSummaryText);
+        if (_showCompactSummary && CanUseCompactMarqueeTarget(_compactChrome.CompactSummaryViewport, summaryWidth))
         {
             return (
-                CompactSummaryText,
-                CompactSummaryMarqueeClone,
-                CompactSummaryMarqueeTrack,
-                CompactSummaryViewport,
+                _compactChrome.CompactSummaryText,
+                _compactChrome.CompactSummaryMarqueeClone,
+                _compactChrome.CompactSummaryMarqueeTrack,
+                _compactChrome.CompactSummaryViewport,
                 summaryWidth);
         }
 
@@ -4353,11 +4359,63 @@ public sealed partial class WidgetShell : UserControl
         }
     }
 
+    private void SyncCompactChromeIdentity()
+    {
+        if (_compactChrome is null)
+        {
+            return;
+        }
+
+        _compactChrome.TitleGlyph = TitleGlyph;
+        _compactChrome.TitleIconKind = TitleIconKind;
+        _compactChrome.TitleIconAccentColor = TitleIconAccentColor;
+        _compactChrome.TitleIconCustomEmoji = TitleIconCustomEmoji;
+        _compactChrome.TitleIconCustomSource = TitleIconCustomSource;
+        _compactChrome.OverlayTitle = OverlayTitle;
+    }
+
+    private void SubscribeCompactChromeEvents()
+    {
+        if (_compactChrome is null)
+        {
+            return;
+        }
+
+        _compactChrome.LayerGotFocus += (s, e) => CollapsedChromeLayer_GotFocus(s, e);
+        _compactChrome.LayerLostFocus += (s, e) => CollapsedChromeLayer_LostFocus(s, e);
+        _compactChrome.DragPointerCaptureLost += (s, e) => OverlayDragHandle_PointerCaptureLost(s, e);
+        _compactChrome.DragPointerMoved += (s, e) => OverlayDragHandle_PointerMoved(s, e);
+        _compactChrome.DragPointerPressed += (s, e) => OverlayDragHandle_PointerPressed(s, e);
+        _compactChrome.DragPointerReleased += (s, e) => OverlayDragHandle_PointerReleased(s, e);
+        _compactChrome.LayerRightTapped += (s, e) => CollapsedChromeLayer_RightTapped(s, e);
+        _compactChrome.LayerSizeChanged += (s, e) => CollapsedChromeLayer_SizeChanged(s, e);
+
+        _compactChrome.IdentityPointerEntered += (s, e) => CompactIdentityHost_PointerEntered(s, e);
+        _compactChrome.IdentityPointerExited += (s, e) => CompactIdentityHost_PointerExited(s, e);
+        _compactChrome.MoveRegionPointerEntered += (s, e) => CompactMoveHitRegion_PointerEntered(s, e);
+        _compactChrome.MoveRegionPointerExited += (s, e) => CompactMoveHitRegion_PointerExited(s, e);
+        _compactChrome.TextPointerEntered += (s, e) => CompactTextContainer_PointerEntered(s, e);
+        _compactChrome.TextPointerExited += (s, e) => CompactTextContainer_PointerExited(s, e);
+        _compactChrome.ActionRegionPointerEntered += (s, e) => CompactActionRegionTrigger_PointerEntered(s, e);
+        _compactChrome.ActionRegionPointerExited += (s, e) => CompactActionRegionTrigger_PointerExited(s, e);
+        _compactChrome.ReorderPointerEntered += (s, e) => CompactReorderHandle_PointerEntered(s, e);
+        _compactChrome.ReorderPointerExited += (s, e) => CompactReorderHandle_PointerExited(s, e);
+        _compactChrome.ActionHostPointerEntered += (s, e) => CompactActionHost_PointerEntered(s, e);
+        _compactChrome.ActionHostPointerExited += (s, e) => CompactActionHost_PointerExited(s, e);
+
+        _compactChrome.PrimaryActionClicked += (s, e) => CompactPrimaryActionButton_Click(s, e);
+        _compactChrome.PreviousClicked += (s, e) => CompactPreviousButton_Click(s, e);
+        _compactChrome.PlayPauseClicked += (s, e) => CompactPlayPauseButton_Click(s, e);
+        _compactChrome.NextClicked += (s, e) => CompactNextButton_Click(s, e);
+        _compactChrome.ExpandClicked += (s, e) => CompactExpandButton_Click(s, e);
+    }
+
     private static void OnOverlayTitleChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
     {
         if (d is WidgetShell shell)
         {
             shell.Bindings.Update();
+            shell.SyncCompactChromeIdentity();
         }
     }
 
@@ -4367,6 +4425,7 @@ public sealed partial class WidgetShell : UserControl
         {
             shell.Bindings.Update();
             shell.UpdateCompactGroupPositionRail(shell._groupPresentation);
+            shell.SyncCompactChromeIdentity();
         }
     }
 
@@ -4525,11 +4584,11 @@ public sealed partial class WidgetShell : UserControl
             HeaderDivider.Visibility = Visibility.Collapsed;
             ShellContentPresenter.Visibility = Visibility.Collapsed;
             OverlayChromeLayer.Visibility = Visibility.Collapsed;
-            CollapsedChromeLayer.Visibility = Visibility.Visible;
+            _compactChrome.CollapsedChromeLayer.Visibility = Visibility.Visible;
             return;
         }
 
-        CollapsedChromeLayer.Visibility = Visibility.Collapsed;
+        _compactChrome.CollapsedChromeLayer.Visibility = Visibility.Collapsed;
         ShellContentPresenter.Visibility = Visibility.Visible;
         ShellRoot.RowDefinitions[1].Height = new GridLength(1, GridUnitType.Star);
         bool usesOverlay = ChromeMode is WidgetChromeMode.Overlay or WidgetChromeMode.Hidden;
@@ -4655,7 +4714,7 @@ public sealed partial class WidgetShell : UserControl
     {
         bool visible = _isCollapsed &&
             (IsPointerOverCompactActionRegion() || _isCompactKeyboardFocused);
-        CompactActionHost.IsHitTestVisible = visible;
+        _compactChrome.CompactActionHost.IsHitTestVisible = visible;
         if (animate &&
             SystemAnimationsEnabled() &&
             _compactActionVisibilityStoryboard.IsActiveFor(visible))
@@ -4666,8 +4725,8 @@ public sealed partial class WidgetShell : UserControl
         if (!animate || !SystemAnimationsEnabled())
         {
             _compactActionVisibilityStoryboard.StopAndClear();
-            CompactActionHost.Opacity = visible ? 1 : 0;
-            CompactActionHostTransform.X =
+            _compactChrome.CompactActionHost.Opacity = visible ? 1 : 0;
+            _compactChrome.CompactActionHostTransform.X =
                 visible ? 0 : WidgetMotion.TranslationDistance;
             return;
         }
@@ -4697,9 +4756,9 @@ public sealed partial class WidgetShell : UserControl
         var storyboard = new Storyboard();
         storyboard.Children.Add(opacityAnim);
         storyboard.Children.Add(slideAnim);
-        Storyboard.SetTarget(opacityAnim, CompactActionHost);
+        Storyboard.SetTarget(opacityAnim, _compactChrome.CompactActionHost);
         Storyboard.SetTargetProperty(opacityAnim, "Opacity");
-        Storyboard.SetTarget(slideAnim, CompactActionHostTransform);
+        Storyboard.SetTarget(slideAnim, _compactChrome.CompactActionHostTransform);
         Storyboard.SetTargetProperty(slideAnim, "X");
         _compactActionVisibilityStoryboard.Begin(storyboard, visible);
     }
@@ -4709,7 +4768,7 @@ public sealed partial class WidgetShell : UserControl
         bool visible = _isCompactReorderEnabled &&
             _isCollapsed &&
             (_isPointerOverShell || _isDragHandlePressed || _isCompactKeyboardFocused);
-        CompactReorderHandle.IsHitTestVisible = _isCompactReorderEnabled && _isCollapsed;
+        _compactChrome.CompactReorderHandle.IsHitTestVisible = _isCompactReorderEnabled && _isCollapsed;
         double targetOpacity = visible ? 1 : 0;
 
         if (animate &&
@@ -4722,7 +4781,7 @@ public sealed partial class WidgetShell : UserControl
         if (!animate || !SystemAnimationsEnabled())
         {
             _compactReorderHandleStoryboard.StopAndClear();
-            CompactReorderHandle.Opacity = targetOpacity;
+            _compactChrome.CompactReorderHandle.Opacity = targetOpacity;
             return;
         }
 
@@ -4739,7 +4798,7 @@ public sealed partial class WidgetShell : UserControl
             }
         };
         var storyboard = new Storyboard();
-        Storyboard.SetTarget(animation, CompactReorderHandle);
+        Storyboard.SetTarget(animation, _compactChrome.CompactReorderHandle);
         Storyboard.SetTargetProperty(animation, "Opacity");
         storyboard.Children.Add(animation);
         _compactReorderHandleStoryboard.Begin(storyboard, visible);
@@ -4849,7 +4908,7 @@ public sealed partial class WidgetShell : UserControl
 
         _isPointerOverCompactReorderHandle = true;
         UpdateCompactInteractionRegionHighlights();
-        CompactReorderGlyph.Opacity = 0.92;
+        _compactChrome.CompactReorderGlyph.Opacity = 0.92;
         StopCompactMarquee();
         UpdateCompactActionRegionState();
         ApplyCompactActionVisibility();
@@ -4858,7 +4917,7 @@ public sealed partial class WidgetShell : UserControl
     private void CompactReorderHandle_PointerExited(object sender, PointerRoutedEventArgs e)
     {
         _isPointerOverCompactReorderHandle = false;
-        CompactReorderGlyph.Opacity = 0.58;
+        _compactChrome.CompactReorderGlyph.Opacity = 0.58;
         if (!_isCollapsed || !_isCompactReorderEnabled)
         {
             return;
@@ -4880,7 +4939,7 @@ public sealed partial class WidgetShell : UserControl
         _isPointerOverCompactActions = false;
         _isPointerOverCompactActionTrigger = false;
         _isPointerOverCompactReorderHandle = false;
-        CompactReorderGlyph.Opacity = 0.58;
+        _compactChrome.CompactReorderGlyph.Opacity = 0.58;
         if (identityWasActive)
         {
             CompactMoveHandlePointerExited?.Invoke(this, EventArgs.Empty);
@@ -4944,7 +5003,7 @@ public sealed partial class WidgetShell : UserControl
         if (!SystemAnimationsEnabled())
         {
             _compactTextHoverStoryboard.StopAndClear();
-            CompactTextHoverBackground.Opacity = targetOpacity;
+            _compactChrome.CompactTextHoverBackground.Opacity = targetOpacity;
             return;
         }
 
@@ -4959,7 +5018,7 @@ public sealed partial class WidgetShell : UserControl
             }
         };
         var storyboard = new Storyboard();
-        Storyboard.SetTarget(animation, CompactTextHoverBackground);
+        Storyboard.SetTarget(animation, _compactChrome.CompactTextHoverBackground);
         Storyboard.SetTargetProperty(animation, "Opacity");
         storyboard.Children.Add(animation);
         _compactTextHoverStoryboard.Begin(storyboard, show);
@@ -4969,7 +5028,7 @@ public sealed partial class WidgetShell : UserControl
     {
         double actionTarget = _isCollapsed && IsPointerOverCompactActionRegion() ? 1 : 0;
         AnimateOpacity(
-            CompactActionRegionHighlight,
+            _compactChrome.CompactActionRegionHighlight,
             actionTarget,
             _compactActionHighlightStoryboard);
     }
@@ -5499,7 +5558,7 @@ public sealed partial class WidgetShell : UserControl
 
     private void OverlayDragHandle_PointerPressed(object sender, PointerRoutedEventArgs e)
     {
-        if (_isCollapsed && e.OriginalSource is DependencyObject source && IsWithin(source, CompactActionHost))
+        if (_isCollapsed && e.OriginalSource is DependencyObject source && IsWithin(source, _compactChrome.CompactActionHost))
         {
             return;
         }
@@ -5515,13 +5574,13 @@ public sealed partial class WidgetShell : UserControl
             StopCompactMarquee();
             CompactPointerPressed?.Invoke(this, EventArgs.Empty);
             // Pressed state: reduce hover mask opacity
-            CompactActionRegionHighlight.Opacity *= 0.5;
+            _compactChrome.CompactActionRegionHighlight.Opacity *= 0.5;
             bool pressedMoveHandle = e.OriginalSource is DependencyObject moveSource &&
-                (IsWithin(moveSource, CompactMoveHitRegion) ||
-                 IsWithin(moveSource, CompactIdentityHost));
+                (IsWithin(moveSource, _compactChrome.CompactMoveHitRegion) ||
+                 IsWithin(moveSource, _compactChrome.CompactIdentityHost));
             bool pressedReorderHandle = _isCompactReorderEnabled &&
                 e.OriginalSource is DependencyObject reorderSource &&
-                IsWithin(reorderSource, CompactReorderHandle);
+                IsWithin(reorderSource, _compactChrome.CompactReorderHandle);
             _isCompactMoveHandlePress = pressedMoveHandle;
             startsWindowDrag = pressedMoveHandle || pressedReorderHandle;
             _pendingDragHandleClickAction = pressedMoveHandle && _groupPresentation is not null
@@ -5558,9 +5617,9 @@ public sealed partial class WidgetShell : UserControl
 
     private void OverlayDragHandle_PointerMoved(object sender, PointerRoutedEventArgs e)
     {
-        if (_isCollapsed && ReferenceEquals(sender, CollapsedChromeLayer))
+        if (_isCollapsed && ReferenceEquals(sender, _compactChrome.CollapsedChromeLayer))
         {
-            // CollapsedChromeLayer receives bubbled moves from the whole capsule.
+            // _compactChrome.CollapsedChromeLayer receives bubbled moves from the whole capsule.
             // Keep this separate from PointerEntered because swapping grouped
             // content can leave WinUI's entry state attached to the outgoing tree.
             CompactPointerMoved?.Invoke(this, EventArgs.Empty);
@@ -5603,7 +5662,7 @@ public sealed partial class WidgetShell : UserControl
         }
         else if (clickAction == DragHandleClickAction.OpenGroup)
         {
-            OpenGroupPicker(CompactIdentityHost);
+            OpenGroupPicker(_compactChrome.CompactIdentityHost);
         }
     }
 

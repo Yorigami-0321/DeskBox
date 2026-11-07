@@ -215,8 +215,9 @@ public sealed class MusicWidgetContentLayoutTests
     {
         string musicXaml = File.ReadAllText(TestPaths.FromRepository(
             "src/DeskBox/Controls/WidgetContents/MusicWidgetContent.xaml"));
-        string shellXaml = File.ReadAllText(TestPaths.FromRepository(
-            "src/DeskBox/Controls/WidgetShell.xaml"));
+        string shellXaml =
+            File.ReadAllText(TestPaths.FromRepository("src/DeskBox/Controls/WidgetShell.xaml")) +
+            File.ReadAllText(TestPaths.FromRepository("src/DeskBox/Controls/WidgetCompactChrome.xaml"));
         string shellCode = File.ReadAllText(TestPaths.FromRepository(
             "src/DeskBox/Controls/WidgetShell.xaml.cs"));
         string transportXaml = File.ReadAllText(TestPaths.FromRepository(

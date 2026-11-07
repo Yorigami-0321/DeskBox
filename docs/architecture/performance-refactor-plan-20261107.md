@@ -1,0 +1,110 @@
+# 性能重构计划（2026-11-07）
+
+本计划承接 [内存归因与优化方案](memory-attribution-optimization-20261027.md) 的剩余项，目标是把已证明可行但结构受限的优化落到可维护的实现上，并为核显/低功耗场景建立可测量的优化路径。本文只定范围、设计、阶段与验收口径，不含工时/排期。
+
+## 1. 当前基线与已落地改动
+
+已提交：
+
+| 提交 | 内容 | 实测 |
+|---|---|---|
+| `1f52f9c` | 设置页托管存储检查移出 UI 线程 | 设置页不再被磁盘/网络查询阻塞 |
+| `d9ab66e` | AllRecreatable 下长隐藏释放内容树（P0-B） | 隐藏态 WS 270.9 → 52.1MB |
+| `b472b5f` | 空闲重启 + 懒恢复（P0-C） | 空闲 Private 168.6 → 97.5–100.2MB（opt-in） |
+| `b472b5f` | 启动激活排水不再跑交互兜底 | `--startup` 不再拉起设置宿主/强制显示格子 |
+| `0b8a69f` | 胶囊内容睡眠（P0-A） | 3 胶囊 Private 189.3 → 167.6MB、WS 115 → 50MB |
+
+部署现状：`D:\APP\DeskBox` 已覆盖为当前 AOT 构建；设置为 ResourceSaver + AllRecreatable + 空闲重启开启（30 分钟）；折叠行为仍为 Expanded（无胶囊），材质 AcrylicBase。
+
+## 2. 工作流 A：compact 层抽取（P1-A）
+
+### 2.1 目标
+
+Expanded（永不折叠）窗口不再创建 `CollapsedChromeLayer`（125 个元素、73 个命名元素、占 WidgetShell XAML 的 62%），降低每个常驻窗口的固定 XAML 开销；胶囊窗口的行为、外观与延迟保持不变。
+
+### 2.2 已验证的不可行路径
+
+- `x:Load="{x:Bind ...}"` 绑定：`WidgetShell` 构造抛 `XamlParseException`。
+- 同文件 `DataTemplate` + `FindName` 回填：同样在 `WidgetShell` 构造时抛 `XamlParseException`（模板内 17 个事件处理器、6 个 shell 属性 x:Bind 与自引用冲突）。
+
+结论：必须把紧凑层及其代码一起移到独立控件，不能只延迟 XAML 子树。
+
+### 2.3 设计
+
+1. 新增 `WidgetCompactChrome : UserControl`，承载 `CollapsedChromeLayer` 整棵子树与对应的 compact 代码（预计迁移 `WidgetShell.xaml.cs` 中约 1.5k 行、123 个 compact 符号的引用）。
+2. `WidgetShell` 保留一个布局占位 `CompactChromeHost` 和 `WidgetCompactChrome?`：
+   - `SetCompactChromeEnabled(bool)`：Expanded → 不创建；Click/Smart → 创建并注入。
+   - 壳只保留布局、内容宿主、标题栏和跨域状态；compact 交互全部由新控件负责。
+3. API 边界：
+   - 输入：`SetPresentation(WidgetCompactPresentation)`、`SetCollapsed(bool, contentMode)`、`SetInteractionMode(bool smart)`、`SetReorderEnabled(bool)`、`ApplyTheme/Size`、标题图标六项属性（当前 6 个 x:Bind 的 `TitleGlyph/TitleIconKind/TitleIconAccentColor/...`）。
+   - 输出：17 个 XAML 处理器与壳级 compact 事件（PointerEntered/Moved/Exited/Pressed、Expansion/Action/MoveHandle、Drag/Drop、Previous/PrimaryAction/PlayPause/Next、CollapseRequested/ExpandRequested）由新控件以事件形式暴露，`WidgetShell`/窗口基类按原订阅关系转发。
+4. 懒创建只由窗口基类的 `SupportsCompactChrome`（`EffectiveCollapseBehavior != Expanded`）驱动；运行时切换折叠行为时创建/销毁并重放当前 presentation。
+5. 所有 compact 入口在控件不存在时做空守卫；Expanded 窗口的 init/主题/尺寸/内容切换路径不得触碰 compact 字段。
+
+### 2.4 阶段与验收
+
+| 阶段 | 内容 | 验收 |
+|---|---|---|
+| A1 | 抽出 UserControl，所有窗口仍创建（行为不变） | 全量测试绿；胶囊/悬停/拖拽/组切换/主题切换冒烟通过 |
+| A2 | Expanded 窗口不创建 compact 层（守卫 + 懒创建） | Expanded 窗口视觉树无 compact 层；Click/Smart 胶囊正常；无空引用 |
+| A3 | 运行时折叠行为切换 + 测量 | Expanded/Click/Smart 互切正常；AOT 每 Expanded 窗口 Private 下降（目标 2–3MB/窗，以实测为准）；首次胶囊 hover/expand 延迟不回归 |
+
+### 2.5 风险与回滚
+
+- 风险：跨控件事件顺序、hover/drag 状态、组宿主、标题图标绑定、主题/尺寸回调、tooltip/本地化、现有源码契约测试。
+- 回滚：在独立分支 `perf/p1a-compact-chrome` 分阶段提交；A2 若出现空引用或交互回归，回到 A1 的“始终创建”实现，保留控件抽取本身（可维护性收益），不保留懒创建。
+
+## 3. 工作流 B：核显/低功耗 GPU 优化（P3）
+
+### 3.1 已测事实（本机）
+
+- 双 GPU：AMD Radeon 780M（核显，驱动 1920×1280 显示）+ RTX 4060 Laptop（独显，驱动 2560×1440 主屏）。
+- 安装版 `D:\APP\DeskBox\DeskBox.exe` 已在 Windows 图形设置中固定 `GpuPreference=1`（核显优先）；无该偏好的临时 AOT exe 会落到独显。
+- AcrylicBase / Mica / Solid 三种材质（3 个可见 File 窗口、动画全关）：应用侧 Private 176.6 / 172.8 / 173.0MB，GPU 内存 36/40/50MB dedicated + ~18MB shared，3D 利用率 0%；材质差异在应用进程侧不显著。
+- 亚克力模糊的合成开销在 DWM（DWM 独显 1.28GB dedicated；核显 146MB dedicated + 753MB shared）；每窗口约 14MB 合成表面由窗口尺寸决定，WinUI 不提供降采样接口。
+
+### 3.2 设计
+
+1. **B1 测量**：在 iGPU 路径上做 DWM 级 A/B（Acrylic vs Mica vs Solid），记录 `GPUEngine`/`GPUProcessMemory`（含 dwm）、电池放电/能耗、视觉差异；测试 exe 若需核显偏好，先征得同意再写 HKCU `UserGpuPreferences`。
+2. **B2 低功耗材质模式**（opt-in，默认关闭）：检测**当前实际使用的 GPU**（DXGI 活动适配器/UMA 核显特征；不以电源状态代替），在核显路径上把 Acrylic/AcrylicBase 降为 Mica 或 Solid，切回独显后恢复用户选择；不修改用户持久化的材质设置，不静默改写系统 GPU 偏好。检测不到时保持用户原设置（不猜测）。
+3. **B3 引导而非代写**：对便携/新装场景，提供跳转 Windows 图形设置的入口与说明（GPU 偏好是 Windows 按 exe 的系统设置）。
+4. 不做：强行降采样窗口合成表面（无公开 API）、关闭 Mica 以外不相关的视觉效果、默认改变用户材质。
+
+### 3.3 阶段与验收
+
+| 阶段 | 内容 | 验收 |
+|---|---|---|
+| B1 | DWM/电池 A/B 测量 | 给出三种材质的 DWM GPU 内存/利用率/能耗差值与置信说明；确认是否值得做 B2 |
+| B2 | 低功耗材质模式 | 核显路径上材质按预期变化、切回独显恢复；Private 不回退；设置可关闭；无闪烁/重建异常 |
+| B3 | GPU 偏好引导 | 设置页入口可用；不写注册表；文档说明核显/独显选择的影响 |
+
+## 4. 工作流 C：P2 长会话趋势告警（可选）
+
+- 在现有 `privateMinusGcHeapEstimateMB` 采样序列上做趋势检测：连续 N 个样本单调上升且超过阈值时，记录一次 `PerformanceLogger` 事件并写 `[Memory] TrendWarning` 日志；**仅日志/性能标记，不弹 UI、不自动重启**（空闲重启已覆盖无人场景）。
+- 阈值建议：连续 6 个样本（约 18 分钟）单调上升且增幅 ≥30%，或 Private 高于基线 +80MB；冷却期内不重复记录。
+- 验收：策略单测覆盖正常/异常序列；正常使用不误报；仅有日志与性能标记。
+
+## 5. 建议顺序与依赖
+
+1. **A1 → A2 → A3**（P1-A，独立分支；A1 合并后立即推进 A2/A3，不停顿观察）。
+2. **B1 → B2 → B3**（核显；B1 是决策前置，数据为负则只保留 B3 的说明；B2 以“当前使用核显”为触发）。
+3. **C**（P2，小改动，可与 B 并行）。
+
+依赖：A 与 B 互相独立；B2 依赖 B1 数据；C 独立。所有阶段共用同一套 AOT 零售 + 隔离数据根测量协议。
+
+## 6. 测试与测量协议
+
+- 构建：AOT 零售（x64，Rust native），隔离数据根，真实布局副本；Debug 仅做功能冒烟。
+- 场景：3 个 File 窗口（1 组 + 2 独立）与 9-12 窗口折叠/展开两档；固定材质与动画变量。
+- 指标：Private 为主，WS 仅参考；GPU 采 per-LUID `GPUProcessMemory` + `GPUEngine`（含 dwm）；必要时加电池放电。
+- 门禁：每阶段全量 x64 测试 passed == total；A2/A3、B2 完成后做 AOT 实测；负收益或高风险回归按分支回滚。
+
+## 7. 明确不做
+
+- 合并多格子为单 widget；强制 GC；削减 IconHelper 缓存预算；为省内存默认改变用户的折叠行为/材质；静默改写系统 GPU 偏好。
+
+## 8. 待确认决策
+
+1. P1-A：已确认 A1 合并后立即推进 A2/A3（懒创建）。
+2. B2：已确认以“当前使用核显”为触发（DXGI 活动适配器/UMA 特征），不以电池状态代替；检测不到时保持原设置。
+3. P2 的提示形式：已确认**仅日志/性能标记**，不弹 UI。

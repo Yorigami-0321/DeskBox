@@ -73,7 +73,7 @@
 - 压缩每格子 XAML 树深度：chrome 元素（把手、边框、按钮层）用 `x:DeferLoadStrategy`/按需加载；共享 Style/DWM 资源已共享的部分继续保持。
 - 评估长隐藏格子直接**销毁 HWND**（roadmap 的 Cold 档）：彻底消除 7.9MB 图面 + 窗口过程开销，唤起时重建窗口。作为 P0-A 的激进版，可做成设置项（如「深度休眠」）。
 
-**P1-A 评估（2026-11-07）**：Cold 销毁 HWND 已在 B1 试点（AOT 零售负收益，已回滚），现由 P0-C 的进程级懒恢复替代。XAML 树瘦身量化结果：shell 共 201 个元素，其中 `CollapsedChromeLayer` 子树 **125 个**（62%），但 `WidgetShell.xaml.cs` 有 **379 处、123 个** compact 符号引用，集中在 hover/主题/尺寸/手势路径；延迟加载需全面判空并重接事件，预期收益远小于内容树（P0-A 实测每胶囊约 6-7MB Private），暂不实施。若要继续，应作为独立的全量 shell 重构项目评估。
+**P1-A 评估（2026-11-07）**：Cold 销毁 HWND 已在 B1 试点（AOT 零售负收益，已回滚），现由 P0-C 的进程级懒恢复替代。XAML 树瘦身量化结果：shell 共 201 个元素，其中 `CollapsedChromeLayer` 子树 **125 个**（62%），但 `WidgetShell.xaml.cs` 有 **379 处、123 个** compact 符号引用，集中在 hover/主题/尺寸/手势路径；延迟加载需全面判空并重接事件，预期收益远小于内容树（P0-A 实测每胶囊约 6-7MB Private）。已尝试两条延迟创建路径，均失败：① `x:Load="{x:Bind ...}"` 绑定让 `WidgetShell` 构造抛 `XamlParseException`；② 把胶囊层移入同文件 `DataTemplate` + `FindName` 回填字段（计划按需 `LoadContent`）同样在 `WidgetShell` 构造时抛 `XamlParseException`（模板内 17 个事件处理器/6 个 x:Bind 与 shell 自引用冲突）。可行方向只剩把整层抽成**独立 UserControl 并迁移约 1500 行 compact 代码**，属于独立的 shell 重构项目；当前不做，P1-A 标记为已评估/阻塞。重构计划见 [performance-refactor-plan-20261107.md](performance-refactor-plan-20261107.md)。
 
 ### P1-B：File 格子渲染窗口下移
 
@@ -97,7 +97,7 @@
 
 结论：**应用进程侧 Private/GPU 内存在材质间无有意义差异；亚克力模糊的合成开销在 DWM**（DWM 独显 1.28GB dedicated、核显 146MB dedicated + 753MB shared），应用进程 GPU 引擎计数看不到。每窗口约 14MB 合成表面由窗口尺寸决定，WinUI 不提供降采样接口。
 
-待评估方案（未实现）：opt-in「核显/省电材质」——在电池/省电模式下把 Acrylic 自动降为 Mica 或 Solid 并关闭 rich backdrop 模糊；用 DWM GPU 计数 + 电池放电做 A/B，数据为正再决定默认值。GPU 偏好属于 Windows 按 exe 的系统设置，应用不应静默改写注册表；安装版已由用户设置。
+待评估方案（未实现）：opt-in「核显/省电材质」——在电池/省电模式下把 Acrylic 自动降为 Mica 或 Solid 并关闭 rich backdrop 模糊；用 DWM GPU 计数 + 电池放电做 A/B，数据为正再决定默认值。GPU 偏好属于 Windows 按 exe 的系统设置，应用不应静默改写注册表；安装版已由用户设置。重构计划见 [performance-refactor-plan-20261107.md](performance-refactor-plan-20261107.md)。
 
 ### 不建议做的事
 
