@@ -96,7 +96,8 @@ internal interface IDesktopWidgetWindow
     void ApplyCompactArrangement(Windows.Graphics.RectInt32 bounds, bool constrainSize);
     void ClearCompactArrangementConstraint();
     void PreviewCompactArrangement(Windows.Graphics.RectInt32 bounds);
-    void SetTrayAnimationOffsetOverride(double? offsetX, double? offsetY);
+    void SetTrayAnimationOffsetOverride(double? offsetX, double? offsetY, bool forceFade = false);
+    double ComputeTraySlideSafeTravel(double offsetX, double offsetY);
     void CancelTrayAnimationAndRestorePosition();
     void PrepareTrayShowAnimation();
     void ShowPreparedAtDesktopLayer(bool persistVisibility = true);

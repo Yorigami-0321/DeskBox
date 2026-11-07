@@ -970,9 +970,17 @@ public sealed partial class ContentWidgetWindow : WidgetWindowBase, IDesktopWidg
         _contentHost.ApplyAppearance(invalidate: invalidateContent);
     }
 
-    public void SetTrayAnimationOffsetOverride(double? offsetX, double? offsetY)
+    public void SetTrayAnimationOffsetOverride(
+        double? offsetX,
+        double? offsetY,
+        bool forceFade = false)
     {
-        TrayAnimation.SetOffsetOverride(offsetX, offsetY);
+        TrayAnimation.SetOffsetOverride(offsetX, offsetY, forceFade);
+    }
+
+    public double ComputeTraySlideSafeTravel(double offsetX, double offsetY)
+    {
+        return TrayAnimation.ComputeSafeSlideTravel(offsetX, offsetY);
     }
 
     public void CancelTrayAnimationAndRestorePosition()

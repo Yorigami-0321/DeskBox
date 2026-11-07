@@ -55,6 +55,7 @@ public sealed class WidgetTrayAnimationController : IDisposable
     private PointInt32? _targetPosition;
     private double? _offsetOverrideX;
     private double? _offsetOverrideY;
+    private bool _forceFadeForShortSlide;
     private bool _useCrossingFade;
     private double _crossingFadeStartOffset;
     private double _crossingFadeEndOffset;
@@ -125,10 +126,11 @@ public sealed class WidgetTrayAnimationController : IDisposable
         return ++Generation;
     }
 
-    public void SetOffsetOverride(double? offsetX, double? offsetY)
+    public void SetOffsetOverride(double? offsetX, double? offsetY, bool forceFade = false)
     {
         _offsetOverrideX = offsetX;
         _offsetOverrideY = offsetY;
+        _forceFadeForShortSlide = forceFade && (offsetX.HasValue || offsetY.HasValue);
     }
 
     public void CloakWindowForTrayShow()
@@ -243,6 +245,20 @@ public sealed class WidgetTrayAnimationController : IDisposable
         var slideOffsets = GetOffscreenSlideOffsets();
         ResolveCrossingFadeState(effectiveDirection, GetDirectionalTravel(effectiveDirection, slideOffsets));
         var (dirX, dirY) = WidgetAnimationSettings.GetDirectionalOffset(options.SlideDirection, slideOffsets);
+
+        // A batch-wide capped slide keeps every window on its resting DPI, so
+        // there is no rasterization handoff; the shorter travel is hidden by
+        // fading from transparent at the shared start offset.
+        if (_forceFadeForShortSlide && (dirX != 0 || dirY != 0))
+        {
+            _useCrossingFade = false;
+            ResetVisualMotionChannels(effect, effectiveDirection);
+            return new WidgetTrayAnimationProfile(
+                dirX, dirY, dirX, dirY,
+                SoftOpacity, SoftOpacity,
+                RestingScale, RestingScale,
+                durationMs, true);
+        }
 
         // A full slide parks the HWND outside the work area. If that park lands
         // on a different-DPI display, the window rasterizes at two scales
@@ -782,6 +798,59 @@ public sealed class WidgetTrayAnimationController : IDisposable
         }
 
         return current;
+    }
+
+    public double ComputeSafeSlideTravel(double offsetX, double offsetY)
+    {
+        double fullTravel = Math.Max(Math.Abs(offsetX), Math.Abs(offsetY));
+        if (fullTravel <= 0)
+        {
+            return 0;
+        }
+
+        Windows.Foundation.Rect rest = GetRestingAnimationBounds();
+        if (rest.Width <= 0 || rest.Height <= 0)
+        {
+            return 0;
+        }
+
+        double centerX = rest.X + rest.Width / 2;
+        double centerY = rest.Y + rest.Height / 2;
+        double restingScale = Win32Helper.GetDpiScaleForPoint(
+            (int)Math.Round(centerX),
+            (int)Math.Round(centerY));
+        int stepX = Math.Sign(offsetX);
+        int stepY = Math.Sign(offsetY);
+
+        bool StaysOnRestingDpi(double travel)
+        {
+            double scale = Win32Helper.GetDpiScaleForPoint(
+                (int)Math.Round(centerX + (stepX * travel)),
+                (int)Math.Round(centerY + (stepY * travel)));
+            return Math.Abs(scale - restingScale) <= 0.01;
+        }
+
+        if (StaysOnRestingDpi(fullTravel))
+        {
+            return fullTravel;
+        }
+
+        double low = 0;
+        double high = fullTravel;
+        for (int iteration = 0; iteration < 14; iteration++)
+        {
+            double middle = (low + high) / 2;
+            if (StaysOnRestingDpi(middle))
+            {
+                low = middle;
+            }
+            else
+            {
+                high = middle;
+            }
+        }
+
+        return Math.Max(0, low - 1);
     }
 
     private bool SlideCrossesDpiBoundary(double offsetX, double offsetY)

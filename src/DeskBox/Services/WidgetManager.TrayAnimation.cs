@@ -511,9 +511,34 @@ public sealed partial class WidgetManager
                     break;
             }
 
+            double fullTravel = Math.Max(Math.Abs(offsetX), Math.Abs(offsetY));
+            bool forceFade = false;
+            if (fullTravel > 0)
+            {
+                double safeTravel = double.MaxValue;
+                foreach (var window in groupWindows)
+                {
+                    safeTravel = Math.Min(
+                        safeTravel,
+                        window.ComputeTraySlideSafeTravel(offsetX, offsetY));
+                }
+
+                if (double.IsFinite(safeTravel) &&
+                    safeTravel < fullTravel - 0.5)
+                {
+                    double scale = Math.Max(0, safeTravel) / fullTravel;
+                    offsetX *= scale;
+                    offsetY *= scale;
+                    forceFade = true;
+                    App.LogVerbose(
+                        $"[TrayBatch] Capped slide to {safeTravel:F0}px " +
+                        $"(full {fullTravel:F0}px) to keep the batch on one DPI");
+                }
+            }
+
             foreach (var window in groupWindows)
             {
-                window.SetTrayAnimationOffsetOverride(offsetX, offsetY);
+                window.SetTrayAnimationOffsetOverride(offsetX, offsetY, forceFade);
             }
         }
     }
