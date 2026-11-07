@@ -231,6 +231,7 @@ internal static class SettingsSearchCatalog
         new("PerformanceSettings", "Settings.Performance.QuiescenceWorkingSetTrim.Title", "Settings.Performance.QuiescenceWorkingSetTrim.Description"),
         new("PerformanceSettings", "Settings.Performance.IdleProcessRecycle.Title", "Settings.Performance.IdleProcessRecycle.Description"),
         new("PerformanceSettings", "Settings.Performance.DecorativeAnimations.Title", "Settings.Performance.DecorativeAnimations.Description"),
+        new("PerformanceSettings", "Settings.Performance.GpuPreference.Title", "Settings.Performance.GpuPreference.Description"),
         new("Maintenance", "Settings.DataBackup.Title", "Settings.DataBackup.Description"),
         new("Maintenance", "Settings.CloudBackup.Title", "Settings.CloudBackup.Description"),
         new("Maintenance", "Settings.AttachmentHealth.Title", "Settings.AttachmentHealth.Description"),
