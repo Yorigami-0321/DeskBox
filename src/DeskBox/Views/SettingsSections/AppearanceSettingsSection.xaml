@@ -100,6 +100,27 @@
             </toolkit:SettingsExpander>
 
             <toolkit:SettingsCard
+                HorizontalContentAlignment="Right"
+                svc:Localized.DescriptionKey="Settings.VisualPreset.Description"
+                svc:Localized.HeaderKey="Settings.VisualPreset.Title"
+                svc:InfoTip.TitleKey="Settings.VisualPreset.InfoTip.Title"
+                svc:InfoTip.BodyKey="Settings.VisualPreset.InfoTip.Description">
+                <toolkit:SettingsCard.HeaderIcon>
+                    <FontIcon Glyph="&#xE790;" />
+                </toolkit:SettingsCard.HeaderIcon>
+                <Button
+                    AutomationProperties.AutomationId="SystemComponentPresetButton"
+                    Click="ApplySystemComponentPresetButton_Click"
+                    Style="{StaticResource ActionButtonStyle}"
+                    svc:Localized.AutomationNameKey="Settings.VisualPreset.SystemComponent.Apply">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <FontIcon FontSize="16" Glyph="&#xE8FB;" />
+                        <TextBlock svc:Localized.Key="Settings.VisualPreset.SystemComponent.Apply" />
+                    </StackPanel>
+                </Button>
+            </toolkit:SettingsCard>
+
+            <toolkit:SettingsCard
                 Click="NestedSettingsButton_Click"
                 Description="{Binding MaterialTypeText}"
                 HorizontalContentAlignment="Right"

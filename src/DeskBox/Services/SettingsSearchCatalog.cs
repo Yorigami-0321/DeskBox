@@ -21,6 +21,7 @@ internal static class SettingsSearchCatalog
         new("Appearance", "Settings.TrayIcon.Title", "Settings.TrayIcon.Description"),
         new("Appearance", "Settings.Accent.Source.Title", "Settings.Accent.Source.Description"),
         new("Appearance", "Settings.Accent.Title", null),
+        new("Appearance", "Settings.VisualPreset.Title", "Settings.VisualPreset.Description"),
         new("Appearance", "Settings.Material.Title", null),
         new("Appearance", "Settings.Density.Title", null),
         new("Appearance", "Settings.Group.AppVisual.Title", null),

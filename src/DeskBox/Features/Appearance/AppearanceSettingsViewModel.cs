@@ -1057,6 +1057,22 @@ public sealed partial class AppearanceSettingsViewModel : ObservableObject
 
     public string LayoutDensityText => GetLayoutDensityDisplayName(LayoutDensity);
 
+    /// <summary>
+    /// Applies the Windows system-flyout background look: Desktop Acrylic at
+    /// full concentration, 8 px rounded corners, and a thin neutral border.
+    /// The title bar, content and per-widget images are untouched.
+    /// </summary>
+    public void ApplySystemComponentPreset()
+    {
+        MaterialType = WidgetMaterialKinds.AcrylicBase;
+        WidgetTransparency = 0.0;
+        MaterialIntensity = 1.0;
+        CornerPreference = WidgetCornerKinds.Round;
+        BorderColorMode = WidgetBorderKinds.ColorNeutral;
+        BorderStyle = WidgetBorderKinds.StyleThin;
+        WidgetBackgroundMode = WidgetBackgroundModeKinds.Material;
+    }
+
     public IReadOnlyList<SettingsOption> AvailableLayoutDensityOptions
     {
         get

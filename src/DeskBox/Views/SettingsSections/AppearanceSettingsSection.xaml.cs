@@ -28,6 +28,14 @@ public sealed partial class AppearanceSettingsSection : UserControl
         }
     }
 
+    private void ApplySystemComponentPresetButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (DataContext is DeskBox.Features.Appearance.AppearanceSettingsViewModel editor)
+        {
+            editor.ApplySystemComponentPreset();
+        }
+    }
+
     private void AccentPresetButton_Click(object sender, RoutedEventArgs e)
     {
         // The section's DataContext is the appearance editor; the custom

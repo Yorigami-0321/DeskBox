@@ -33,6 +33,42 @@ public sealed class AppearanceSettingsEditorTests : IDisposable
         }
     }
 
+    [Fact]
+    public void ApplySystemComponentPreset_WritesTheSystemFlyoutContainer()
+    {
+        (SettingsService settings, AppearanceSettingsViewModel editor) =
+            CreateEditor(_root);
+        WidgetShellSettingsSlice shell = settings.Settings.WidgetShell;
+        string displayChromeBefore = shell.DisplayWidgetChromeMode;
+        string interactiveChromeBefore = shell.InteractiveWidgetChromeMode;
+        string foregroundBefore = shell.WidgetForegroundMode;
+        bool textShadowBefore = shell.WidgetTextShadowEnabled;
+
+        editor.ApplySystemComponentPreset();
+
+        Assert.Equal(
+            SettingsService.WidgetMaterialTypeAcrylicBase,
+            shell.WidgetMaterialType);
+        Assert.Equal(1.0d, shell.WidgetOpacity, 3);
+        Assert.Equal(1.0d, shell.WidgetMaterialIntensity, 3);
+        Assert.Equal(
+            SettingsService.WidgetCornerPreferenceRound,
+            shell.WidgetCornerPreference);
+        Assert.Equal(
+            SettingsService.WidgetBorderColorModeNeutral,
+            shell.WidgetBorderColorMode);
+        Assert.Equal(
+            SettingsService.WidgetBorderStyleThin,
+            shell.WidgetBorderStyle);
+        Assert.Equal(
+            WidgetBackgroundModeKinds.Material,
+            WidgetBackgroundModeKinds.Normalize(shell.WidgetBackgroundMode));
+        Assert.Equal(displayChromeBefore, shell.DisplayWidgetChromeMode);
+        Assert.Equal(interactiveChromeBefore, shell.InteractiveWidgetChromeMode);
+        Assert.Equal(foregroundBefore, shell.WidgetForegroundMode);
+        Assert.Equal(textShadowBefore, shell.WidgetTextShadowEnabled);
+    }
+
     private static (SettingsService Settings, AppearanceSettingsViewModel Editor) CreateEditor(
         string root,
         Action<SettingsService>? arrange = null)
