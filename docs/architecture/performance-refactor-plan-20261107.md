@@ -100,11 +100,12 @@ Expanded（永不折叠）窗口不再创建 `CollapsedChromeLayer`（125 个元
 - DWM 核显（0x138AF）：三种材质均为 **ded=132.7MB / shared=826.8MB，完全一致**；DWM 3D 利用率 0/0.1%（静态空闲）。
 - 结论：**静态空闲下材质的 DWM GPU 内存/利用率无可测差异**，乙酰酸→Mica/Solid 的自动降级（B2）缺少数据支持；电池放电 A/B 需要安静放电窗口，暂缓。建议 B2 不做，保留 B3 的说明性引导。
 
-## 4. 工作流 C：P2 长会话趋势告警（可选）
+## 4. 工作流 C：P2 长会话趋势告警（已实现，仅日志）
 
 - 在现有 `privateMinusGcHeapEstimateMB` 采样序列上做趋势检测：连续 N 个样本单调上升且超过阈值时，记录一次 `PerformanceLogger` 事件并写 `[Memory] TrendWarning` 日志；**仅日志/性能标记，不弹 UI、不自动重启**（空闲重启已覆盖无人场景）。
-- 阈值建议：连续 6 个样本（约 18 分钟）单调上升且增幅 ≥30%，或 Private 高于基线 +80MB；冷却期内不重复记录。
-- 验收：策略单测覆盖正常/异常序列；正常使用不误报；仅有日志与性能标记。
+- 已实现参数（`MemoryTrendPolicy`，`src/DeskBox/Services/MemoryTrendPolicy.cs`）：15 分钟滑动窗、首尾跨度 ≥10 分钟、至少 8 个样本、涨幅 ≥80MB 或 ≥30%、窗口内允许 1 次回落、命中后 6 小时冷却并清空窗口。
+- 集成：`PerformanceLogger.SampleMemory` 每次采样调用 `MemoryTrendTracker.Observe`；命中写 `[Memory] TrendWarning privateMinusGcHeapMB=… windowMinutes=15` 并打 `MemoryTrendWarning` 性能标记。
+- 验收：策略单测覆盖正常/异常序列（5 例：持续上升、平稳/振荡、短时大涨、1 次回落容忍与 2 次拒绝、冷却期内不重复）；全量 x64 套件 5909/5909 通过；正常使用不误报；仅有日志与性能标记。
 
 ## 5. 建议顺序与依赖
 

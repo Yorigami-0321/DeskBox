@@ -44,6 +44,8 @@ public static partial class PerformanceLogger
     /// </summary>
     public static long LastPrivateMinusGcHeapEstimate { get; private set; }
 
+    private static readonly MemoryTrendTracker s_memoryTrendTracker = new();
+
     /// <summary>Handle count at the last sample.</summary>
     public static int LastHandleCount { get; private set; }
 
@@ -310,6 +312,16 @@ public static partial class PerformanceLogger
             LastPrivateMinusGcHeapEstimate = Math.Max(
                 0,
                 LastPrivateMemory - LastGcHeapSize);
+            if (s_memoryTrendTracker.Observe(new MemoryTrendSample(
+                    DateTimeOffset.UtcNow,
+                    LastPrivateMinusGcHeapEstimate)))
+            {
+                string trendDetails =
+                    $"privateMinusGcHeapMB={LastPrivateMinusGcHeapEstimate / (1024.0 * 1024):F1} " +
+                    $"windowMinutes={MemoryTrendPolicy.Window.TotalMinutes:F0}";
+                App.Log($"[Memory] TrendWarning {trendDetails}");
+                Mark("MemoryTrendWarning", trendDetails);
+            }
             long lohSizeBytes = gcInfo.GenerationInfo.Length > 3
                 ? gcInfo.GenerationInfo[3].SizeAfterBytes
                 : 0;
