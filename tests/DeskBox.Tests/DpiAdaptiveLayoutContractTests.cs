@@ -94,6 +94,6 @@ public sealed class DpiAdaptiveLayoutContractTests
         Assert.Contains("persist = false;", bounds, StringComparison.Ordinal);
         Assert.Contains("updateConfig = false;", bounds, StringComparison.Ordinal);
         Assert.Contains("xamlRoot.Changed += ObservedXamlRoot_Changed", bounds, StringComparison.Ordinal);
-        Assert.Contains("RequestDisplayTopologyRestore(\"xaml-root-scale\")", bounds, StringComparison.Ordinal);
+        Assert.Contains("RequestDisplayTopologyRestoreUnlessTrayAnimating(\"xaml-root-scale\")", bounds, StringComparison.Ordinal);
     }
 }

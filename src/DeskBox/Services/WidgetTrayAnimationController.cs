@@ -244,6 +244,24 @@ public sealed class WidgetTrayAnimationController : IDisposable
         ResolveCrossingFadeState(effectiveDirection, GetDirectionalTravel(effectiveDirection, slideOffsets));
         var (dirX, dirY) = WidgetAnimationSettings.GetDirectionalOffset(options.SlideDirection, slideOffsets);
 
+        // A full slide parks the HWND outside the work area. If that park lands
+        // on a different-DPI display, the window rasterizes at two scales
+        // during the slide and drops most frames. Fade stays on the resting
+        // display and runs entirely on the compositor.
+        if (SlideCrossesDpiBoundary(dirX, dirY))
+        {
+            _log(
+                $"[TrayAnimation] DpiBoundarySlideFallback direction={effectiveDirection} " +
+                $"offset=({dirX:F0},{dirY:F0}) durationMs={durationMs}");
+            _useCrossingFade = false;
+            ResetVisualMotionChannels(effect, effectiveDirection);
+            return new WidgetTrayAnimationProfile(
+                0, 0, 0, 0,
+                SoftOpacity, SoftOpacity,
+                RestingScale, RestingScale,
+                durationMs, true);
+        }
+
         ResetVisualMotionChannels(effect, effectiveDirection);
 
         var profile = effect switch
@@ -764,6 +782,30 @@ public sealed class WidgetTrayAnimationController : IDisposable
         }
 
         return current;
+    }
+
+    private bool SlideCrossesDpiBoundary(double offsetX, double offsetY)
+    {
+        if (offsetX == 0 && offsetY == 0)
+        {
+            return false;
+        }
+
+        Windows.Foundation.Rect rest = GetRestingAnimationBounds();
+        if (rest.Width <= 0 || rest.Height <= 0)
+        {
+            return false;
+        }
+
+        double centerX = rest.X + rest.Width / 2;
+        double centerY = rest.Y + rest.Height / 2;
+        double restingScale = Win32Helper.GetDpiScaleForPoint(
+            (int)Math.Round(centerX),
+            (int)Math.Round(centerY));
+        double parkedScale = Win32Helper.GetDpiScaleForPoint(
+            (int)Math.Round(centerX + offsetX),
+            (int)Math.Round(centerY + offsetY));
+        return Math.Abs(restingScale - parkedScale) > 0.01;
     }
 
     private void OnRenderingFrame()

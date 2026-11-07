@@ -1623,6 +1623,15 @@ public sealed partial class WidgetManager
             return false;
         }
 
+        if (_trayBatchAnimationDriver.IsRunning)
+        {
+            // The tray slide parks windows outside the work area; the restore
+            // would only observe animation bounds. Retry after it settles.
+            App.LogVerbose(
+                $"[WidgetManager] Deferring topology generation={generation}; tray animation is active");
+            return false;
+        }
+
         bool allRestored = true;
         IReadOnlyList<IDesktopWidgetWindow> windows = GetLoadedDesktopWindows();
         foreach (IDesktopWidgetWindow window in windows)

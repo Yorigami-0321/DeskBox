@@ -596,7 +596,7 @@ public abstract partial class WidgetWindowBase
         _observedRasterizationScale = scale;
         App.LogVerbose(
             $"[DisplayTopology] {LogPrefix} XamlRoot scale {previous:F3}->{scale:F3}");
-        App.Current?.RequestDisplayTopologyRestore("xaml-root-scale");
+        RequestDisplayTopologyRestoreUnlessTrayAnimating("xaml-root-scale");
     }
 
     protected void ApplyWindowBounds(int x, int y, int width, int height, bool persist, bool updateConfig = true)
@@ -794,7 +794,24 @@ public abstract partial class WidgetWindowBase
 
     protected void RestoreBoundsAfterDisplayChange()
     {
-        App.Current?.RequestDisplayTopologyRestore("widget-window-message");
+        RequestDisplayTopologyRestoreUnlessTrayAnimating("widget-window-message");
+    }
+
+    /// <summary>
+    /// A tray slide parks the window outside the work area, so its transient
+    /// DPI/scale messages describe the animation, not a topology change. The
+    /// display watcher still reports real topology changes independently.
+    /// </summary>
+    private void RequestDisplayTopologyRestoreUnlessTrayAnimating(string reason)
+    {
+        if (IsHideAnimationRunning || TrayAnimation.IsPositionTransitionActive)
+        {
+            App.LogVerbose(
+                $"[DisplayTopology] {LogPrefix} suppressed {reason} during tray transition");
+            return;
+        }
+
+        App.Current?.RequestDisplayTopologyRestore(reason);
     }
 
     public void RestoreBoundsForCurrentTopology()
