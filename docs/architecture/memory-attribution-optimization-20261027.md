@@ -73,7 +73,7 @@
 - 压缩每格子 XAML 树深度：chrome 元素（把手、边框、按钮层）用 `x:DeferLoadStrategy`/按需加载；共享 Style/DWM 资源已共享的部分继续保持。
 - 评估长隐藏格子直接**销毁 HWND**（roadmap 的 Cold 档）：彻底消除 7.9MB 图面 + 窗口过程开销，唤起时重建窗口。作为 P0-A 的激进版，可做成设置项（如「深度休眠」）。
 
-**P1-A 评估（2026-11-07）**：Cold 销毁 HWND 已在 B1 试点（AOT 零售负收益，已回滚），现由 P0-C 的进程级懒恢复替代。XAML 树瘦身量化：shell 共 201 个元素，其中 `CollapsedChromeLayer` 子树 **125 个**（62%），`WidgetShell.xaml.cs` 有 **379 处、123 个** compact 符号引用。两条直接延迟创建路径均失败（`x:Load` 绑定、同文件 `DataTemplate` + `FindName`，均让 WidgetShell 构造抛 `XamlParseException`）。最终按重构计划完成独立控件抽取：A1 把整层移入 `WidgetCompactChrome`（事件转发、字段公开），A2 仅对可折叠窗口创建（Expanded 不创建），A3 AOT 实测 **每 Expanded 窗口省约 4.4MB Private/WS**（3 窗 172.4→185.5MB，差值 13.1MB；5 窗估算 ~22MB、9–12 窗 ~40–52MB）。胶囊行为与外观保持不变；分支 `refactor/performance-20261107`（`2dafd36`、`b5847be`、`f245ca7`）。
+**P1-A 评估（2026-11-07）**：Cold 销毁 HWND 已在 B1 试点（AOT 零售负收益，已回滚），现由 P0-C 的进程级懒恢复替代。XAML 树瘦身量化：shell 共 201 个元素，其中 `CollapsedChromeLayer` 子树 **125 个**（62%），`WidgetShell.xaml.cs` 有 **379 处、123 个** compact 符号引用。两条直接延迟创建路径均失败（`x:Load` 绑定、同文件 `DataTemplate` + `FindName`，均让 WidgetShell 构造抛 `XamlParseException`）。最终完成独立控件抽取（A1，`2dafd36`）；A2 懒创建在 AOT 下显示 Expanded 窗口时触发 `Microsoft.UI.Windowing` fail-fast，已回退为始终创建（`d67c7ab`）。A3 试点实测 compact 层成本 **约 4.4MB Private/WS 每窗口**（3 窗 172.4→185.5MB），但该收益暂缓发布；待定位显示路径空引用后重试 A2。分支 `refactor/performance-20261107`。
 
 ### P1-B：File 格子渲染窗口下移
 
