@@ -746,12 +746,12 @@ public sealed partial class WidgetShell : UserControl
     public Button SizeLockActionButton => SizeLockButton;
     public Button AddActionButton => AddButton;
     public Button CollapseActionButton => CollapseButton;
-    public Button CompactExpandActionButton => _compactChrome.CompactExpandButton;
+    public Button CompactExpandActionButton => _compactChrome?.CompactExpandButton!;
     public FrameworkElement OverlayDragHandleElement => OverlayDragHandle;
 
-    public FrameworkElement CompactMoveHandleElement => _compactChrome.CompactMoveHitRegion;
-    public FrameworkElement CompactBodyElement => _compactChrome.CompactTextContainer;
-    public FrameworkElement CompactReorderHandleElement => _compactChrome.CompactReorderHandle;
+    public FrameworkElement CompactMoveHandleElement => _compactChrome?.CompactMoveHitRegion!;
+    public FrameworkElement CompactBodyElement => _compactChrome?.CompactTextContainer!;
+    public FrameworkElement CompactReorderHandleElement => _compactChrome?.CompactReorderHandle!;
 
     public void SetCompactHintTexts(string moveText, string expandText)
     {
@@ -4388,13 +4388,9 @@ public sealed partial class WidgetShell : UserControl
     /// </summary>
     public void SetCompactChromeEnabled(bool enabled)
     {
-        if (enabled)
-        {
-            EnsureCompactChrome();
-            return;
-        }
-
-        UnloadCompactChrome();
+        // Rollback probe: A2 lazy creation crashes the AOT show path; force
+        // the A1 behavior (always create) until the null path is fixed.
+        EnsureCompactChrome();
     }
 
     private void EnsureCompactChrome()

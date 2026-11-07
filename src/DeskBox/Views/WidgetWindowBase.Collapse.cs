@@ -330,9 +330,10 @@ public abstract partial class WidgetWindowBase
     /// <summary>
     /// Expanded is the only behavior that never produces a capsule, so its
     /// windows can leave the whole compact chrome layer uncreated.
+    /// A2 lazy creation is rolled back until the AOT show-path crash is
+    /// fixed; always create the control (A1 behavior) for now.
     /// </summary>
-    protected bool SupportsCompactChrome =>
-        EffectiveCollapseBehavior != WidgetCollapseBehavior.Expanded;
+    protected bool SupportsCompactChrome => true;
 
     protected virtual bool SupportsCompactDropExpansion =>
         Config.WidgetKind is WidgetKind.File or WidgetKind.Todo or WidgetKind.QuickCapture;
