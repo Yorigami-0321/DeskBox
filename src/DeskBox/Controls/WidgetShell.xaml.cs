@@ -4450,33 +4450,33 @@ public sealed partial class WidgetShell : UserControl
             return;
         }
 
-        _compactChrome.LayerGotFocus += (s, e) => CollapsedChromeLayer_GotFocus(s, e);
-        _compactChrome.LayerLostFocus += (s, e) => CollapsedChromeLayer_LostFocus(s, e);
-        _compactChrome.DragPointerCaptureLost += (s, e) => OverlayDragHandle_PointerCaptureLost(s, e);
-        _compactChrome.DragPointerMoved += (s, e) => OverlayDragHandle_PointerMoved(s, e);
-        _compactChrome.DragPointerPressed += (s, e) => OverlayDragHandle_PointerPressed(s, e);
-        _compactChrome.DragPointerReleased += (s, e) => OverlayDragHandle_PointerReleased(s, e);
-        _compactChrome.LayerRightTapped += (s, e) => CollapsedChromeLayer_RightTapped(s, e);
-        _compactChrome.LayerSizeChanged += (s, e) => CollapsedChromeLayer_SizeChanged(s, e);
+        _compactChrome.LayerGotFocus += (s, e) => CollapsedChromeLayer_GotFocus(s!, e);
+        _compactChrome.LayerLostFocus += (s, e) => CollapsedChromeLayer_LostFocus(s!, e);
+        _compactChrome.DragPointerCaptureLost += (s, e) => OverlayDragHandle_PointerCaptureLost(s!, e);
+        _compactChrome.DragPointerMoved += (s, e) => OverlayDragHandle_PointerMoved(s!, e);
+        _compactChrome.DragPointerPressed += (s, e) => OverlayDragHandle_PointerPressed(s!, e);
+        _compactChrome.DragPointerReleased += (s, e) => OverlayDragHandle_PointerReleased(s!, e);
+        _compactChrome.LayerRightTapped += (s, e) => CollapsedChromeLayer_RightTapped(s!, e);
+        _compactChrome.LayerSizeChanged += (s, e) => CollapsedChromeLayer_SizeChanged(s!, e);
 
-        _compactChrome.IdentityPointerEntered += (s, e) => CompactIdentityHost_PointerEntered(s, e);
-        _compactChrome.IdentityPointerExited += (s, e) => CompactIdentityHost_PointerExited(s, e);
-        _compactChrome.MoveRegionPointerEntered += (s, e) => CompactMoveHitRegion_PointerEntered(s, e);
-        _compactChrome.MoveRegionPointerExited += (s, e) => CompactMoveHitRegion_PointerExited(s, e);
-        _compactChrome.TextPointerEntered += (s, e) => CompactTextContainer_PointerEntered(s, e);
-        _compactChrome.TextPointerExited += (s, e) => CompactTextContainer_PointerExited(s, e);
-        _compactChrome.ActionRegionPointerEntered += (s, e) => CompactActionRegionTrigger_PointerEntered(s, e);
-        _compactChrome.ActionRegionPointerExited += (s, e) => CompactActionRegionTrigger_PointerExited(s, e);
-        _compactChrome.ReorderPointerEntered += (s, e) => CompactReorderHandle_PointerEntered(s, e);
-        _compactChrome.ReorderPointerExited += (s, e) => CompactReorderHandle_PointerExited(s, e);
-        _compactChrome.ActionHostPointerEntered += (s, e) => CompactActionHost_PointerEntered(s, e);
-        _compactChrome.ActionHostPointerExited += (s, e) => CompactActionHost_PointerExited(s, e);
+        _compactChrome.IdentityPointerEntered += (s, e) => CompactIdentityHost_PointerEntered(s!, e);
+        _compactChrome.IdentityPointerExited += (s, e) => CompactIdentityHost_PointerExited(s!, e);
+        _compactChrome.MoveRegionPointerEntered += (s, e) => CompactMoveHitRegion_PointerEntered(s!, e);
+        _compactChrome.MoveRegionPointerExited += (s, e) => CompactMoveHitRegion_PointerExited(s!, e);
+        _compactChrome.TextPointerEntered += (s, e) => CompactTextContainer_PointerEntered(s!, e);
+        _compactChrome.TextPointerExited += (s, e) => CompactTextContainer_PointerExited(s!, e);
+        _compactChrome.ActionRegionPointerEntered += (s, e) => CompactActionRegionTrigger_PointerEntered(s!, e);
+        _compactChrome.ActionRegionPointerExited += (s, e) => CompactActionRegionTrigger_PointerExited(s!, e);
+        _compactChrome.ReorderPointerEntered += (s, e) => CompactReorderHandle_PointerEntered(s!, e);
+        _compactChrome.ReorderPointerExited += (s, e) => CompactReorderHandle_PointerExited(s!, e);
+        _compactChrome.ActionHostPointerEntered += (s, e) => CompactActionHost_PointerEntered(s!, e);
+        _compactChrome.ActionHostPointerExited += (s, e) => CompactActionHost_PointerExited(s!, e);
 
-        _compactChrome.PrimaryActionClicked += (s, e) => CompactPrimaryActionButton_Click(s, e);
-        _compactChrome.PreviousClicked += (s, e) => CompactPreviousButton_Click(s, e);
-        _compactChrome.PlayPauseClicked += (s, e) => CompactPlayPauseButton_Click(s, e);
-        _compactChrome.NextClicked += (s, e) => CompactNextButton_Click(s, e);
-        _compactChrome.ExpandClicked += (s, e) => CompactExpandButton_Click(s, e);
+        _compactChrome.PrimaryActionClicked += (s, e) => CompactPrimaryActionButton_Click(s!, e);
+        _compactChrome.PreviousClicked += (s, e) => CompactPreviousButton_Click(s!, e);
+        _compactChrome.PlayPauseClicked += (s, e) => CompactPlayPauseButton_Click(s!, e);
+        _compactChrome.NextClicked += (s, e) => CompactNextButton_Click(s!, e);
+        _compactChrome.ExpandClicked += (s, e) => CompactExpandButton_Click(s!, e);
     }
 
     private static void OnOverlayTitleChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
