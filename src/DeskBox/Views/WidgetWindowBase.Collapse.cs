@@ -327,6 +327,13 @@ public abstract partial class WidgetWindowBase
             Config,
             SettingsService.Settings.WidgetCollapseBehavior);
 
+    /// <summary>
+    /// Expanded is the only behavior that never produces a capsule, so its
+    /// windows can leave the whole compact chrome layer uncreated.
+    /// </summary>
+    protected bool SupportsCompactChrome =>
+        EffectiveCollapseBehavior != WidgetCollapseBehavior.Expanded;
+
     protected virtual bool SupportsCompactDropExpansion =>
         Config.WidgetKind is WidgetKind.File or WidgetKind.Todo or WidgetKind.QuickCapture;
 
@@ -426,7 +433,7 @@ public abstract partial class WidgetWindowBase
 
     protected void RefreshCompactPresentation()
     {
-        if (!_collapseInitialized || IsClosing)
+        if (!_collapseInitialized || IsClosing || !SupportsCompactChrome)
         {
             return;
         }
@@ -747,6 +754,7 @@ public abstract partial class WidgetWindowBase
         App.MemoryCleanupEpochAdvanced += App_MemoryCleanupEpochAdvanced;
         App.Current.LocalizationService.LanguageChanged += CollapseLanguageChanged;
 
+        WidgetShellControl.SetCompactChromeEnabled(SupportsCompactChrome);
         RefreshCompactPresentation();
         ApplyCompactTooltips();
         ApplyCollapseBehaviorVisuals();
@@ -1915,6 +1923,11 @@ public abstract partial class WidgetWindowBase
 
     private void ApplyCompactTooltips()
     {
+        if (!SupportsCompactChrome)
+        {
+            return;
+        }
+
         var localization = App.Current.LocalizationService;
         bool usesCapsuleBar = SettingsService.NormalizeWidgetCapsuleArrangementMode(
                 SettingsService.Settings.WidgetCapsuleArrangementMode) ==
@@ -2030,6 +2043,17 @@ public abstract partial class WidgetWindowBase
     {
         WidgetCollapseBehavior previousBehavior = _lastEffectiveCollapseBehavior;
         WidgetCollapseBehavior behavior = EffectiveCollapseBehavior;
+        bool needsCompactChrome = behavior != WidgetCollapseBehavior.Expanded;
+        if (WidgetShellControl.IsCompactChromeLoaded != needsCompactChrome)
+        {
+            WidgetShellControl.SetCompactChromeEnabled(needsCompactChrome);
+            if (needsCompactChrome)
+            {
+                ApplyCompactTooltips();
+                RefreshCompactPresentation();
+            }
+        }
+
         bool enteredCompactBehavior =
             previousBehavior == WidgetCollapseBehavior.Expanded &&
             behavior is WidgetCollapseBehavior.Click or WidgetCollapseBehavior.Smart;
