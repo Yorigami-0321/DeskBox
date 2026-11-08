@@ -238,3 +238,33 @@ internal IEnumerable<WidgetItem> HydrationUniverseItems => UsesStackProjection
 - `OnLaunched` 本轮两轮均低于基线约 58–259ms，但单机、单场景、两轮方差大，不能全部归因于本轮改动，不作为承诺。
 - 30s Private 两轮区间重叠（基线 169.7–178.0 vs 本轮 156.9–172.1），本场景没有稳定内存差；图标请求下降主要降低瞬时工作与分配，不足以在 30s 稳定态形成可重复的 Private 下降。
 - **R2 未在 AOT 侧复现**：本机双屏均在位，不满足“当前屏集是上次真子集”的触发条件；由 8 项策略单测覆盖。
+
+## 12. R5：ShellKind 按需水合（2026-11-08）
+
+### 12.1 证据
+
+- AOT 两轮 `releasedShellKindEntries=1200`（1200 文件、`fileStackAutoStacking=false`）。
+- `RebuildStackDisplayItems` 只在 `FileStackAutoStacking` 为真时调用 `WidgetStackGroupingService.Group`；关闭时所有项走 `Loose` 分组，`ShellKind` 没有消费者。
+- 自动堆叠开启时，`ResolveCategory` 先看文件夹/ShellKind，未命中再按扩展名集合回退；因此常见类型并不完全依赖 ShellKind。
+
+### 12.2 设计
+
+1. 新增 `FileStackShellKindHydrationPolicy.RequiresFullUniverse(usesStackProjection, autoStacking)`：只有投影开启 **且** 自动堆叠开启时才需要全量 ShellKind。
+2. `HydrationShellKindItems` 在该值为真时返回全部 `Items`，否则返回 `HydrationDisplayedItems`（渲染前缀 + 堆叠预览 + 弹层固定成员）。
+3. `RebuildStackDisplayItems` 读取缓存的 `_fileStackAutoStacking`，避免重复读设置并保持与领域判断一致。
+4. `ApplyStackSettings` 更新该缓存；从关闭→开启时调用 `StartItemHydration()` 补齐全量 ShellKind。
+5. `SetShellKind` 只在“需要全量 ShellKind 且按 Kind 分组”时触发堆叠重建，避免关闭自动堆叠时每个 ShellKind 结果都排队重建。
+6. 不改快捷方式目标域与自动堆叠开启时的全量 ShellKind；按扩展名预分组留作后续候选。
+
+### 12.3 验收
+
+- 策略单测覆盖 4 种组合。
+- AOT 1200 文件、自动堆叠关闭：`releasedShellKindEntries` 从 1200 降到显示域量级（约 30）；大目录图标请求保持 64–72。
+- 自动堆叠开启：分组结果与改造前一致，ShellKind 仍全量。
+- 运行时开关关闭→开启：ShellKind 补齐，分组不缺失。
+- 全量 x64 passed == total。
+
+### 12.4 风险
+
+- 手动堆叠不读取 ShellKind，但仍需在验收中确认；若未来有 UI 直接消费 ShellKind，需要重新评估显示域。
+- 运行时切换依赖 `ApplyStackSettings` 的调用链；已确认 `SettingsChanged → ApplySettingsChangesAsync → ApplyStackSettings`。

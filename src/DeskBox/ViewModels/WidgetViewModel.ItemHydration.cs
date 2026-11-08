@@ -999,7 +999,9 @@ public partial class WidgetViewModel
             bool categoryMayChange = !string.Equals(item.ShellKind, kind, StringComparison.OrdinalIgnoreCase);
             item.ShellKind = kind;
             item.IsShellKindLoaded = true;
-            if (categoryMayChange && FileStackGroupBy == SettingsService.FileStackGroupByKind)
+            if (categoryMayChange &&
+                RequiresFullShellKindHydration &&
+                FileStackGroupBy == SettingsService.FileStackGroupByKind)
             {
                 QueueStackDisplayRebuild();
             }

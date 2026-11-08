@@ -52,6 +52,30 @@ public sealed class RenderWindowContractTests
     }
 
     [Fact]
+    public void ShellKindHydration_FollowsAutoStacking()
+    {
+        string windowing = File.ReadAllText(GetRepoFile(
+            "src/DeskBox/ViewModels/WidgetViewModel.Windowing.cs"));
+        Assert.Contains(
+            "FileStackShellKindHydrationPolicy.RequiresFullUniverse",
+            windowing,
+            StringComparison.Ordinal);
+        Assert.Contains(
+            "RequiresFullShellKindHydration ? Items : HydrationDisplayedItems",
+            windowing,
+            StringComparison.Ordinal);
+
+        string stacks = File.ReadAllText(GetRepoFile(
+            "src/DeskBox/ViewModels/WidgetViewModel.Stacks.cs"));
+        Assert.Contains("_fileStackAutoStacking", stacks, StringComparison.Ordinal);
+        Assert.Contains(
+            "if (!autoStackingWasEnabled && _fileStackAutoStacking && Items.Count > 0)",
+            stacks,
+            StringComparison.Ordinal);
+        Assert.Contains("StartItemHydration();", stacks, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Windowing_KeepsStackGroupingOnTheFullListAndResetsOnNavigation()
     {
         string windowing = File.ReadAllText(GetRepoFile(

@@ -18,6 +18,7 @@ public partial class WidgetViewModel
     private readonly ObservableCollection<WidgetItem> _stackDisplayItems = [];
     private readonly Dictionary<string, WidgetStackItem> _stackItems = [];
     private bool _fileStacksEnabled;
+    private bool _fileStackAutoStacking;
     private string _fileStackGroupBy = SettingsService.FileStackGroupByKind;
     private int _fileStackThreshold = SettingsService.DefaultFileStackThreshold;
     private string _fileStackOrderBy = SettingsService.FileStackOrderByWidget;
@@ -1773,6 +1774,8 @@ public partial class WidgetViewModel
         _fileStacksEnabled = WidgetFileStackSettings.ResolveEnabled(
             Config,
             _settingsService.Settings.FileStacksEnabled);
+        _fileStackAutoStacking =
+            _settingsService.Settings.FileWidget.FileStackAutoStacking;
         _fileStackGroupBy = WidgetFileStackSettings.ResolveGroupBy(
             Config,
             _settingsService.Settings.FileStackGroupBy);
@@ -1845,6 +1848,9 @@ public partial class WidgetViewModel
     private void ApplyStackSettings()
     {
         bool projectionWasEnabled = UsesStackProjection;
+        bool autoStackingWasEnabled = _fileStackAutoStacking;
+        bool autoStacking =
+            _settingsService.Settings.FileWidget.FileStackAutoStacking;
         bool enabled = WidgetFileStackSettings.ResolveEnabled(
             Config,
             _settingsService.Settings.FileStacksEnabled);
@@ -1875,6 +1881,7 @@ public partial class WidgetViewModel
         }
 
         FileStacksEnabled = enabled;
+        _fileStackAutoStacking = autoStacking;
         FileStackGroupBy = groupBy;
         FileStackThreshold = threshold;
         FileStackOrderBy = orderBy;
@@ -1894,6 +1901,13 @@ public partial class WidgetViewModel
         }
 
         RebuildStackDisplayItems();
+        if (!autoStackingWasEnabled && _fileStackAutoStacking && Items.Count > 0)
+        {
+            // Turning auto-stacking on makes ShellKind part of grouping
+            // again; the existing pass only covered the displayed domain.
+            StartItemHydration();
+        }
+
         ScheduleStackDateBoundaryRefresh();
         if (sourceChanged)
         {
@@ -1993,7 +2007,7 @@ public partial class WidgetViewModel
         }
 
         IReadOnlyList<WidgetStackGroup> automaticGroups =
-            FileStacksEnabled && _settingsService.Settings.FileStackAutoStacking
+            FileStacksEnabled && _fileStackAutoStacking
             ? WidgetStackGroupingService.Group(
                 Items,
                 FileStackGroupBy,

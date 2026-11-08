@@ -95,12 +95,17 @@ public partial class WidgetViewModel
     }
 
     /// <summary>
-    /// Stack grouping reads <c>ShellKind</c> from every item, so that domain
-    /// stays on the full list while the stack projection is active. Icons,
-    /// folder counts, and shortcut targets follow <see cref="HydrationDisplayedItems"/>.
+    /// ShellKind is only consumed by automatic stack grouping. With stacking
+    /// off the whole list walk would buy nothing; icons and folder counts
+    /// always follow <see cref="HydrationDisplayedItems"/>.
     /// </summary>
     internal IEnumerable<WidgetItem> HydrationShellKindItems =>
-        UsesStackProjection ? Items : HydrationDisplayedItems;
+        RequiresFullShellKindHydration ? Items : HydrationDisplayedItems;
+
+    private bool RequiresFullShellKindHydration =>
+        FileStackShellKindHydrationPolicy.RequiresFullUniverse(
+            UsesStackProjection,
+            _fileStackAutoStacking);
 
     /// <summary>
     /// ShellKind for a shortcut classifies its target, so target hydration
