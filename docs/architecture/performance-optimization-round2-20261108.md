@@ -13,6 +13,7 @@
 | R3 | 大目录水合域拆分 | 文件堆叠默认开启，`HydrationUniverseItems` 退回全部 `Items` | 1000+ 项目录不再全量取图标/计数/快捷方式 | 中 | 已实现（测试绿） |
 | R5 | ShellKind 按需水合 | 自动堆叠关闭时 ShellKind 没有消费者，却仍全量水合 | AOT 1200 项目录 1200→64 条 ShellKind；开启自动堆叠时保持 1200 | 中 | 已实现（AOT 验证） |
 | R4-A | 静默启动懒建窗 | 启动仍全量创建隐藏窗口与 compact chrome | AOT `--startup`：0 窗口，Private 97.3MB、OnLaunched 309.8ms | 中（产品取舍） | 已实现（AOT 验证） |
+| R6 | 首唤内容就绪门控 | 先显示窗口、后加载内容，首帧空白约 252ms | AOT 1200 文件首唤：内容就绪 +414ms，动画 max callback 252→79.5ms | 中 | 已实现（AOT 验证） |
 | — | 搜索、动画、排序、图标路径、设置锁等 | 见 §6 | 中—小 | 中 | 候选/暂缓 |
 
 ## 2. R1：备份调度顺序与线程归属
@@ -206,13 +207,29 @@ internal IEnumerable<WidgetItem> HydrationUniverseItems => UsesStackProjection
 - 窗口在 +156ms 出现，但内容到 +407ms 才首次加载；动画期间的 **252ms 最大 UI 回调空档**与“窗口已显示、内容未就绪”的空白窗口吻合，不是单纯的动画时长。
 - 既有 0.25–0.3s 试点是正常内容场景；1200 文件最坏情况是 **0.71s 端到端**。首次唤出后 Private 155.5MB（windows=1），隐藏态为 97.3MB。
 - 测量开启了 perf/verbose 日志，可能对最坏值有额外开销；但 252ms 的空档与内容就绪时间点一致，方向明确。
-- 后续候选（未实施）：内容首次就绪后再启动显示动画；或先显示轻量壳/骨架；或首次唤出不播位移动画；或主屏窗口预热。需要单独决定体验与成本取舍。
+- 后续候选：内容就绪门控已选并实施（§5.6）；轻量壳/骨架、首次不播动画、主屏窗口预热未实施。
 
-### 5.6 首唤内容就绪门控（已选，实施中）
+### 5.6 首唤内容就绪门控（已实现，`9b44004`）
 
 - 方案：`PrepareWidgetForBatchShowAsync` 在窗口创建/复用后等待 `ContentWidgetWindow.ContentReadyTask`（`SetContentAsync → InitializeAsync → ReloadFolderContentsAsync` 覆盖首次 `LoadFolderContents`），上限 5s；超时/失败记录并继续显示 prepared surface。
 - 覆盖 jump-list `SetAllWidgetsVisible` 与托盘/热键 `RaiseWidgetsFromTray`；不改变 eager 启动与手动启动。
 - 验收：`preparedShow` 从 +145ms 推到内容就绪（本场景约 +407ms）；首次动画在内容就绪后启动，252ms 空白应消失；AOT 复测首唤总时长与最大回调。
+
+**AOT 复测（`9b44004`，同一 1200 文件，`--toggle-widgets`）**：
+
+| 阶段 | 数值 |
+|---|---|
+| `WaitForInitialContentReady` | 255.4ms |
+| 首次 `LoadFolderContents` | +405ms（8.4ms） |
+| `preparedShow=1/1` | +407ms |
+| `SharedShow` / 动画开始 | +414ms（内容已就绪） |
+| `RenderWindow` 30→64 | +417–460ms |
+| 动画活动时钟 / 最大回调 | 246.0ms / **79.5ms**（原 252ms），gaps=24 |
+| `SetAllWidgetsVisible` 完成 | +1059ms（含动画后第二次 `LoadFolderContents` 63.8ms 与完成回调尾） |
+
+- 窗口在 +414ms 出现时内容已经就绪，首帧不再空白；动画 max callback 从 252ms 降到 79.5ms，动画活动时钟 246ms（约 +660ms 完成）。
+- `SetAllWidgetsVisible` 的 1.06s 不是首帧延迟：动画结束后在 +950ms 触发了一次 63.8ms 的第二次 `LoadFolderContents`，随后才是完成回调；这是后续可单独消除的尾巴。
+- 仍有 79.5ms 单帧空档（预算 6.9ms）与第二次加载；可作为后续候选，但不影响“内容就绪后再播动画”的验收。
 
 ## 6. 候选与暂缓项
 
@@ -262,6 +279,7 @@ internal IEnumerable<WidgetItem> HydrationUniverseItems => UsesStackProjection
 - **R3**：拆分 `HydrationDisplayedItems`（渲染前缀 + 堆叠预览 + 弹层固定成员，剔除堆叠包装项）、`HydrationShortcutTargetItems` 与 `HydrationShellKindItems`（后两者在堆叠开启时保持全量，保证快捷方式按目标分类）；hydration pass 增加 follow-up 补跑；堆叠弹层打开注入、关闭清除 pinned 成员。渲染窗口/图标契约测试 39/39。
 - **R5（后续，`deecc3a`）**：`FileStackShellKindHydrationPolicy`；自动堆叠关闭时 ShellKind 走显示域，开启时保持全量；运行时开关关闭→开启补跑一轮；策略 4 例 + 契约测试；全量 5924/5924。
 - **R4-A（`81bfc8e`）**：`--startup`/启动任务激活且启动本应隐藏时复用 lazy 窗口创建；手动启动与可见启动保持 eager；AOT `loadedWidgets=0`、Private 97.3MB、OnLaunched 309.8ms；全量 5928/5928。
+- **R6（`9b44004`）**：首唤 prepare 等待 `ContentReadyTask`（首次 `LoadFolderContents`），5s 上限；jump-list 与托盘/热键共用；AOT 内容就绪 +414ms、动画 max callback 252→79.5ms；全量 5929/5929。
 - 全量 x64：R1–R3 后 **5919/5919**，R5 后 **5924/5924** 通过。
 - Debug 冒烟（隔离数据根、`--startup`、`DESKBOX_PERF_LOG=1`）：`OnLaunched completed successfully`；`[Startup] Pipeline: 42 steps (5 critical), 0 degraded, 0 failed`；`[Perf] DataBackup.DueCheck elapsedMs=1.0`，无 `SourceDataScan`、未创建新快照。最慢单步 `automatic-snapshot` 688ms，但该步骤内部先 `await settingsLoadTask`，耗时主要是设置加载等待，不是备份 I/O（见 §6）。
 - AOT 零售复测见 §11。
