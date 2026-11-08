@@ -15,7 +15,7 @@
 | R4-A | 静默启动懒建窗 | 启动仍全量创建隐藏窗口与 compact chrome | AOT `--startup`：0 窗口，Private 97.3MB、OnLaunched 309.8ms | 中（产品取舍） | 已实现（AOT 验证） |
 | R6 | 首唤内容就绪门控 | 先显示窗口、后加载内容，首帧空白约 252ms | AOT 1200 文件首唤：内容就绪 +414ms，动画 max callback 252→79.5ms | 中 | 已实现（AOT 验证） |
 | R7 | 外部状态恢复误重载 | jump-list 呼出触发 650ms 后全量文件刷新 | 去掉第二次 `LoadFolderContents` 与目录重载尾巴；剩余图标/XAML 尾巴 | 低 | 已实现（AOT 验证） |
-| R8 | 首唤动画期间暂停图标水合 | 图标水合与动画完成回调抢 UI | 动画先完成，图标在动画后补齐；去掉 ~338ms 尾巴 | 中 | 实施中 |
+| R8 | 首唤动画期间暂停图标水合 | 图标水合与动画完成回调抢 UI | 动画先完成，图标在动画后补齐；尾巴 338→约 194ms | 中 | 已实现（AOT 验证） |
 | — | 搜索、动画、排序、图标路径、设置锁等 | 见 §6 | 中—小 | 中 | 候选/暂缓 |
 
 ## 2. R1：备份调度顺序与线程归属
@@ -245,7 +245,7 @@ internal IEnumerable<WidgetItem> HydrationUniverseItems => UsesStackProjection
 
 - 无第二个 `FolderWatcher`/`RefreshFromConfig`/`LoadFolderContents`；外部恢复在 08.306 完成但未刷新文件格子。
 - 内容就绪 `preparedShow` +403ms；动画活动时钟 244.6ms、max callback **43.4ms**（内容门控前 252、门控后 79.5）；`SetAllWidgetsVisible` 997.4ms。
-- 动画活动时钟结束后仍有约 338ms 完成尾巴；08.52 的图标加载说明剩余尾巴来自图标水合/XAML 完成，不再是目录重载，可作为后续候选。
+- 动画活动时钟结束后仍有约 338ms 完成尾巴；08.52 的图标加载说明剩余尾巴来自图标水合/XAML 完成，不再是目录重载；图标部分已由 §5.8 移除，尾巴降至约 194ms。
 - 中间尝试（仅激活 flag）2455.6ms 无效：恢复由启动/生命周期先排，`scheduledStateRecovery=false`；per-widget guard 是最终修复。
 
 ### 5.8 首唤动画期间暂停图标水合（R8，实施中）
@@ -253,6 +253,18 @@ internal IEnumerable<WidgetItem> HydrationUniverseItems => UsesStackProjection
 - 证据：R7 后第二次目录加载已消失，但动画活动时钟结束后仍有约 338ms 完成尾巴；08.52 的 `IconHelper` 加载说明图标水合/XAML 在动画尾部抢占 UI，拖住 `TrayAnimation` 完成回调。
 - 设计：新增 `WidgetIconHydrationGate`（暂停计数 + 恢复 TCS）；`RunItemHydrationAsync` 在启动 hydration pass 前等待 gate；`SetAllWidgetsVisibleCoreAsync(visible=true)` 与 `RaiseWidgetsFromTrayCoreAsync` 的显示分支在 prepare→show→`WaitForIdleAsync` 全程 Pause，动画结束后 Resume。内容加载（`ContentReadyTask`）不受影响：首帧显示条目与占位图标，图标在动画结束后补齐。
 - 验收：动画期间不再出现大目录 `IconHelper` 批量加载；`TrayAnimation`/`SetAllWidgetsVisible` 完成尾巴下降；首内容仍约 +403ms；图标在动画后出现；全量测试 passed == total。
+
+**AOT 复测（`423b232`，同一 1200 文件）**：
+
+| 指标 | R7 | R8 |
+|---|---|---|
+| 动画期间大目录 `IconHelper` | 有（08.52） | **无；图标加载在 completed 之后** |
+| `SetAllWidgetsVisible` | 997.4ms | **868.4ms** |
+| 动画活动 / max callback | 244.6ms / 43.4ms | 246.4ms / 49.2ms |
+| 动画后完成尾巴 | 约 338ms | **约 194ms** |
+
+- `preparedShow` +422ms；首次 `LoadFolderContents` 7.5ms；`WaitForInitialContentReady` 256.5ms；`SharedShow` 44.812；`SetAllVisible completed` 45.252；图标加载 45.435（在 completed 之后）。
+- 剩余约 194ms 与 `MemorySample`/`External state recovery completed`（45.048）重叠，不再是图标水合；这是下一项候选（动画驱动完成/内存采样/恢复的 UI 竞争），不影响本次“图标不再拖动画”的验收。
 
 ## 6. 候选与暂缓项
 
@@ -304,6 +316,7 @@ internal IEnumerable<WidgetItem> HydrationUniverseItems => UsesStackProjection
 - **R4-A（`81bfc8e`）**：`--startup`/启动任务激活且启动本应隐藏时复用 lazy 窗口创建；手动启动与可见启动保持 eager；AOT `loadedWidgets=0`、Private 97.3MB、OnLaunched 309.8ms；全量 5928/5928。
 - **R6（`9b44004`）**：首唤 prepare 等待 `ContentReadyTask`（首次 `LoadFolderContents`），5s 上限；jump-list 与托盘/热键共用；AOT 内容就绪 +414ms、动画 max callback 252→79.5ms；全量 5929/5929。
 - **R7（`7241c8f` + `4206e6e`）**：外部状态恢复不再重载正在加载/2s 内刚加载的 File 格子；AOT 首唤无第二次 watcher/`RefreshFromConfig`；`SetAllWidgetsVisible` 997.4ms、动画 max 43.4ms；全量 5936/5936。
+- **R8（`423b232`）**：`WidgetIconHydrationGate` 在显示分支暂停 hydration pass，图标在动画后补齐；AOT 动画期间无大目录图标加载，尾巴 338→约 194ms、`SetAllWidgetsVisible` 868.4ms；全量 5940/5940。
 - 全量 x64：R1–R3 后 **5919/5919**，R5 后 **5924/5924** 通过。
 - Debug 冒烟（隔离数据根、`--startup`、`DESKBOX_PERF_LOG=1`）：`OnLaunched completed successfully`；`[Startup] Pipeline: 42 steps (5 critical), 0 degraded, 0 failed`；`[Perf] DataBackup.DueCheck elapsedMs=1.0`，无 `SourceDataScan`、未创建新快照。最慢单步 `automatic-snapshot` 688ms，但该步骤内部先 `await settingsLoadTask`，耗时主要是设置加载等待，不是备份 I/O（见 §6）。
 - AOT 零售复测见 §11。
