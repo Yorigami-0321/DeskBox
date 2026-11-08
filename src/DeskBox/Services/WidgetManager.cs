@@ -1499,6 +1499,7 @@ public sealed partial class WidgetManager
             // startup session so later automatic passes can re-show freely.
             ClearStartupHiddenSession("set-all-visible");
             App.CancelBackgroundMemoryCleanup();
+            using var hydrationPause = WidgetIconHydrationGate.Pause();
             var candidates = _settingsService.Settings.Widgets
                 .Where(IsSessionCandidate)
                 .ToList();

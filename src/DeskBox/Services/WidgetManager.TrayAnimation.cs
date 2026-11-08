@@ -79,6 +79,7 @@ public sealed partial class WidgetManager
         // A tray raise (tray icon, hotkey, desktop double-click, Quick Reveal)
         // is the first explicit user reveal of a hidden startup session.
         ClearStartupHiddenSession(source);
+        using var hydrationPause = WidgetIconHydrationGate.Pause();
         try
         {
             CancelActiveTrayAnimationsAndRestorePositions();

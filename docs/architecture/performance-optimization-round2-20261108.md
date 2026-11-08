@@ -15,6 +15,7 @@
 | R4-A | 静默启动懒建窗 | 启动仍全量创建隐藏窗口与 compact chrome | AOT `--startup`：0 窗口，Private 97.3MB、OnLaunched 309.8ms | 中（产品取舍） | 已实现（AOT 验证） |
 | R6 | 首唤内容就绪门控 | 先显示窗口、后加载内容，首帧空白约 252ms | AOT 1200 文件首唤：内容就绪 +414ms，动画 max callback 252→79.5ms | 中 | 已实现（AOT 验证） |
 | R7 | 外部状态恢复误重载 | jump-list 呼出触发 650ms 后全量文件刷新 | 去掉第二次 `LoadFolderContents` 与目录重载尾巴；剩余图标/XAML 尾巴 | 低 | 已实现（AOT 验证） |
+| R8 | 首唤动画期间暂停图标水合 | 图标水合与动画完成回调抢 UI | 动画先完成，图标在动画后补齐；去掉 ~338ms 尾巴 | 中 | 实施中 |
 | — | 搜索、动画、排序、图标路径、设置锁等 | 见 §6 | 中—小 | 中 | 候选/暂缓 |
 
 ## 2. R1：备份调度顺序与线程归属
@@ -246,6 +247,12 @@ internal IEnumerable<WidgetItem> HydrationUniverseItems => UsesStackProjection
 - 内容就绪 `preparedShow` +403ms；动画活动时钟 244.6ms、max callback **43.4ms**（内容门控前 252、门控后 79.5）；`SetAllWidgetsVisible` 997.4ms。
 - 动画活动时钟结束后仍有约 338ms 完成尾巴；08.52 的图标加载说明剩余尾巴来自图标水合/XAML 完成，不再是目录重载，可作为后续候选。
 - 中间尝试（仅激活 flag）2455.6ms 无效：恢复由启动/生命周期先排，`scheduledStateRecovery=false`；per-widget guard 是最终修复。
+
+### 5.8 首唤动画期间暂停图标水合（R8，实施中）
+
+- 证据：R7 后第二次目录加载已消失，但动画活动时钟结束后仍有约 338ms 完成尾巴；08.52 的 `IconHelper` 加载说明图标水合/XAML 在动画尾部抢占 UI，拖住 `TrayAnimation` 完成回调。
+- 设计：新增 `WidgetIconHydrationGate`（暂停计数 + 恢复 TCS）；`RunItemHydrationAsync` 在启动 hydration pass 前等待 gate；`SetAllWidgetsVisibleCoreAsync(visible=true)` 与 `RaiseWidgetsFromTrayCoreAsync` 的显示分支在 prepare→show→`WaitForIdleAsync` 全程 Pause，动画结束后 Resume。内容加载（`ContentReadyTask`）不受影响：首帧显示条目与占位图标，图标在动画结束后补齐。
+- 验收：动画期间不再出现大目录 `IconHelper` 批量加载；`TrayAnimation`/`SetAllWidgetsVisible` 完成尾巴下降；首内容仍约 +403ms；图标在动画后出现；全量测试 passed == total。
 
 ## 6. 候选与暂缓项
 

@@ -389,6 +389,10 @@ public partial class WidgetViewModel
     {
         try
         {
+            // A tray/reveal animation owns the UI thread; running the first
+            // icon batches underneath it delays the animation's completion.
+            // Content readiness does not depend on this pass.
+            await WidgetIconHydrationGate.WaitForResumeAsync(cancellation.Token);
             await Task.WhenAll(
                 HydrateIconsWithRetryAsync(generation, cancellation.Token),
                 HydrateFolderItemCountsAsync(generation, cancellation.Token),
