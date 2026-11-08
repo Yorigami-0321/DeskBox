@@ -22,6 +22,7 @@
 - `BackupRuntime.OnTick → CheckScheduleAsync → ExecuteAsync → work()` 直接调用 `BackupBackend.CreateSnapshotAsync`，没有 `Task.Run`；在 gate 无竞争时 `await _gate.WaitAsync` 同步完成，后续同步段落在 UI 线程执行。
 - [DeskBoxDataBackupService.cs:294](../src/DeskBox/Services/DeskBoxDataBackupService.cs#L294) 在到期判断之前执行 `HasBackupSourceData()`，后者对数据目录做 `AllDirectories` 递归枚举（[:2484](../src/DeskBox/Services/DeskBoxDataBackupService.cs#L2484)）。
 - 随后 [DeskBoxDataBackupService.cs:299](../src/DeskBox/Services/DeskBoxDataBackupService.cs#L299) 以 `probeWriteAccess: true` 解析目标目录，会 `Directory.CreateDirectory` 并写入/删除探针文件；到期判断直到 [:305](../src/DeskBox/Services/DeskBoxDataBackupService.cs#L305) 才发生。
+- 注意：`HasBackupSourceData` 使用 `.Any`，遇到第一个可备份文件（通常是 `settings.json`）即短路；旧实现每分钟的成本主要是目录枚举调用 + 写探针，不是全树遍历。R1 仍去掉这两项，但收益量级应小于“全盘扫描”的直觉估算。
 - 到期后 `CreateArchiveCoreAsync` 先全量复制到 staging（[:2509](../src/DeskBox/Services/DeskBoxDataBackupService.cs#L2509)），再压缩并逐文件 SHA-256（[:2934](../src/DeskBox/Services/DeskBoxDataBackupService.cs#L2934)、[:3358](../src/DeskBox/Services/DeskBoxDataBackupService.cs#L3358)）；没有 `ConfigureAwait(false)`，续体回到调用方上下文。
 
 结果：每天 1440 次 tick，绝大多数返回 `Skipped`，但每次都已付出递归枚举与写探针；到期日的哈希/压缩同步段落落在 UI 线程。
@@ -182,6 +183,7 @@ internal IEnumerable<WidgetItem> HydrationUniverseItems => UsesStackProjection
 | DragOver 每事件 LINQ + 两次入队 | `ContentWidgetWindow.NativeDragDrop.cs:844` | 可按帧合并最新样本 |
 | 设置全局锁 + 全图序列化 | `SettingsService.cs:513`、`:1640` | copy-on-write 收益中等但面大 |
 | QuickCapture 全表规范化 | `QuickCaptureStore.cs:62` | 每次保存 GroupBy/OrderBy；Items 无上限 |
+| ShellKind 全量水合 | AOT 两轮 `releasedShellKindEntries=1200` | 堆叠分组按目标分类需要全部 ShellKind；是下一项大目录成本，可评估扩展名/属性预分组 |
 | `automatic-snapshot` 步骤耗时归因混淆 | `App.xaml.cs:1298` 步骤内 `await settingsLoadTask`；Debug 冒烟步骤 688ms，而 `DataBackup.DueCheck` 仅 1.0ms | 688ms 主要是设置加载等待，不是备份 I/O；步骤名/日志会误导后续优化。真实备份成本应在 due 日 + 大附件场景单独测 |
 
 ## 7. 测试与测量协议
@@ -213,4 +215,26 @@ internal IEnumerable<WidgetItem> HydrationUniverseItems => UsesStackProjection
 - **R3**：拆分 `HydrationDisplayedItems`（渲染前缀 + 堆叠预览 + 弹层固定成员，剔除堆叠包装项）、`HydrationShortcutTargetItems` 与 `HydrationShellKindItems`（后两者在堆叠开启时保持全量，保证快捷方式按目标分类）；hydration pass 增加 follow-up 补跑；堆叠弹层打开注入、关闭清除 pinned 成员。渲染窗口/图标契约测试 39/39。
 - 全量 x64：**5919/5919** 通过。
 - Debug 冒烟（隔离数据根、`--startup`、`DESKBOX_PERF_LOG=1`）：`OnLaunched completed successfully`；`[Startup] Pipeline: 42 steps (5 critical), 0 degraded, 0 failed`；`[Perf] DataBackup.DueCheck elapsedMs=1.0`，无 `SourceDataScan`、未创建新快照。最慢单步 `automatic-snapshot` 688ms，但该步骤内部先 `await settingsLoadTask`，耗时主要是设置加载等待，不是备份 I/O（见 §6）。
-- 未完成：AOT 零售性能复测。R1 的 UI 阻塞改善、R3 的大目录请求数下降需要 AOT + 真实布局/大目录数据确认；Debug 只证明功能路径。
+- AOT 零售复测见 §11。
+
+## 11. AOT 零售 A/B 复测（2026-11-08）
+
+口径：基线 `357b3cc` AOT（141MB）vs 本轮 `a14e7be` AOT；同一 1200 文件目录、同一单 File 格子布局（自动堆叠关闭、堆叠开关开启）、各自隔离数据根（预置新鲜备份快照以跳过归档）、`--startup` 隐藏启动、`DESKBOX_PERF_LOG=1`；每边两轮。
+
+| 指标 | 基线 `357b3cc` | 本轮 `a14e7be` |
+|---|---|---|
+| 大目录 `IconHelper.GetIcon` 请求 | 1216 / 1216 | 72 / 64 |
+| `decodedBitmapLookupHits` | 1202 / 1206 | 69 / 59 |
+| `releasedShellKindEntries` | 1200 / 1200 | 1200 / 1200 |
+| `OnLaunched` | 956.1 / 758.4ms | 696.7 / 700.1ms |
+| 30s Private（soft cleanup） | 178.0 / 169.7MB | 156.9 / 172.1MB |
+| `DataBackup.DueCheck` | 无该标记 | 0.4 / 0.2ms |
+| `DataBackup.SourceDataScan` | 无该标记 | 0 / 0 |
+
+结论：
+
+- **R3 图标水合下降约 94%**（1216 → 64–72），两轮一致；`decodedBitmap` 查询同步下降。`ShellKind` 仍为 1200（设计保留），是下一项大目录成本的明确候选。
+- **R1 的结构性目标达成**：到期检查 0.2–0.4ms，未触发源扫描/写探针。但 `.Any` 短路意味着旧实现的每分钟源扫描本来较小；R1 的主要收益是去掉写探针与扫描调用，实测没有可归因的大幅启动/CPU 下降。
+- `OnLaunched` 本轮两轮均低于基线约 58–259ms，但单机、单场景、两轮方差大，不能全部归因于本轮改动，不作为承诺。
+- 30s Private 两轮区间重叠（基线 169.7–178.0 vs 本轮 156.9–172.1），本场景没有稳定内存差；图标请求下降主要降低瞬时工作与分配，不足以在 30s 稳定态形成可重复的 Private 下降。
+- **R2 未在 AOT 侧复现**：本机双屏均在位，不满足“当前屏集是上次真子集”的触发条件；由 8 项策略单测覆盖。
