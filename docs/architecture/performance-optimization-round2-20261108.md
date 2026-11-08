@@ -12,7 +12,7 @@
 | R2 | 启动显示沉降等待条件 | 当前屏集是上次真子集就固定等最多 5s，不检查缺失屏是否承载格子 | 拔屏/未停靠冷启动少等最多 5s | 低 | 已实现（测试绿） |
 | R3 | 大目录水合域拆分 | 文件堆叠默认开启，`HydrationUniverseItems` 退回全部 `Items` | 1000+ 项目录不再全量取图标/计数/快捷方式 | 中 | 已实现（测试绿） |
 | R5 | ShellKind 按需水合 | 自动堆叠关闭时 ShellKind 没有消费者，却仍全量水合 | AOT 1200 项目录 1200→64 条 ShellKind；开启自动堆叠时保持 1200 | 中 | 已实现（AOT 验证） |
-| R4 | 静默启动懒建窗 | 启动仍全量创建隐藏窗口与 compact chrome | 静默启动恢复段约 1.0–1.2s | 中（产品取舍） | 待决策，暂不执行 |
+| R4-A | 静默启动懒建窗 | 启动仍全量创建隐藏窗口与 compact chrome | AOT `--startup`：0 窗口，Private 97.3MB、OnLaunched 309.8ms | 中（产品取舍） | 已实现（AOT 验证） |
 | — | 搜索、动画、排序、图标路径、设置锁等 | 见 §6 | 中—小 | 中 | 候选/暂缓 |
 
 ## 2. R1：备份调度顺序与线程归属
@@ -173,6 +173,23 @@ internal IEnumerable<WidgetItem> HydrationUniverseItems => UsesStackProjection
 - 首次唤出：窗口创建/内容加载成功，沿用既有 lazy-recycle 路径。
 - 全量 x64 passed == total；AOT 隐藏态 Private 记录。
 
+### 5.4 AOT 复测（`81bfc8e`）
+
+同一 1200 文件根、`--startup`、`SilentStartup=true`、`fileStackAutoStacking=false`、隔离数据根：
+
+| 指标 | eager（R5 `deecc3a`） | lazy（R4-A `81bfc8e`） |
+|---|---|---|
+| `loadedWidgets` / `windows` | 1 / 1 | **0 / 0** |
+| 大目录图标请求 | 72 | **0** |
+| `releasedShellKindEntries` | 64 | **0** |
+| `OnLaunched` | 680.8ms | **309.8ms** |
+| 30s Private | 151.1MB | **97.3MB** |
+| `DataBackup.DueCheck` | 0.2ms | 0.3ms |
+
+- `Lazy startup restore` 日志出现，托盘 lifeline 建立，43 步 0 failed。
+- 首次唤出未在 AOT 重测：复用既有 idle-recycle lazy 路径，既有试点约 0.25–0.3s；本轮不改变该路径。
+- 手动启动按 `processStartupLaunch=false` 保持 eager；未做可见 AOT 实验（避免抢前台），由策略测试覆盖。
+
 ## 6. 候选与暂缓项
 
 以下项已核实，但本轮不做；保留证据供后续轮次选择。
@@ -220,6 +237,7 @@ internal IEnumerable<WidgetItem> HydrationUniverseItems => UsesStackProjection
 - **R2**：新增 `StartupDisplaySettlingPolicy`（纯等待策略 + 使用集合收集）；`App.WaitForStartupDisplaySettlingAsync` 改为“缺失屏承载格子才等待”，固定绑定与 FollowPrimary 计入使用集合，退化身份保守等待。策略测试 8/8。
 - **R3**：拆分 `HydrationDisplayedItems`（渲染前缀 + 堆叠预览 + 弹层固定成员，剔除堆叠包装项）、`HydrationShortcutTargetItems` 与 `HydrationShellKindItems`（后两者在堆叠开启时保持全量，保证快捷方式按目标分类）；hydration pass 增加 follow-up 补跑；堆叠弹层打开注入、关闭清除 pinned 成员。渲染窗口/图标契约测试 39/39。
 - **R5（后续，`deecc3a`）**：`FileStackShellKindHydrationPolicy`；自动堆叠关闭时 ShellKind 走显示域，开启时保持全量；运行时开关关闭→开启补跑一轮；策略 4 例 + 契约测试；全量 5924/5924。
+- **R4-A（`81bfc8e`）**：`--startup`/启动任务激活且启动本应隐藏时复用 lazy 窗口创建；手动启动与可见启动保持 eager；AOT `loadedWidgets=0`、Private 97.3MB、OnLaunched 309.8ms；全量 5928/5928。
 - 全量 x64：R1–R3 后 **5919/5919**，R5 后 **5924/5924** 通过。
 - Debug 冒烟（隔离数据根、`--startup`、`DESKBOX_PERF_LOG=1`）：`OnLaunched completed successfully`；`[Startup] Pipeline: 42 steps (5 critical), 0 degraded, 0 failed`；`[Perf] DataBackup.DueCheck elapsedMs=1.0`，无 `SourceDataScan`、未创建新快照。最慢单步 `automatic-snapshot` 688ms，但该步骤内部先 `await settingsLoadTask`，耗时主要是设置加载等待，不是备份 I/O（见 §6）。
 - AOT 零售复测见 §11。
