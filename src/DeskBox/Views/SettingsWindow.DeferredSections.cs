@@ -13,7 +13,6 @@ public sealed partial class SettingsWindow
 {
     private void RefreshVisibleSettingsPageData()
     {
-        UpdateSearchSettingsActivity();
         UpdateBackupSettingsActivity();
         if (_currentSettingsSection is "AppearanceDetail" or "FileStorageSettings")
         {
@@ -28,21 +27,6 @@ public sealed partial class SettingsWindow
         if (_currentSettingsSection == "QuickCaptureSettings")
         {
             _ = ViewModel.RefreshQuickCaptureImageCacheInfoAsync();
-        }
-        if (_currentSettingsSection == "SearchSettings" &&
-            _settingsSectionElements.TryGetValue("SearchSettings", out FrameworkElement? search) &&
-            search is SearchSettingsSection section)
-        {
-            section.RefreshFromSettings();
-        }
-    }
-
-    private void UpdateSearchSettingsActivity()
-    {
-        if (_settingsSectionElements.TryGetValue("SearchSettings", out FrameworkElement? element) &&
-            element is SearchSettingsSection section)
-        {
-            section.SetActive(!_isClosed && IsVisibleToUser && _currentSettingsSection == "SearchSettings");
         }
     }
 
@@ -82,9 +66,6 @@ public sealed partial class SettingsWindow
 
         switch (section)
         {
-            case SearchSettingsSection searchSettings:
-                searchSettings.Configure(_searchSettingsViewModel, _localizationService, _hotkeyActions, _hWnd);
-                break;
             case FileWidgetSettingsSection fileSettings:
                 fileSettings.FileStack = _fileStackSettingsViewModel;
                 fileSettings.FeatureWidgets = _featureWidgetsSettingsViewModel;

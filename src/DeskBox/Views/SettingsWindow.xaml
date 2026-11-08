@@ -2467,9 +2467,6 @@ Text="DeskBox" />
                     <DataTemplate x:Key="GlanceSettingsSectionTemplate" x:DataType="viewModels:SettingsViewModel">
                         <sections:GlanceWidgetSettingsSection x:Name="GlanceSettingsSection" Visibility="Collapsed" />
                     </DataTemplate>
-                    <DataTemplate x:Key="SearchSettingsSectionTemplate" x:DataType="viewModels:SettingsViewModel">
-                        <sections:SearchSettingsSection x:Name="SearchSettingsSection" Visibility="Collapsed" />
-                    </DataTemplate>
                     <DataTemplate x:Key="PerformanceSettingsSectionTemplate" x:DataType="viewModels:SettingsViewModel">
                         <StackPanel
                     x:Name="PerformanceSettingsSection"

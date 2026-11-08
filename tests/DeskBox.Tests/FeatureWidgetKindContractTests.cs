@@ -22,7 +22,6 @@ public sealed class FeatureWidgetKindContractTests
                 WidgetKind.Todo,
                 WidgetKind.Music,
                 WidgetKind.Weather,
-                WidgetKind.Search,
                 WidgetKind.Glance
             },
             FeatureWidgetSettings.FeatureKinds);
@@ -34,7 +33,28 @@ public sealed class FeatureWidgetKindContractTests
         Assert.False(FeatureWidgetSettings.IsFeatureWidget(WidgetKind.File));
         Assert.False(FeatureWidgetSettings.IsFeatureWidget(WidgetKind.Tags));
         Assert.False(FeatureWidgetSettings.IsFeatureWidget(WidgetKind.SystemMonitor));
+        Assert.False(FeatureWidgetSettings.IsFeatureWidget(WidgetKind.Search));
         Assert.False(FeatureWidgetSettings.IsFeatureWidget(WidgetKind.Productivity));
+    }
+
+    [Fact]
+    public void Normalize_RemovesLegacySearchWidgetsAndEnabledState()
+    {
+        var settings = new AppSettings();
+        settings.Widgets.Add(new WidgetConfig
+        {
+            Id = "legacy-search",
+            Name = "Search",
+            WidgetKind = WidgetKind.Search
+        });
+        settings.FeatureWidgetEnabledStates["Search"] = true;
+
+        bool changed = FeatureWidgetSettings.Normalize(settings);
+
+        Assert.True(changed);
+        Assert.DoesNotContain(settings.Widgets, widget => widget.WidgetKind == WidgetKind.Search);
+        Assert.Contains("legacy-search", settings.DeletedWidgetIds);
+        Assert.False(settings.FeatureWidgetEnabledStates.ContainsKey("Search"));
     }
 
     [Fact]
@@ -55,7 +75,7 @@ public sealed class FeatureWidgetKindContractTests
         // it and nothing enumerates the enum to notice. It stays listed here as
         // a known gap: either give it a descriptor (Placeholder/Planned, like
         // Tags) or drop the enum member, then remove it from this list.
-        WidgetKind[] knownGap = [WidgetKind.Productivity];
+        WidgetKind[] knownGap = [WidgetKind.Productivity, WidgetKind.Search];
 
         WidgetKind[] described = WidgetContentFactory.DescriptorList
             .Select(descriptor => descriptor.WidgetKind)

@@ -109,19 +109,6 @@ public sealed class WidgetContentFactory
             ChromeCategory: WidgetChromeCategory.Display,
             DefaultChromeMode: WidgetChromeMode.Overlay),
         new(
-            WidgetKind.Search,
-            "Search",
-            "\uE721",
-            WidgetContentStage.Implemented,
-            CanShowInCreateEntry: false,
-            WidgetContentAvailability.Available,
-            "WidgetContent.Search.StatusLabel",
-            "WidgetContent.Search.StatusDescription",
-            HasSettingsPage: true,
-            IsFeatureWidget: true,
-            SettingsSectionTag: "SearchSettings",
-            DefaultChromeMode: WidgetChromeMode.Standard),
-        new(
             WidgetKind.Glance,
             "Glance",
             "\uE787",
@@ -276,7 +263,6 @@ public sealed class WidgetContentFactory
             new MusicWidgetContentProvider(),
             new WeatherWidgetContentProvider(),
             new GlanceWidgetContentProvider(),
-            new SearchWidgetContentProvider(),
             new PlaceholderWidgetContentProvider(WidgetKind.Tags),
             new PlaceholderWidgetContentProvider(WidgetKind.SystemMonitor)
         ];

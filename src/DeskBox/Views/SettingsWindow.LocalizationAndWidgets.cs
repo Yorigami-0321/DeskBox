@@ -80,11 +80,6 @@ public sealed partial class SettingsWindow
         RefreshFeatureWidgetList();
         ViewModel.RefreshGlobalHotkeyState();
         RefreshGlobalHotkeyControls();
-        if (_settingsSectionElements.TryGetValue("SearchSettings", out FrameworkElement? search) &&
-            search is DeskBox.Views.SettingsSections.SearchSettingsSection searchSection)
-        {
-            searchSection.RefreshFromSettings();
-        }
         RefreshManagedStoragePathWarning();
         RefreshManagedStorageDesktopShortcutState();
         // RefreshAll re-applied the static DescriptionKey text, dropping the

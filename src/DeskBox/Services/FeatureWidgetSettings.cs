@@ -50,7 +50,7 @@ public static class FeatureWidgetSettings
 
     public static bool Normalize(AppSettings settings)
     {
-        bool changed = false;
+        bool changed = RemoveLegacySearchWidgets(settings);
         EnsureStateBag(settings);
 
         foreach (var kind in s_featureKinds)
@@ -93,6 +93,41 @@ public static class FeatureWidgetSettings
     private static void EnsureStateBag(AppSettings settings)
     {
         settings.FeatureWidgetEnabledStates ??= [];
+    }
+
+    /// <summary>
+    /// Search was removed from the product. Drop its persisted widget configs
+    /// and remember their IDs so groups/layout normalization stops looking for
+    /// windows that will never be created again.
+    /// </summary>
+    private static bool RemoveLegacySearchWidgets(AppSettings settings)
+    {
+        var widgets = settings.WidgetLayout.Widgets;
+        if (widgets.Count == 0)
+        {
+            return false;
+        }
+
+        var deletedWidgetIds = settings.WidgetLayout.DeletedWidgetIds;
+        bool changed = false;
+        for (int index = widgets.Count - 1; index >= 0; index--)
+        {
+            WidgetConfig widget = widgets[index];
+            if (widget.WidgetKind != WidgetKind.Search)
+            {
+                continue;
+            }
+
+            if (!deletedWidgetIds.Contains(widget.Id))
+            {
+                deletedWidgetIds.Add(widget.Id);
+            }
+
+            widgets.RemoveAt(index);
+            changed = true;
+        }
+
+        return changed;
     }
 
     private static bool TryGetStoredState(AppSettings settings, WidgetKind kind, out bool enabled)

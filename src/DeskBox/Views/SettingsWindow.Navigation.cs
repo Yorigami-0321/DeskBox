@@ -51,7 +51,7 @@ public sealed partial class SettingsWindow
     [
         // FeatureWidgets family
         "QuickCaptureSettings", "TodoSettings", "MusicSettings",
-        "WeatherSettings", "GlanceSettings", "SearchSettings",
+        "WeatherSettings", "GlanceSettings",
         // Appearance family
         "AppearanceMaterialSettings", "AppearanceDensitySettings",
         "AppearanceWindowSettings", "AppearanceAnimationSettings",
@@ -636,7 +636,6 @@ public sealed partial class SettingsWindow
             ViewModel.RefreshQuickCaptureClipboardDiagnostics();
             _ = ViewModel.RefreshQuickCaptureImageCacheInfoAsync();
         }
-        UpdateSearchSettingsActivity();
         UpdateBackupSettingsActivity();
         if (sectionTag == "GlanceSettings")
         {

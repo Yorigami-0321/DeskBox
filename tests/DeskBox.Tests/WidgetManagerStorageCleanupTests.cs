@@ -425,35 +425,6 @@ public sealed class WidgetManagerStorageCleanupTests : IDisposable
     }
 
     [Fact]
-    public async Task RemoveWidgetAsync_SearchAwaitsRuntimeCommitBeforeFinishingDeletion()
-    {
-        var search = new WidgetConfig { Name = "Search", WidgetKind = WidgetKind.Search };
-        _settingsService.Settings.Widgets.Add(search);
-        FeatureWidgetSettings.SetEnabled(_settingsService.Settings, WidgetKind.Search, true);
-        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        _searchSettings.BeforeCommit = async _ =>
-        {
-            entered.TrySetResult();
-            await release.Task;
-        };
-
-        Task deletion = _widgetManager.RemoveWidgetAsync(search.Id);
-        await entered.Task.WaitAsync(TimeSpan.FromSeconds(10));
-        Assert.False(deletion.IsCompleted);
-        release.TrySetResult();
-        await deletion;
-
-        Assert.Equal(1, _searchSettings.CommitCount);
-        Assert.False(_searchSettings.Enabled);
-        Assert.DoesNotContain(_settingsService.Settings.Widgets, item => item.Id == search.Id);
-        Assert.Contains(search.Id, _settingsService.Settings.DeletedWidgetIds);
-        var reloaded = new SettingsService(Path.Combine(_tempRoot, "settings"));
-        Assert.False(FeatureWidgetSettings.IsEnabled(reloaded.Settings, WidgetKind.Search));
-        Assert.DoesNotContain(reloaded.Settings.Widgets, item => item.Id == search.Id);
-    }
-
-    [Fact]
     public async Task TodoMenuToggle_AndSettingsToggle_UseTheSameTransitionOrder()
     {
         FeatureWidgetSettings.SetEnabled(_settingsService.Settings, WidgetKind.Todo, true);

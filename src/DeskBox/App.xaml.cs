@@ -1439,17 +1439,6 @@ public partial class App : Application
 
             await themeTask;
 
-            if (FeatureWidgetSettings.IsEnabled(SettingsService.Settings, WidgetKind.Search))
-            {
-                // The search shell is lightweight. Everything owns the filename index;
-                // DeskBox does not scan, preload, or watch the filesystem at startup.
-                RunOptionalStartupStep("search-shell", EnsureSearchServices);
-            }
-            else
-            {
-                Log("[Search] Feature disabled; search services were not initialized");
-            }
-
             RunCriticalStartupStep("widget-manager", () =>
             {
                 WidgetManager = new WidgetManager(SettingsService, FileService, OrganizerService,

@@ -554,7 +554,7 @@ public sealed class WidgetLayoutStoreTests : IDisposable
         legacy.WidgetTopologyLayouts["v3-dual"] = Profile(2200, "surface-a", "s1");
         legacy.ActiveWidgetTopologyKey = "v3-dual";
         legacy.DeletedWidgetIds = ["tomb-removed"];
-        legacy.FeatureWidgetEnabledStates["Search"] = true;
+        legacy.FeatureWidgetEnabledStates["Glance"] = true;
 
         Directory.CreateDirectory(_tempRoot);
         await File.WriteAllTextAsync(
@@ -635,7 +635,7 @@ public sealed class WidgetLayoutStoreTests : IDisposable
             2200,
             mergedProfile.Surfaces["surface-a"].X);
         Assert.Equal(["tomb-removed"], second.Settings.DeletedWidgetIds);
-        Assert.True(second.Settings.FeatureWidgetEnabledStates["Search"]);
+        Assert.True(second.Settings.FeatureWidgetEnabledStates["Glance"]);
 
         JsonObject restripped = await ReadObjectAsync(SettingsPath);
         foreach (string key in WidgetLayoutStore.SettingsWireKeys)

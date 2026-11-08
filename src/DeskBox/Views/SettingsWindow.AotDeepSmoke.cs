@@ -23,7 +23,6 @@ public sealed partial class SettingsWindow
             "MusicSettings",
             "WeatherSettings",
             "GlanceSettings",
-            "SearchSettings",
             "AppearanceMaterialSettings",
             "AppearanceDensitySettings",
             "AppearanceWindowSettings",

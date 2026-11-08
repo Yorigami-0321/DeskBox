@@ -115,7 +115,6 @@ public sealed partial class SettingsWindow : Window
             ["MusicSettings"] = new("MusicSettings", "Settings.Music.Title", "FeatureWidgets", "FeatureWidgets"),
             ["WeatherSettings"] = new("WeatherSettings", "Settings.Weather.Title", "FeatureWidgets", "FeatureWidgets"),
             ["GlanceSettings"] = new("GlanceSettings", "Glance.Settings.Title", "FeatureWidgets", "FeatureWidgets"),
-            ["SearchSettings"] = new("SearchSettings", "Settings.Search.Title", "FeatureWidgets", "FeatureWidgets"),
             ["AppearanceMaterialSettings"] = new("AppearanceMaterialSettings", "Settings.Material.Title", "Appearance", "Appearance"),
             ["AppearanceDensitySettings"] = new("AppearanceDensitySettings", "Settings.Density.Title", "Appearance", "Appearance"),
             ["AppearanceWindowSettings"] = new("AppearanceWindowSettings", "Settings.Group.AppVisual.Title", "Appearance", "Appearance"),
@@ -354,7 +353,6 @@ public sealed partial class SettingsWindow : Window
         // frozen on a stale theme.
         _themeService.ApplyToWindow(this);
         _appWindow.Show();
-        UpdateSearchSettingsActivity();
         UpdateBackupSettingsActivity();
         // Route through the manager so a quick-reveal raised session (widget
         // group held topmost) lifts this window above the widgets instead of
@@ -568,7 +566,6 @@ public sealed partial class SettingsWindow : Window
         // it shut or its keyboard hook keeps swallowing input system-wide.
         global::DeskBox.Views.Dialogs.HotkeyRecorderDialog.ShutdownActiveRecorder();
         _appWindow.Hide();
-        UpdateSearchSettingsActivity();
         UpdateBackupSettingsActivity();
         _appActions.ReleaseRaisedBandGuest(
             _hWnd,
@@ -592,7 +589,6 @@ public sealed partial class SettingsWindow : Window
         ViewModel.DetachFromUpdateService();
         global::DeskBox.Views.Dialogs.HotkeyRecorderDialog.ShutdownActiveRecorder();
         WindowsCompatibilityService.ReleaseTitleBarExtensions(this, _appWindow);
-        UpdateSearchSettingsActivity();
         _searchSettingsViewModel.Dispose();
         _backupSettingsViewModel.Deactivate();
         Activated -= SettingsWindow_Activated;

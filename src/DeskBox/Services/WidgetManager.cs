@@ -612,11 +612,6 @@ public sealed partial class WidgetManager
                 SetWeatherFeatureWidgetEnabledAsync,
                 () => HideAndCloseFeatureWidgetAsync(WidgetKind.Weather)),
             new(
-                WidgetKind.Search,
-                async _ => await CreateSingletonContentFeatureWidgetAsync(WidgetKind.Search),
-                SetSearchFeatureWidgetEnabledAsync,
-                () => HideAndCloseFeatureWidgetAsync(WidgetKind.Search)),
-            new(
                 WidgetKind.Glance,
                 CreateOrShowGlanceWidgetsAsync,
                 SetGlanceFeatureWidgetEnabledAsync,
@@ -664,14 +659,6 @@ public sealed partial class WidgetManager
                     request.CancellationToken)),
             new(
                 WidgetKind.Weather,
-                async request => await CreateContentWidgetFromConfigAsync(
-                    request.Config,
-                    request.KeepPreparedForAnimation,
-                    request.RevealAfterCreate,
-                    request.ShowRaisedWhileInitializing,
-                    request.CancellationToken)),
-            new(
-                WidgetKind.Search,
                 async request => await CreateContentWidgetFromConfigAsync(
                     request.Config,
                     request.KeepPreparedForAnimation,

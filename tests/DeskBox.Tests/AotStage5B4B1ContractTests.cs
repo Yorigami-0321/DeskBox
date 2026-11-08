@@ -16,7 +16,6 @@ public sealed class AotStage5B4B1ContractTests
         "MusicSettings",
         "WeatherSettings",
         "GlanceSettings",
-        "SearchSettings",
         "AppearanceMaterialSettings",
         "AppearanceDensitySettings",
         "AppearanceWindowSettings",
