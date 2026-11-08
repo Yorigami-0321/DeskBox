@@ -208,6 +208,12 @@ internal IEnumerable<WidgetItem> HydrationUniverseItems => UsesStackProjection
 - 测量开启了 perf/verbose 日志，可能对最坏值有额外开销；但 252ms 的空档与内容就绪时间点一致，方向明确。
 - 后续候选（未实施）：内容首次就绪后再启动显示动画；或先显示轻量壳/骨架；或首次唤出不播位移动画；或主屏窗口预热。需要单独决定体验与成本取舍。
 
+### 5.6 首唤内容就绪门控（已选，实施中）
+
+- 方案：`PrepareWidgetForBatchShowAsync` 在窗口创建/复用后等待 `ContentWidgetWindow.ContentReadyTask`（`SetContentAsync → InitializeAsync → ReloadFolderContentsAsync` 覆盖首次 `LoadFolderContents`），上限 5s；超时/失败记录并继续显示 prepared surface。
+- 覆盖 jump-list `SetAllWidgetsVisible` 与托盘/热键 `RaiseWidgetsFromTray`；不改变 eager 启动与手动启动。
+- 验收：`preparedShow` 从 +145ms 推到内容就绪（本场景约 +407ms）；首次动画在内容就绪后启动，252ms 空白应消失；AOT 复测首唤总时长与最大回调。
+
 ## 6. 候选与暂缓项
 
 以下项已核实，但本轮不做；保留证据供后续轮次选择。

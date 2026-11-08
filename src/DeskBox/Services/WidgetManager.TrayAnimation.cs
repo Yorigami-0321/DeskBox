@@ -236,14 +236,21 @@ public sealed partial class WidgetManager
                         existingContent.PrepareTrayShowAnimation();
                     }
 
+                    await WaitForInitialContentReadyAsync(existingContent);
                     return existingContent;
                 }
 
                 App.LogVerbose($"[TrayBatch] Prepare createContent widget={FormatWidget(config)} raisedInit={showRaisedWhileInitializing}");
-                return await CreateRegisteredWidgetFromConfigAsync(
+                var createdContent = await CreateRegisteredWidgetFromConfigAsync(
                     config,
                     keepPreparedForAnimation: true,
                     showRaisedWhileInitializing: showRaisedWhileInitializing);
+                if (createdContent is not null)
+                {
+                    await WaitForInitialContentReadyAsync(createdContent);
+                }
+
+                return createdContent;
             }
 
             App.LogVerbose($"[TrayBatch] Prepare skipped reason=unsupported-kind widget={FormatWidget(config)}");
@@ -258,6 +265,8 @@ public sealed partial class WidgetManager
             {
                 existing.PrepareTrayShowAnimation();
             }
+
+            await WaitForInitialContentReadyAsync(existing);
             return existing;
         }
 
@@ -266,7 +275,42 @@ public sealed partial class WidgetManager
             config,
             keepPreparedForAnimation: true,
             showRaisedWhileInitializing: showRaisedWhileInitializing);
+        if (window is not null)
+        {
+            await WaitForInitialContentReadyAsync(window);
+        }
+
         return window;
+    }
+
+    private static async Task WaitForInitialContentReadyAsync(IDesktopWidgetWindow window)
+    {
+        if (window is not ContentWidgetWindow contentWindow)
+        {
+            return;
+        }
+
+        using var perfScope = PerformanceLogger.Measure(
+            "WidgetManager.WaitForInitialContentReady");
+        try
+        {
+            // ContentReadyTask covers the first LoadFolderContents. Showing
+            // the window before it completes left the first reveal blank for
+            // about the folder-load duration.
+            await contentWindow.ContentReadyTask.WaitAsync(TimeSpan.FromSeconds(5));
+        }
+        catch (TimeoutException)
+        {
+            App.Log(
+                "[TrayBatch] Initial content readiness timed out; " +
+                "showing the prepared surface.");
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            App.Log(
+                $"[TrayBatch] Initial content readiness failed; " +
+                $"showing the prepared surface: {ex.Message}");
+        }
     }
 
     private void CancelActiveTrayAnimationsAndRestorePositions()
