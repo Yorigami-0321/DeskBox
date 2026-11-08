@@ -11,6 +11,7 @@
 | R1 | 备份调度顺序与线程归属 | 每分钟先全盘枚举/写探针，最后才判到期；归档管线同步段落在 UI 线程 | 消除每分钟隐藏 I/O，消除备份日 UI 卡顿 | 低 | 已实现（测试绿） |
 | R2 | 启动显示沉降等待条件 | 当前屏集是上次真子集就固定等最多 5s，不检查缺失屏是否承载格子 | 拔屏/未停靠冷启动少等最多 5s | 低 | 已实现（测试绿） |
 | R3 | 大目录水合域拆分 | 文件堆叠默认开启，`HydrationUniverseItems` 退回全部 `Items` | 1000+ 项目录不再全量取图标/计数/快捷方式 | 中 | 已实现（测试绿） |
+| R5 | ShellKind 按需水合 | 自动堆叠关闭时 ShellKind 没有消费者，却仍全量水合 | AOT 1200 项目录 1200→64 条 ShellKind；开启自动堆叠时保持 1200 | 中 | 已实现（AOT 验证） |
 | R4 | 静默启动懒建窗 | 启动仍全量创建隐藏窗口与 compact chrome | 静默启动恢复段约 1.0–1.2s | 中（产品取舍） | 待决策，暂不执行 |
 | — | 搜索、动画、排序、图标路径、设置锁等 | 见 §6 | 中—小 | 中 | 候选/暂缓 |
 
@@ -183,7 +184,7 @@ internal IEnumerable<WidgetItem> HydrationUniverseItems => UsesStackProjection
 | DragOver 每事件 LINQ + 两次入队 | `ContentWidgetWindow.NativeDragDrop.cs:844` | 可按帧合并最新样本 |
 | 设置全局锁 + 全图序列化 | `SettingsService.cs:513`、`:1640` | copy-on-write 收益中等但面大 |
 | QuickCapture 全表规范化 | `QuickCaptureStore.cs:62` | 每次保存 GroupBy/OrderBy；Items 无上限 |
-| ShellKind 全量水合 | AOT 两轮 `releasedShellKindEntries=1200` | 堆叠分组按目标分类需要全部 ShellKind；是下一项大目录成本，可评估扩展名/属性预分组 |
+| ShellKind 全量水合（自动堆叠开启时） | R5 AOT：开启后仍为 1200，分组正常 | 已由 R5 处理关闭自动堆叠时的全量；开启时仍全量，后续可评估扩展名/属性预分组 |
 | `automatic-snapshot` 步骤耗时归因混淆 | `App.xaml.cs:1298` 步骤内 `await settingsLoadTask`；Debug 冒烟步骤 688ms，而 `DataBackup.DueCheck` 仅 1.0ms | 688ms 主要是设置加载等待，不是备份 I/O；步骤名/日志会误导后续优化。真实备份成本应在 due 日 + 大附件场景单独测 |
 
 ## 7. 测试与测量协议
@@ -213,7 +214,8 @@ internal IEnumerable<WidgetItem> HydrationUniverseItems => UsesStackProjection
 - **R1**：`CreateAutomaticSnapshotResultAsync` 到期判断前置；新增 `IsAutomaticSnapshotFresh` 非递归目录枚举；`HasBackupSourceData` / `CreateArchiveCoreAsync` 加性能标记；`BackupBackend.CreateSnapshotAsync` 以 `Task.Run` 把本地自动快照移出 UI 线程；新增 `SourceDataScanCount` 供测试证明未到期不扫源。备份/运行时测试 43/43。
 - **R2**：新增 `StartupDisplaySettlingPolicy`（纯等待策略 + 使用集合收集）；`App.WaitForStartupDisplaySettlingAsync` 改为“缺失屏承载格子才等待”，固定绑定与 FollowPrimary 计入使用集合，退化身份保守等待。策略测试 8/8。
 - **R3**：拆分 `HydrationDisplayedItems`（渲染前缀 + 堆叠预览 + 弹层固定成员，剔除堆叠包装项）、`HydrationShortcutTargetItems` 与 `HydrationShellKindItems`（后两者在堆叠开启时保持全量，保证快捷方式按目标分类）；hydration pass 增加 follow-up 补跑；堆叠弹层打开注入、关闭清除 pinned 成员。渲染窗口/图标契约测试 39/39。
-- 全量 x64：**5919/5919** 通过。
+- **R5（后续，`deecc3a`）**：`FileStackShellKindHydrationPolicy`；自动堆叠关闭时 ShellKind 走显示域，开启时保持全量；运行时开关关闭→开启补跑一轮；策略 4 例 + 契约测试；全量 5924/5924。
+- 全量 x64：R1–R3 后 **5919/5919**，R5 后 **5924/5924** 通过。
 - Debug 冒烟（隔离数据根、`--startup`、`DESKBOX_PERF_LOG=1`）：`OnLaunched completed successfully`；`[Startup] Pipeline: 42 steps (5 critical), 0 degraded, 0 failed`；`[Perf] DataBackup.DueCheck elapsedMs=1.0`，无 `SourceDataScan`、未创建新快照。最慢单步 `automatic-snapshot` 688ms，但该步骤内部先 `await settingsLoadTask`，耗时主要是设置加载等待，不是备份 I/O（见 §6）。
 - AOT 零售复测见 §11。
 
@@ -259,7 +261,7 @@ internal IEnumerable<WidgetItem> HydrationUniverseItems => UsesStackProjection
 ### 12.3 验收
 
 - 策略单测覆盖 4 种组合。
-- AOT 1200 文件、自动堆叠关闭：`releasedShellKindEntries` 从 1200 降到显示域量级（约 30）；大目录图标请求保持 64–72。
+- AOT 1200 文件、自动堆叠关闭：`releasedShellKindEntries` 从 1200 降到显示域量级（实测 64）；大目录图标请求保持 64–72。
 - 自动堆叠开启：分组结果与改造前一致，ShellKind 仍全量。
 - 运行时开关关闭→开启：ShellKind 补齐，分组不缺失。
 - 全量 x64 passed == total。
@@ -268,3 +270,20 @@ internal IEnumerable<WidgetItem> HydrationUniverseItems => UsesStackProjection
 
 - 手动堆叠不读取 ShellKind，但仍需在验收中确认；若未来有 UI 直接消费 ShellKind，需要重新评估显示域。
 - 运行时切换依赖 `ApplyStackSettings` 的调用链；已确认 `SettingsChanged → ApplySettingsChangesAsync → ApplyStackSettings`。
+
+### 12.5 AOT 复测（`deecc3a`，2026-11-08）
+
+同一 1200 文件目录、同一隔离根、`--startup`、`DESKBOX_PERF_LOG=1`。自动堆叠开关通过测试根 settings 切换。
+
+| 场景 | 大目录图标请求 | `releasedShellKindEntries` | `OnLaunched` | 30s Private |
+|---|---|---|---|---|
+| 基线 `357b3cc`，自动堆叠关 | 1216 / 1216 | 1200 / 1200 | 956.1 / 758.4ms | 178.0 / 169.7MB |
+| R3 `a14e7be`，自动堆叠关 | 72 / 64 | 1200 / 1200 | 696.7 / 700.1ms | 156.9 / 172.1MB |
+| R5 `deecc3a`，自动堆叠关 | 72 | **64** | 680.8ms | 151.1MB |
+| R5 `deecc3a`，自动堆叠开 | 4 | **1200** | 623.4ms | 143.0MB |
+
+结论：
+
+- R5 关闭自动堆叠时把未消费的 ShellKind 全量工作从 **1200 降到 64**，图标请求保持不变（72），说明减少的是无用工作而不是渲染范围。
+- R5 开启自动堆叠时 ShellKind 保持 **1200**，分组正常（4 个预览图标），没有破坏自动堆叠语义。
+- Private 单轮值（151.1 / 143.0MB）低于 R3 与基线，但样本少且与既有区间方差重叠，不作为稳定内存承诺。
