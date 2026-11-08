@@ -325,6 +325,17 @@ public sealed class WidgetShellContentHost
         CurrentContent?.OnWindowVisibilityChanged(visible);
     }
 
+    public void OnWindowRevealStarted()
+    {
+        if (_isDisposed || !_isWindowVisible)
+        {
+            return;
+        }
+
+        _isWindowRevealCompleted = false;
+        CurrentContent?.OnWindowRevealStarted();
+    }
+
     public void OnWindowRevealCompleted()
     {
         if (_isDisposed || !_isWindowVisible || _isWindowRevealCompleted)

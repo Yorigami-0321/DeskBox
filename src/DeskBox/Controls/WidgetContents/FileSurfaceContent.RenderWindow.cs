@@ -122,6 +122,11 @@ public sealed partial class FileSurfaceContent
             return;
         }
 
+        // During a tray reveal the first frame only needs the tiles that are
+        // actually visible. The scroll buffer is restored by
+        // OnWindowRevealCompleted after the animation has finished.
+        int bufferRows = _isWindowRevealPending ? 0 : 2;
+
         if (ReferenceEquals(itemsView, ItemsGrid))
         {
             ViewModel.EnsureRenderWindowCoversViewport(
@@ -130,7 +135,7 @@ public sealed partial class FileSurfaceContent
                     viewportHeight,
                     ViewModel.IconCellWidth,
                     ViewModel.IconCellHeight,
-                    bufferRows: 2));
+                    bufferRows: bufferRows));
         }
         else
         {
@@ -144,7 +149,7 @@ public sealed partial class FileSurfaceContent
                     viewportHeight,
                     Math.Max(1, viewportWidth),
                     rowHeight,
-                    bufferRows: 2));
+                    bufferRows: bufferRows));
         }
     }
 
@@ -242,7 +247,7 @@ public sealed partial class FileSurfaceContent
 
     private void TryGrowRenderWindowToFillViewport(ScrollViewer? scrollViewer)
     {
-        if (_isDisposed || scrollViewer is null || !ViewModel.CanGrowRenderWindow)
+        if (_isDisposed || _isWindowRevealPending || scrollViewer is null || !ViewModel.CanGrowRenderWindow)
         {
             return;
         }

@@ -196,6 +196,11 @@ public sealed class FileWidgetContentAdapter :
         Surface?.OnWindowVisibilityChanged(visible);
     }
 
+    public override void OnWindowRevealStarted()
+    {
+        Surface?.OnWindowRevealStarted();
+    }
+
     public override void OnWindowRevealCompleted()
     {
         Surface?.OnWindowRevealCompleted();

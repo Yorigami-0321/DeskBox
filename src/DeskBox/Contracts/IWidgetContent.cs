@@ -28,6 +28,13 @@ public interface IWidgetContent
     void OnWindowVisibilityChanged(bool visible) { }
 
     /// <summary>
+    /// Called when a tray reveal animation is about to start. Content may
+    /// reduce first-frame layout to the visible viewport until
+    /// <see cref="OnWindowRevealCompleted"/> restores the normal scroll buffer.
+    /// </summary>
+    void OnWindowRevealStarted() { }
+
+    /// <summary>
     /// Called once the host's reveal animation has completed. Expensive refresh,
     /// watcher, and device work should resume here so it cannot contend with the
     /// first visible frame.

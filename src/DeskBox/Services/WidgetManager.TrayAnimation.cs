@@ -9,6 +9,7 @@ using DeskBox.Views;
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
+using System.Diagnostics;
 
 namespace DeskBox.Services;
 
@@ -339,6 +340,7 @@ public sealed partial class WidgetManager
         {
             // Step 1: 在同一帧内完成所有偏移量设置
                 ApplyTrayAnimationGroupOffset(windows);
+                long traceAnchor = Stopwatch.GetTimestamp();
 
                 // Step 2: 收集所有窗口的共享动画条目（窗口自身的 Opacity/Scale
                 // 仍由各自的 Composition 动画驱动）
@@ -367,7 +369,8 @@ public sealed partial class WidgetManager
                     _settingsService.Settings.WidgetAnimationEasingIntensity,
                     isShowing: true,
                     startDelayFrames: 1,
-                    staggerIntervalMs: GetTrayStaggerIntervalMs(windows));
+                    staggerIntervalMs: GetTrayStaggerIntervalMs(windows),
+                    traceAnchorTimestamp: traceAnchor);
                 _ = RestoreInteractionBackdropsWhenIdleAsync(windows);
         }
         catch (Exception ex)
@@ -407,6 +410,7 @@ public sealed partial class WidgetManager
         {
             // Step 1: 在同一帧内完成所有偏移量设置
                 ApplyTrayAnimationGroupOffset(windows);
+                long traceAnchor = Stopwatch.GetTimestamp();
 
                 // Step 2: 收集所有窗口的共享隐藏动画条目
                 var entries = new List<WidgetTrayBatchAnimationEntry>(windows.Count);
@@ -434,7 +438,8 @@ public sealed partial class WidgetManager
                     _settingsService.Settings.WidgetAnimationEasingIntensity,
                     isShowing: false,
                     startDelayFrames: 0,
-                    staggerIntervalMs: GetTrayStaggerIntervalMs(windows));
+                    staggerIntervalMs: GetTrayStaggerIntervalMs(windows),
+                    traceAnchorTimestamp: traceAnchor);
                 _ = RestoreInteractionBackdropsWhenIdleAsync(windows);
         }
         catch (Exception ex)

@@ -116,6 +116,10 @@ public abstract class WidgetContentAdapterBase : IWidgetContent, IDisposable
     {
     }
 
+    public virtual void OnWindowRevealStarted()
+    {
+    }
+
     public virtual void OnWindowRevealCompleted()
     {
     }

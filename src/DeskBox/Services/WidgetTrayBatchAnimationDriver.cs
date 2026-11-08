@@ -3,6 +3,7 @@
 using System.Diagnostics;
 using DeskBox.Helpers;
 using DeskBox.Platform;
+using Microsoft.UI.Dispatching;
 
 namespace DeskBox.Services;
 
@@ -148,6 +149,8 @@ public sealed class WidgetTrayBatchAnimationDriver
     private WidgetTrayAnimationFrameTracker? _frameTracker;
     private TaskCompletionSource? _idleCompletion;
     private Task _idleTask = Task.CompletedTask;
+    private long _traceAnchorTimestamp;
+    private int _tracedFrameCallbacks;
 
     public WidgetTrayBatchAnimationDriver(Action<string>? log = null)
         : this(
@@ -199,7 +202,8 @@ public sealed class WidgetTrayBatchAnimationDriver
         string easingIntensity,
         bool isShowing,
         int startDelayFrames,
-        int staggerIntervalMs = 0)
+        int staggerIntervalMs = 0,
+        long traceAnchorTimestamp = 0)
     {
         Cancel();
         _idleTask = Task.CompletedTask;
@@ -252,12 +256,45 @@ public sealed class WidgetTrayBatchAnimationDriver
             TaskCreationOptions.RunContinuationsAsynchronously);
         _idleTask = _idleCompletion.Task;
         _isRunning = true;
+        _traceAnchorTimestamp = traceAnchorTimestamp > 0
+            ? traceAnchorTimestamp
+            : _getTimestamp();
+        _tracedFrameCallbacks = 0;
         StartFrameClock();
         _log(
             $"[BatchAnim] Start count={_entries.Count} durationMs={_durationMs} " +
             $"mode={(isShowing ? "show" : "hide")} delayFrames={_remainingDelayFrames} " +
             $"staggerIntervalMs={staggerIntervalMs}");
+        _log(
+            $"[TrayAnimationPhase] mode={(isShowing ? "show" : "hide")} event=clock-registered " +
+            $"sinceAnchorMs={ElapsedMilliseconds(_traceAnchorTimestamp, _getTimestamp()):F1} " +
+            $"delayFrames={_remainingDelayFrames}");
+        ScheduleUiThreadProbes(isShowing);
     }
+
+    private void ScheduleUiThreadProbes(bool isShowing)
+    {
+        DispatcherQueue? dispatcher = DispatcherQueue.GetForCurrentThread();
+        if (dispatcher is null)
+        {
+            return;
+        }
+
+        string mode = isShowing ? "show" : "hide";
+        dispatcher.TryEnqueue(() =>
+            _log(
+                $"[TrayAnimationPhase] mode={mode} event=ui-probe-immediate " +
+                $"sinceAnchorMs={ElapsedMilliseconds(_traceAnchorTimestamp, _getTimestamp()):F1}"));
+        _ = Task.Delay(16).ContinueWith(
+            _ => dispatcher.TryEnqueue(() =>
+                _log(
+                    $"[TrayAnimationPhase] mode={mode} event=ui-probe-16 " +
+                    $"sinceAnchorMs={ElapsedMilliseconds(_traceAnchorTimestamp, _getTimestamp()):F1}")),
+            TaskScheduler.Default);
+    }
+
+    private double ElapsedMilliseconds(long from, long to) =>
+        Stopwatch.GetElapsedTime(from, to).TotalMilliseconds;
 
     private void StartFrameClock()
     {
@@ -287,13 +324,22 @@ public sealed class WidgetTrayBatchAnimationDriver
 
     private void OnRenderingFrame()
     {
+        if (!_isRunning)
+        {
+            return;
+        }
+
+        long callbackStarted = _getTimestamp();
+        int callbackIndex = ++_tracedFrameCallbacks;
+        bool traceCallback = callbackIndex <= 3;
+        int delayFramesRemaining = _remainingDelayFrames;
+        double sinceAnchorMs = ElapsedMilliseconds(
+            _traceAnchorTimestamp,
+            callbackStarted);
+        bool clockStarted = false;
+        double movementMs = -1;
         try
         {
-            if (!_isRunning)
-            {
-                return;
-            }
-
             // Drop entries whose window started a newer animation meanwhile.
             for (int i = _entries.Count - 1; i >= 0; i--)
             {
@@ -323,6 +369,7 @@ public sealed class WidgetTrayBatchAnimationDriver
             if (_startedTimestamp is null)
             {
                 _startedTimestamp = frameTimestamp;
+                clockStarted = true;
                 _frameTracker = new WidgetTrayAnimationFrameTracker(
                     frameTimestamp,
                     _entries.Select(entry => entry.RefreshRateHz));
@@ -334,7 +381,9 @@ public sealed class WidgetTrayBatchAnimationDriver
             double totalMs = _durationMs + _maxStaggerDelayMs;
             double rawProgress = Math.Clamp(nowMs / totalMs, 0.0, 1.0);
             bool finalFrame = nowMs >= totalMs;
+            long movementStarted = _getTimestamp();
             bool committed = MoveEntriesFrame(nowMs, finalFrame, frameTimestamp);
+            movementMs = ElapsedMilliseconds(movementStarted, _getTimestamp());
 
             if (finalFrame && !committed)
             {
@@ -354,6 +403,18 @@ public sealed class WidgetTrayBatchAnimationDriver
             // Never let a frame exception escape the Rendering callback.
             App.Log($"[WidgetTrayBatchAnimationDriver] Frame exception: {ex.Message}\n{ex.StackTrace}");
             FailBatch(ex);
+        }
+        finally
+        {
+            if (traceCallback)
+            {
+                _log(
+                    $"[TrayAnimationPhase] mode={(_isShowing ? "show" : "hide")} " +
+                    $"event=frame{callbackIndex} sinceAnchorMs={sinceAnchorMs:F1} " +
+                    $"delayFramesRemaining={delayFramesRemaining} " +
+                    $"clockStart={clockStarted} movementMs={movementMs:F1} " +
+                    $"callbackMs={ElapsedMilliseconds(callbackStarted, _getTimestamp()):F1}");
+            }
         }
     }
 

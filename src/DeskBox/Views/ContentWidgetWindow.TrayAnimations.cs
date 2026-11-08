@@ -39,6 +39,7 @@ public sealed partial class ContentWidgetWindow
         }
 
         LogTrayWindow($"SharedShow gen={generation} durationMs={profile.DurationMs}");
+        _contentHost.OnWindowRevealStarted();
         return TrayAnimation.BeginSharedAnimate(
             profile.ShowOffsetX,
             profile.ShowOffsetY,

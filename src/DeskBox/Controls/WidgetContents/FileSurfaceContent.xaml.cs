@@ -120,6 +120,7 @@ public sealed partial class FileSurfaceContent :
     private bool _hasBeenWindowVisible;
     private bool _isWindowVisible;
     private bool _isWindowRevealCompleted;
+    private bool _isWindowRevealPending;
     private DateTime _lastDiskReconciliationUtc = DateTime.MinValue;
     private int _diskReconciliationQueued;
     private TransitionCollection? _suspendedGridItemContainerTransitions;
@@ -558,6 +559,7 @@ public sealed partial class FileSurfaceContent :
             return;
         }
 
+        _isWindowRevealPending = false;
         _isWindowRevealCompleted = false;
         StopFolderNavigationVisuals();
         CloseStackPopover(releaseImmediately: true);
@@ -1036,6 +1038,17 @@ public sealed partial class FileSurfaceContent :
         _ = RenameItemAsync(armedItem);
     }
 
+    internal void OnWindowRevealStarted()
+    {
+        if (_isDisposed || !_isWindowVisible)
+        {
+            return;
+        }
+
+        _isWindowRevealPending = true;
+        _isWindowRevealCompleted = false;
+    }
+
     internal void OnWindowRevealCompleted()
     {
         if (_isDisposed || !_isWindowVisible || _isWindowRevealCompleted)
@@ -1043,6 +1056,7 @@ public sealed partial class FileSurfaceContent :
             return;
         }
 
+        _isWindowRevealPending = false;
         _isWindowRevealCompleted = true;
         bool hasDeferredChanges = ViewModel.ResumeBackgroundActivity();
         // Revealing a long-hidden surface is a display transition; the disk
@@ -1052,6 +1066,11 @@ public sealed partial class FileSurfaceContent :
         QueueDiskReconciliationIfStale(
             "reveal-completed",
             hasDeferredChanges);
+        // The reveal itself needed only the viewport tiles. Restore the normal
+        // scroll buffer once the animation is over and its frames are safe.
+        ListViewBase activeView = GetActiveItemsView();
+        EnsureRenderWindowCoversViewport(activeView);
+        TryGrowRenderWindowToFillViewport(GetRenderWindowScrollViewer(activeView));
     }
 
     private void ToggleStackFromInput(WidgetStackItem stack)

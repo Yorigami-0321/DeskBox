@@ -137,6 +137,36 @@ public sealed class RenderWindowContractTests
             StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void TrayReveal_CapsTheScrollBufferUntilRevealCompletes()
+    {
+        string renderWindow = File.ReadAllText(GetRepoFile(
+            "src/DeskBox/Controls/WidgetContents/FileSurfaceContent.RenderWindow.cs"));
+        string surface = File.ReadAllText(GetRepoFile(
+            "src/DeskBox/Controls/WidgetContents/FileSurfaceContent.xaml.cs"));
+        string adapter = File.ReadAllText(GetRepoFile(
+            "src/DeskBox/Controls/WidgetContents/FileWidgetContentAdapter.cs"));
+        string window = File.ReadAllText(GetRepoFile(
+            "src/DeskBox/Views/ContentWidgetWindow.TrayAnimations.cs"));
+        string contract = File.ReadAllText(GetRepoFile(
+            "src/DeskBox/Contracts/IWidgetContent.cs"));
+
+        Assert.Contains("_isWindowRevealPending ? 0 : 2", renderWindow, StringComparison.Ordinal);
+        Assert.Contains(
+            "if (_isDisposed || _isWindowRevealPending || scrollViewer is null",
+            renderWindow,
+            StringComparison.Ordinal);
+        Assert.Contains("internal void OnWindowRevealStarted()", surface, StringComparison.Ordinal);
+        Assert.Contains("_isWindowRevealPending = true;", surface, StringComparison.Ordinal);
+        Assert.Contains(
+            "EnsureRenderWindowCoversViewport(activeView);",
+            surface,
+            StringComparison.Ordinal);
+        Assert.Contains("Surface?.OnWindowRevealStarted();", adapter, StringComparison.Ordinal);
+        Assert.Contains("_contentHost.OnWindowRevealStarted();", window, StringComparison.Ordinal);
+        Assert.Contains("void OnWindowRevealStarted() { }", contract, StringComparison.Ordinal);
+    }
+
     private static int CountOccurrences(string source, string value)
     {
         int count = 0;

@@ -18,6 +18,7 @@
 | R8 | 首唤动画期间暂停图标水合 | 图标水合与动画完成回调抢 UI | 动画先完成，图标在动画后补齐；首帧等待 338→约 194ms | 中 | 已实现（AOT 验证） |
 | R9 | 64 tile 首帧布局 | 每 tile 隐藏 ProgressRing + 占位 ControlTemplate | 首帧 194→180.6ms；剩余 64 UserControl/ToolTip | 中 | 已实现（AOT 验证） |
 | R10 | tile 视觉树内联 | 每 tile 一个带 XAML/资源/模板的 UserControl，首帧还要 LoadContent 内层模板 | 去掉 UserControl、每实例资源和 eager ToolTip；动画期帧回调 52–62→8–13ms、丢帧 20–24→0–1 | 高（UI 回归） | 已实现（AOT 验证） |
+| R12 | reveal 期间只渲染视口 | 首帧把 64 个 tile 全部布局，UI 线程忙约 150–200ms | 首帧 259–294→149–152ms；reveal 渲染窗口 64→48 | 中 | 已实现（AOT 验证） |
 | — | 搜索、动画、排序、图标路径、设置锁等 | 见 §6 | 中—小 | 中 | 候选/暂缓 |
 
 ## 2. R1：备份调度顺序与线程归属
@@ -316,6 +317,33 @@ internal IEnumerable<WidgetItem> HydrationUniverseItems => UsesStackProjection
 - ToolTip 的按需创建在第二轮 R10 构建（`r10b`）中生效：首帧仍与 R9 持平，说明此前每 tile 的 `ToolTip` 对象不是墙钟主因；它仍减少了 64 组 ToolTip/TextBlock 的分配。
 - UI 冒烟（Debug，隔离根）：图标模式、列表模式、列表整行选区、自动堆叠 tile、堆叠弹层均正常截图；悬停/路径 ToolTip 未能截图验证，因为生产实例与 IDE 窗口覆盖了测试窗口的工作区，且窗口消息注入不触发 WinUI PointerEntered。指针状态机仍由既有 `FileItemPointerFeedbackTests` 覆盖，事件接线与按需 ToolTip 分支由契约测试覆盖。
 
+### 5.11 首唤分段计时（R11，实施中）
+
+- 证据：R10 与 R9 同场 A/B 的首帧墙钟均约 257–294ms；R10 已去掉 tile UserControl，说明这段墙钟不由 tile XAML 决定。`WidgetTrayBatchAnimationDriver` 在 `SharedShow` 之后注册 `CompositionTarget.Rendering`，并要求 `startDelayFrames=1`；当前只能从 `TrayAnimation elapsed` 反推动画开始，无法区分注册、首个回调、延迟帧和首帧工作。
+- 设计（仅诊断，不改行为）：在 `PlayPreparedTrayShowAnimations` 记录 `SharedShow` 前的 `Stopwatch` 锚点并传给 `WidgetTrayBatchAnimationDriver.Start`；驱动在注册完成、前 3 个 `Rendering` 回调进入/退出、以及首个时钟帧的位置提交处输出 `[TrayAnimationPhase]` 结构化日志（`sinceAnchorMs`、`delayFramesRemaining`、`callbackMs`、`movementMs`）。不改变动画时长、延迟帧数或位置提交逻辑。
+- 验收：AOT 同一 1200 文件首唤，日志能回答：注册到首个回调多久、首个回调到第二个回调多久、首帧移动/提交多久；据此决定下一步是优化 UI 线程首帧、合成器提交还是时钟注册。
+- 风险：仅日志；若日志本身影响目标帧，先关闭详细日志复测。回滚为删除可选参数与日志点。
+
+### 5.12 reveal 视口渲染窗口（R12，实施中）
+
+- 证据（R11 分段）：`clock-registered` 在 SharedShow 后 1–2ms；`RenderWindow` 30→64 在 +4/+19ms；首个 `CompositionTarget.Rendering` 回调在 **+175ms**，16ms UI 探针实际在 **+210ms** 才执行。注册立即完成、UI 探针被推迟，说明 UI 线程在 RenderWindow 64 之后被首帧布局占用约 150–200ms，而不是合成器或注册延迟。
+- 设计：新增 `IWidgetContent.OnWindowRevealStarted()`，只由 `BeginSharedTrayShowAnimation` 在动画真正开始时通知；`FileSurfaceContent` 在 reveal pending 期间把 `ComputeViewportRenderMinimum` 的 `bufferRows` 从 2 降到 0，并跳过 `TryGrowRenderWindowToFillViewport`；`OnWindowRevealCompleted` 恢复 2 行缓冲并重新覆盖视口。手动/无动画显示不进入该状态。
+- 验收：AOT 同一 1200 文件，首帧墙钟下降；reveal 期间渲染窗口从 64 降到视口最小值；动画完成后恢复 64；可见区域无空白 tile；全量测试 passed == total。
+
+**AOT 复测（R12，`r12`，同一 1200 文件）**：
+
+| 指标 | R11（探针版） | R9 同场 | R12 |
+|---|---|---|---|
+| `SharedShow`→首个动画帧 | 223.6ms（单轮） | 259–294ms | **148.8 / 151.5ms** |
+| `preparedShow`→完成 | 475ms（单轮） | 516–553ms | **403 / 412ms** |
+| `SetAllWidgetsVisible` | 941ms（单轮） | 1005–1183ms | **837 / 866ms** |
+| reveal 期间 `RenderWindow` | 64 | 64 | **48** |
+| 动画后 `RenderWindow` | 64 | 64 | **64**（`WidgetVisibleContentResumed` 前恢复） |
+
+- 首帧墙钟相对 R9 同场下降约 **110–145ms**，相对 R11 探针轮次下降约 **72–75ms**。原因是 reveal 首帧只布置可见视口需要的 48 个 tile，64 个 tile 的滚动缓冲在动画结束后补上；`RenderWindow` 在 `WidgetVisibleContentResumed`（动画完成 + 约 242ms）时回到 64。
+- 可见性：48 是 `ComputeViewportRenderMinimum(bufferRows:0)` 的计算结果，覆盖当前视口；若用户在 240ms 动画期间立即滚动，`ViewChanged`/动画完成后的恢复仍会补渲染。该场景未单独截图验证；静态图标/列表/弹层截图见 §5.10。
+- 风险与回滚：reveal pending 若未收到完成回调，滚动缓冲会保持 0；`OnWindowVisibilityChanged(false)` 会清除 pending，动画失败路径也走 `OnWindowRevealCompleted`。回滚为删除 `OnWindowRevealStarted` 生命周期与 `_isWindowRevealPending` 分支。
+
 ## 6. 候选与暂缓项
 
 以下项已核实，但本轮不做；保留证据供后续轮次选择。
@@ -369,6 +397,9 @@ internal IEnumerable<WidgetItem> HydrationUniverseItems => UsesStackProjection
 - **R8（`423b232`）**：`WidgetIconHydrationGate` 在显示分支暂停 hydration pass，图标在动画后补齐；AOT 动画期间无大目录图标加载，首帧等待 338→约 194ms、`SetAllWidgetsVisible` 868.4ms；全量 5940/5940。
 - **R9（`065521a`）**：活动 `ProgressRing` 改为仅在传输/打开时实例化，占位 `ContentControl/ControlTemplate` 改为 `Viewbox+Border`；AOT 首帧 194→180.6ms、`SetAllWidgetsVisible` 849.8ms、动画 max 39.9ms；全量 5940/5940。
 - **R10（本轮）**：删除 `FileItemSurface.xaml`/AOT provider；四个条目模板内联图标/列表视觉树（`x:DataType=WidgetItem` 的 `x:Bind`）；新增 `FileItemTileState`（指针反馈、传输/打开徽标、按需 ToolTip、按 Tag 缓存元素）与静态 `FileItemSurface` 辅助（附加 Mode/LayoutContext/UseStackChildIndent、布局度量）；布局度量改由代码在 `DataContextChanged`/`Loaded` 及 VM 布局属性变化时应用；ToolTip 改为指针进入后按需创建。AOT 同场四轮 A/B：首帧墙钟 257–288 vs 259–294ms（持平），动画 `maxCallbackMs` 52–63→8–14ms、丢帧 20–26→0–1，总耗时约 −20~35ms；全量 **5938/5938**。
+- **R11（本轮）**：`WidgetTrayBatchAnimationDriver.Start` 接受 SharedShow 锚点并输出 `[TrayAnimationPhase]`：注册、前 3 个 Rendering 回调、UI 探针、位置提交耗时。AOT 显示注册 +1–2ms、RenderWindow 64 在 +19ms、首个回调 +175ms、16ms UI 探针 +210ms，确认 UI 线程被首帧布局占用。
+- **R12（本轮）**：`IWidgetContent.OnWindowRevealStarted` 由 `BeginSharedTrayShowAnimation` 触发；`FileSurfaceContent` 在 reveal pending 期间使用 `bufferRows:0` 且暂停视口填充增长，完成后恢复 `bufferRows:2`。AOT 首帧 **149–152ms**（R9 同场 259–294）、`preparedShow`→完成 403–412ms、总 837–866ms；reveal 渲染窗口 48，动画后恢复 64。
+
 - 全量 x64：R1–R3 后 **5919/5919**，R5 后 **5924/5924** 通过。
 - Debug 冒烟（隔离数据根、`--startup`、`DESKBOX_PERF_LOG=1`）：`OnLaunched completed successfully`；`[Startup] Pipeline: 42 steps (5 critical), 0 degraded, 0 failed`；`[Perf] DataBackup.DueCheck elapsedMs=1.0`，无 `SourceDataScan`、未创建新快照。最慢单步 `automatic-snapshot` 688ms，但该步骤内部先 `await settingsLoadTask`，耗时主要是设置加载等待，不是备份 I/O（见 §6）。
 - AOT 零售复测见 §11。
