@@ -161,7 +161,7 @@ internal IEnumerable<WidgetItem> HydrationUniverseItems => UsesStackProjection
 
 1. 条件：`processStartupLaunch`（`--startup` 或启动任务激活）且 `hideWidgetsAtStartup` 为真（静默启动/快速呼出层）。手动启动即使 `SilentStartup=true` 仍按原路径即时创建隐藏窗口。
 2. `RestoreWidgetsAsync(bool createWindows = true, bool processStartupLaunch = false)`；复用现有 `!createWindows` 的懒恢复分支，只做配置/拓扑归一化，不创建窗口；日志 reason=startup-silent。
-3. 首次显式唤出仍走 `PrepareWidgetForBatchShowAsync`，与空闲回收 `--lazy-restore` 同一条已验证路径；首次唤出成本沿用既有试点约 0.25–0.3s。
+3. 首次显式唤出仍走 `PrepareWidgetForBatchShowAsync`，与空闲回收 `--lazy-restore` 同一条已验证路径。既有 0.25–0.3s 试点不适用于 1200 文件最坏情况；后者实测见 §5.5。
 4. 不新增设置项；`SilentStartup=false` 且非快速呼出层时 `hideWidgetsAtStartup=false`，启动仍即时建窗（可见）。
 5. 不做 B（主屏混合）与 C（壳预热）——前者与整批动画一致性冲突，后者需拆内容初始化。
 
@@ -187,8 +187,26 @@ internal IEnumerable<WidgetItem> HydrationUniverseItems => UsesStackProjection
 | `DataBackup.DueCheck` | 0.2ms | 0.3ms |
 
 - `Lazy startup restore` 日志出现，托盘 lifeline 建立，43 步 0 failed。
-- 首次唤出未在 AOT 重测：复用既有 idle-recycle lazy 路径，既有试点约 0.25–0.3s；本轮不改变该路径。
+- 首次唤出 AOT 实测见 §5.5（1200 文件最坏情况）。
 - 手动启动按 `processStartupLaunch=false` 保持 eager；未做可见 AOT 实验（避免抢前台），由策略测试覆盖。
+
+### 5.5 首次唤出 AOT 实测（`81bfc8e`，1200 文件最坏情况）
+
+场景：R4-A AOT、lazy 启动后 0 窗口、`--toggle-widgets` jump-list 激活、一个 1200 文件 File 格子、`DESKBOX_PERF_LOG=1` + `DESKBOX_VERBOSE_LOG=1`。时间为相对 `[JumpList] Handling activation` 的偏移。
+
+| 阶段 | 时间 | 说明 |
+|---|---|---|
+| `SetAllVisible preparedShow=1/1` | **+145ms** | 窗口/壳准备完成 |
+| `SharedShow` / 动画开始 | **+156ms** | 窗口已经显示 |
+| 首次 `LoadFolderContents` | **+407ms** | 内容首次就绪 |
+| `RenderWindow` 30→64 | +411–471ms | 视口覆盖增长 |
+| `TrayAnimation` 结束 | **+654ms** | `elapsedMs=457.8`，`maxCallbackMs=252.0`，estimated gaps=41 |
+| `SetAllWidgetsVisible` 完成 | **+712ms** | `elapsedMs=711.3` |
+
+- 窗口在 +156ms 出现，但内容到 +407ms 才首次加载；动画期间的 **252ms 最大 UI 回调空档**与“窗口已显示、内容未就绪”的空白窗口吻合，不是单纯的动画时长。
+- 既有 0.25–0.3s 试点是正常内容场景；1200 文件最坏情况是 **0.71s 端到端**。首次唤出后 Private 155.5MB（windows=1），隐藏态为 97.3MB。
+- 测量开启了 perf/verbose 日志，可能对最坏值有额外开销；但 252ms 的空档与内容就绪时间点一致，方向明确。
+- 后续候选（未实施）：内容首次就绪后再启动显示动画；或先显示轻量壳/骨架；或首次唤出不播位移动画；或主屏窗口预热。需要单独决定体验与成本取舍。
 
 ## 6. 候选与暂缓项
 
