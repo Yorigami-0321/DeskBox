@@ -4519,7 +4519,9 @@ public partial class App : Application
 
                 foreach (string widgetId in fileWidgetIds)
                 {
-                    await WidgetManager.RefreshFileWidgetAsync(widgetId);
+                    await WidgetManager.RefreshFileWidgetAsync(
+                        widgetId,
+                        skipIfRecentlyLoaded: true);
                 }
             }
 

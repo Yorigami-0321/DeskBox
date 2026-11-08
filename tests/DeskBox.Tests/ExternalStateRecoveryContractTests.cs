@@ -32,6 +32,28 @@ public sealed class ExternalStateRecoveryContractTests
             "WidgetManager is not null && refreshFileWidgets",
             app,
             StringComparison.Ordinal);
+        Assert.Contains(
+            "skipIfRecentlyLoaded: true",
+            app,
+            StringComparison.Ordinal);
+
+        string manager = File.ReadAllText(TestPaths.FromRepository(
+            "src/DeskBox/Services/WidgetManager.cs"));
+        Assert.Contains(
+            "bool skipIfRecentlyLoaded = false",
+            manager,
+            StringComparison.Ordinal);
+        Assert.Contains(
+            "IsFolderLoadRecentOrActive",
+            manager,
+            StringComparison.Ordinal);
+
+        string viewModel = File.ReadAllText(TestPaths.FromRepository(
+            "src/DeskBox/ViewModels/WidgetViewModel.cs"));
+        Assert.Contains(
+            "IsFolderLoadRecentOrActive",
+            viewModel,
+            StringComparison.Ordinal);
 
         string jumpList = File.ReadAllText(TestPaths.FromRepository(
             "src/DeskBox/Services/JumpListService.cs"));

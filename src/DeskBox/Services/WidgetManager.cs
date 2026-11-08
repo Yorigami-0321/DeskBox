@@ -2666,16 +2666,28 @@ public sealed partial class WidgetManager
             !IsDeleted(widget.Id));
     }
 
-    public async Task RefreshFileWidgetAsync(string widgetId)
+    public async Task RefreshFileWidgetAsync(
+        string widgetId,
+        bool skipIfRecentlyLoaded = false)
     {
         if (!HasUiThreadAccess())
         {
-            await RunOnUiThreadAsync(() => RefreshFileWidgetAsync(widgetId));
+            await RunOnUiThreadAsync(
+                () => RefreshFileWidgetAsync(widgetId, skipIfRecentlyLoaded));
             return;
         }
 
+        DateTimeOffset now = DateTimeOffset.UtcNow;
         if (_fileWidgets.TryGetValue(widgetId, out var fileEntry))
         {
+            if (skipIfRecentlyLoaded &&
+                fileEntry.ViewModel.IsFolderLoadRecentOrActive(now))
+            {
+                App.LogVerbose(
+                    $"[Lifecycle] External state recovery skipped recent file widget {widgetId}");
+                return;
+            }
+
             await fileEntry.ViewModel.RefreshFromConfigAsync(clearIconCacheBeforeHydration: false);
             return;
         }
@@ -2687,6 +2699,14 @@ public sealed partial class WidgetManager
                 string.Equals(surface.WidgetId, widgetId, StringComparison.Ordinal));
         if (contentWindow?.CurrentContent is FileWidgetContentAdapter fileSurface)
         {
+            if (skipIfRecentlyLoaded &&
+                fileSurface.ViewModel.IsFolderLoadRecentOrActive(now))
+            {
+                App.LogVerbose(
+                    $"[Lifecycle] External state recovery skipped recent file widget {widgetId}");
+                return;
+            }
+
             await fileSurface.ViewModel.RefreshFromConfigAsync(clearIconCacheBeforeHydration: false);
         }
     }

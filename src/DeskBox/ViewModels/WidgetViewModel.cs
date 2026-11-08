@@ -129,6 +129,13 @@ public partial class WidgetViewModel : ObservableObject, IDisposable
 
     public bool IsInitialized { get; private set; }
 
+    private DateTimeOffset _lastFolderLoadUtc;
+
+    internal bool IsFolderLoadRecentOrActive(DateTimeOffset now) =>
+        IsLoading ||
+        (_lastFolderLoadUtc != default &&
+         now - _lastFolderLoadUtc < TimeSpan.FromSeconds(2));
+
     public FolderWatcherHealthSnapshot FolderWatcherHealth => _folderWatcher.Health;
 
     public FolderWatcherHealthSnapshot PublicFolderWatcherHealth => _publicFolderWatcher.Health;

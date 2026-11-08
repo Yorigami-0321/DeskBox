@@ -193,6 +193,7 @@ public partial class WidgetViewModel
                 $"path='{folderPath}'");
         }
 
+        _lastFolderLoadUtc = DateTimeOffset.UtcNow;
         return true;
     }
 
