@@ -62,6 +62,38 @@ public sealed class WidgetSortOrderTests
         Assert.Equal(["a", "b", "c", "d"], items.Select(item => item.Name));
     }
 
+    [Fact]
+    public void SyncFolderItems_LeavesOrderingToTheFollowingSortPass()
+    {
+        string hydration = File.ReadAllText(TestPaths.FromRepository(
+            "src/DeskBox/ViewModels/WidgetViewModel.ItemHydration.cs"));
+        int syncStart = hydration.IndexOf(
+            "private void SyncFolderItems(",
+            StringComparison.Ordinal);
+        int syncEnd = hydration.IndexOf(
+            "private static double ElapsedMilliseconds(",
+            syncStart,
+            StringComparison.Ordinal);
+        Assert.True(syncStart >= 0 && syncEnd > syncStart);
+        string sync = hydration[syncStart..syncEnd];
+
+        Assert.Contains("Items.Add(refreshedItem);", sync, StringComparison.Ordinal);
+        Assert.DoesNotContain("Items.IndexOf(existingItem)", sync, StringComparison.Ordinal);
+        Assert.Contains(
+            "existingByPath.TryAdd(item.Path, item);",
+            sync,
+            StringComparison.Ordinal);
+
+        int loadSync = hydration.IndexOf(
+            "SyncFolderItems(items);",
+            StringComparison.Ordinal);
+        int loadSort = hydration.IndexOf(
+            "SortItems();",
+            loadSync,
+            StringComparison.Ordinal);
+        Assert.True(loadSync >= 0 && loadSort > loadSync);
+    }
+
     private static WidgetItem Item(string name) => new()
     {
         Name = name,

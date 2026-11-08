@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.Diagnostics;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using DeskBox.Helpers;
@@ -199,12 +200,24 @@ public partial class WidgetViewModel
 
     private void SyncFolderItems(IReadOnlyList<WidgetItem> refreshedItems)
     {
-        var existingByPath = Items
-            .GroupBy(item => item.Path, StringComparer.OrdinalIgnoreCase)
-            .ToDictionary(group => group.Key, group => group.First(), StringComparer.OrdinalIgnoreCase);
-        var refreshedPaths = refreshedItems
-            .Select(item => item.Path)
-            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        long started = Stopwatch.GetTimestamp();
+        var existingByPath = new Dictionary<string, WidgetItem>(
+            Items.Count,
+            StringComparer.OrdinalIgnoreCase);
+        foreach (WidgetItem item in Items)
+        {
+            // First occurrence wins, matching the previous GroupBy/First pass.
+            existingByPath.TryAdd(item.Path, item);
+        }
+        long afterExistingByPath = Stopwatch.GetTimestamp();
+        var refreshedPaths = new HashSet<string>(
+            refreshedItems.Count,
+            StringComparer.OrdinalIgnoreCase);
+        foreach (WidgetItem refreshedItem in refreshedItems)
+        {
+            refreshedPaths.Add(refreshedItem.Path);
+        }
+        long afterRefreshedPaths = Stopwatch.GetTimestamp();
 
         if (Config.SortMode == WidgetSortMode.Manual)
         {
@@ -236,40 +249,60 @@ public partial class WidgetViewModel
             return;
         }
 
+        int removedCount = 0;
         for (int index = Items.Count - 1; index >= 0; index--)
         {
             if (!refreshedPaths.Contains(Items[index].Path))
             {
                 Items.RemoveAt(index);
+                removedCount++;
             }
         }
 
+        long afterRemove = Stopwatch.GetTimestamp();
+        int insertedCount = 0;
+        int updatedCount = 0;
+        long applyTicks = 0;
         for (int targetIndex = 0; targetIndex < refreshedItems.Count; targetIndex++)
         {
             var refreshedItem = refreshedItems[targetIndex];
             if (!existingByPath.TryGetValue(refreshedItem.Path, out var existingItem))
             {
-                Items.Insert(targetIndex, refreshedItem);
+                // Membership only: LoadFolderContents calls SortItems right
+                // after this method, and that indexed pass owns the order.
+                Items.Add(refreshedItem);
+                insertedCount++;
                 continue;
             }
 
+            long applyStarted = Stopwatch.GetTimestamp();
             ApplyRuntimeItemData(
                 existingItem,
                 refreshedItem,
                 preserveExistingIconWhenMissing: true);
-            int currentIndex = Items.IndexOf(existingItem);
-            if (currentIndex < 0)
-            {
-                Items.Insert(targetIndex, existingItem);
-            }
-            else if (currentIndex != targetIndex)
-            {
-                Items.Move(currentIndex, targetIndex);
-            }
+            applyTicks += Stopwatch.GetTimestamp() - applyStarted;
+            updatedCount++;
         }
 
-        NormalizeSortOrder();
+        long afterUpdate = Stopwatch.GetTimestamp();
+        if (Items.Count >= 300)
+        {
+            PerformanceLogger.Mark(
+                "WidgetViewModel.SyncFolderItems",
+                $"count={Items.Count} refreshed={refreshedItems.Count} " +
+                $"removed={removedCount} inserted={insertedCount} " +
+                $"updated={updatedCount} " +
+                $"indexMapMs={ElapsedMilliseconds(started, afterExistingByPath):F1} " +
+                $"pathSetMs={ElapsedMilliseconds(afterExistingByPath, afterRefreshedPaths):F1} " +
+                $"removeMs={ElapsedMilliseconds(afterRefreshedPaths, afterRemove):F1} " +
+                $"updateMs={ElapsedMilliseconds(afterRemove, afterUpdate):F1} " +
+                $"applyMs={ElapsedMilliseconds(0, applyTicks):F1} " +
+                $"totalMs={ElapsedMilliseconds(started, afterUpdate):F1}");
+        }
     }
+
+    private static double ElapsedMilliseconds(long from, long to) =>
+        Stopwatch.GetElapsedTime(from, to).TotalMilliseconds;
 
     private void ApplyReconciledManualOrder(IReadOnlyList<WidgetItem> reconciled)
     {

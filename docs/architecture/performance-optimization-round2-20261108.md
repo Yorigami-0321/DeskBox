@@ -21,6 +21,7 @@
 | R12 | reveal 期间只渲染视口 | 首帧把 64 个 tile 全部布局，UI 线程忙约 150–200ms | 首帧 259–294→149–152ms；reveal 渲染窗口 64→48 | 中 | 已实现（AOT 验证） |
 | R13 | 热窗口 reveal 预算回收 | 预算单调，隐藏后仍保留 64 | 评估后否决（热唤 17.8ms，缩预算会丢热容器） | 中 | 已否决 |
 | R14 | 全量刷新排序索引 | `SortItems` 对每项 `Items.IndexOf`，大目录 O(N²) | 1200 项 3.7/2.3→1.9/0.1ms；5000 项 18.6–181.3→0.5–3.9ms | 低 | 已实现（实测 A/B） |
+| R15 | SyncFolderItems 成员对账 | 非手动 sync 每项 `IndexOf` 维护顺序，随后又 `SortItems` | 5000 项 sync 28.6→4.1–8.7ms；加载 99→72–78ms | 低 | 已实现（实测 A/B） |
 | — | 搜索、动画、排序、图标路径、设置锁等 | 见 §6 | 中—小 | 中 | 候选/暂缓 |
 
 ## 2. R1：备份调度顺序与线程归属
@@ -354,8 +355,16 @@ internal IEnumerable<WidgetItem> HydrationUniverseItems => UsesStackProjection
 - 验收：新增 `WidgetSortOrderTests` 覆盖已排序、逆序、局部乱序和后续索引正确性；1200 项实测 1.9/0.1ms；5000 项新旧 A/B（同一隔离目录、同一 Debug 构建、交替脚本）：
   - 旧 `IndexOf` 循环 `SortItems`：55.5 / 19.3 / 18.6 / 28.7 / 181.3ms（5 轮，moves=0）。
   - 新索引映射 `SortItems`：3.9 / 0.5 / 1.0ms（对应轮次）及此前 2.0 / 1.0 / 1.8 / 1.9 / 0.1ms。
-  - 5000 项 `LoadFolderContents` 新构建稳定在 98.6–108.5ms；旧构建出现 157.5–472.5ms，其中慢轮分解为 `enumMs=43 addedMs=5 syncMs=235 sortMs=189`。`sort` 已降至约 1ms，`syncMs`（GroupBy/ToDictionary 全量对账）成为下一个大目录热点，未在本轮处理。
+  - 5000 项 `LoadFolderContents` 新构建稳定在 98.6–108.5ms；旧构建出现 157.5–472.5ms，其中慢轮分解为 `enumMs=43 addedMs=5 syncMs=235 sortMs=189`。`sort` 已降至约 1ms；`syncMs` 已在 §5.14（R15）处理。
 - 风险：依赖 `WidgetItem` 的引用身份；`Items` 不应包含同一实例两次（现有同步路径按路径去重）。若出现重复引用，字典只保留最后一个索引，排序结果仍由后续 `Move` 收敛，但移动次数可能增加。
+
+### 5.14 SyncFolderItems 成员对账（R15，已实现）
+
+- 证据：5000 项干净刷新时 `SyncFolderItems` 28.6ms，其中 `Items.IndexOf(existingItem)` 占 **22.6ms**；235ms 慢轮是 CPU 干扰放大。`SyncFolderItems` 之后唯一的调用点 `LoadFolderContents` 紧接着执行 `SortItems`，因此非手动模式下在 sync 内部维护顺序是重复工作。
+- 设计：非手动分支只做成员对账——缺失项删除、已有项 `ApplyRuntimeItemData`、新项 `Items.Add`；不再 `IndexOf`/`Insert(targetIndex)`/`Move`，也不再调用 `NormalizeSortOrder`。排序统一由紧随其后的 `SortItems`（R14 索引映射）完成；手动分支保持原逻辑。`existingByPath` 与 `refreshedPaths` 改为单遍 `Dictionary.TryAdd`/`HashSet`，避免 `GroupBy+ToDictionary` 的分组分配。
+- 验收：新增契约测试锁定“sync 只 Add、不 IndexOf、LoadFolderContents 紧接着 SortItems”；5000 项实测 `SyncFolderItems` 28.6→4.1–8.7ms，`LoadFolderContents` 99→72–78ms，`SortItems` 0.5–2.0ms；全量测试通过。
+- 风险：依赖“sync 后必定 SortItems”的调用顺序；目前唯一调用点满足，契约测试会拦住未来新增调用点。回滚为恢复 sync 内的原地排序（会重新引入 O(N²)）。
+
 
 
 
@@ -413,7 +422,8 @@ internal IEnumerable<WidgetItem> HydrationUniverseItems => UsesStackProjection
 - **R10（本轮）**：删除 `FileItemSurface.xaml`/AOT provider；四个条目模板内联图标/列表视觉树（`x:DataType=WidgetItem` 的 `x:Bind`）；新增 `FileItemTileState`（指针反馈、传输/打开徽标、按需 ToolTip、按 Tag 缓存元素）与静态 `FileItemSurface` 辅助（附加 Mode/LayoutContext/UseStackChildIndent、布局度量）；布局度量改由代码在 `DataContextChanged`/`Loaded` 及 VM 布局属性变化时应用；ToolTip 改为指针进入后按需创建。AOT 同场四轮 A/B：首帧墙钟 257–288 vs 259–294ms（持平），动画 `maxCallbackMs` 52–63→8–14ms、丢帧 20–26→0–1，总耗时约 −20~35ms；全量 **5938/5938**。
 - **R11（本轮）**：`WidgetTrayBatchAnimationDriver.Start` 接受 SharedShow 锚点并输出 `[TrayAnimationPhase]`：注册、前 3 个 Rendering 回调、UI 探针、位置提交耗时。AOT 显示注册 +1–2ms、RenderWindow 64 在 +19ms、首个回调 +175ms、16ms UI 探针 +210ms，确认 UI 线程被首帧布局占用。
 - **R12（本轮）**：`IWidgetContent.OnWindowRevealStarted` 由 `BeginSharedTrayShowAnimation` 触发；`FileSurfaceContent` 在 reveal pending 期间使用 `bufferRows:0` 且暂停视口填充增长，完成后恢复 `bufferRows:2`。AOT 首帧 **149–152ms**（R9 同场 259–294）、`preparedShow`→完成 403–412ms、总 837–866ms；reveal 渲染窗口 48，动画后恢复 64。
-- **R14（本轮）**：`SortItems` 改为 `ApplySortedOrder` 索引映射，避免每项 `Items.IndexOf`；新增 4 个排序行为测试。1200 项实测 3.7/2.3→1.9/0.1ms，5000 项 2.0/1.0ms；排序语义不变，主要保护 5000+ 项目录。
+- **R14（本轮）**：`SortItems` 改为 `ApplySortedOrder` 索引映射，避免每项 `Items.IndexOf`；新增 5 个排序/同步契约测试。1200 项实测 3.7/2.3→1.9/0.1ms，5000 项旧 18.6–181.3ms→新 0.5–3.9ms；排序语义不变，主要保护 5000+ 项目录。
+- **R15（本轮）**：非手动 `SyncFolderItems` 只做成员对账（删除/更新/Add），排序交给紧随其后的 `SortItems`；`existingByPath`/`refreshedPaths` 改单遍构建。5000 项 sync 28.6→4.1–8.7ms，`LoadFolderContents` 99→72–78ms；新增 sync→sort 顺序契约测试。
 
 - 全量 x64：R1–R3 后 **5919/5919**，R5 后 **5924/5924** 通过。
 - Debug 冒烟（隔离数据根、`--startup`、`DESKBOX_PERF_LOG=1`）：`OnLaunched completed successfully`；`[Startup] Pipeline: 42 steps (5 critical), 0 degraded, 0 failed`；`[Perf] DataBackup.DueCheck elapsedMs=1.0`，无 `SourceDataScan`、未创建新快照。最慢单步 `automatic-snapshot` 688ms，但该步骤内部先 `await settingsLoadTask`，耗时主要是设置加载等待，不是备份 I/O（见 §6）。
