@@ -19,15 +19,29 @@ public sealed class DpiAdaptiveLayoutContractTests
             .Single(element => element.Name.LocalName == "ItemsWrapGrid");
         string textScalingCode = File.ReadAllText(TestPaths.FromRepository(
             "src/DeskBox/Controls/WidgetContents/FileSurfaceContent.TextScaling.cs"));
+        string itemStateCode = File.ReadAllText(TestPaths.FromRepository(
+            "src/DeskBox/Controls/FileItemSurface.xaml.cs"));
         XElement stackSurface = document.Descendants()
             .Single(element =>
                 (string?)element.Attribute("Tag") == "StackSurface" &&
                 (string?)element.Attribute("MinHeight") == "{Binding TileHeight}");
 
         Assert.Null(itemSlot.Attribute("MinHeight"));
-        Assert.Equal(
-            "{Binding DataContext.IconTileHeight, ElementName=ItemsGrid}",
-            (string?)itemSlot.Attribute("Height"));
+        Assert.Null(itemSlot.Attribute("Width"));
+        Assert.Null(itemSlot.Attribute("Height"));
+        Assert.Null(itemSlot.Attribute("Margin"));
+        Assert.Contains(
+            "_slot.Width = layout.IconTileWidth;",
+            itemStateCode,
+            StringComparison.Ordinal);
+        Assert.Contains(
+            "_slot.Height = layout.IconTileHeight;",
+            itemStateCode,
+            StringComparison.Ordinal);
+        Assert.Contains(
+            "_slot.Margin = layout.IconTileMargin;",
+            itemStateCode,
+            StringComparison.Ordinal);
         Assert.Null(itemsPanel.Attribute("ItemWidth"));
         Assert.Null(itemsPanel.Attribute("ItemHeight"));
         Assert.Equal(

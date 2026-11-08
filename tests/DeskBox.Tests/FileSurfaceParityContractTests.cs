@@ -48,15 +48,19 @@ public sealed class FileSurfaceParityContractTests
         string visuals = File.ReadAllText(Path.Combine(
             root,
             "src/DeskBox/Controls/WidgetContents/FileSurfaceContent.ItemVisuals.cs"));
-        XNamespace controls = "using:DeskBox.Controls";
+        XNamespace presentation =
+            "http://schemas.microsoft.com/winfx/2006/xaml/presentation";
 
         XElement[] surfaces = document
-            .Descendants(controls + "FileItemSurface")
+            .Descendants(presentation + "Border")
+            .Where(element =>
+                (string?)element.Attribute("Tag") == "InteractiveSurface")
             .ToArray();
 
         Assert.Equal(4, surfaces.Length);
         Assert.Equal(["Icon", "List", "Icon", "List"], surfaces
-            .Select(surface => (string?)surface.Attribute("Mode"))
+            .Select(surface => (string?)surface.Attribute(
+                XName.Get("FileItemSurface.Mode", "using:DeskBox.Controls")))
             .ToArray());
         Assert.All(surfaces, surface =>
         {
@@ -67,16 +71,20 @@ public sealed class FileSurfaceParityContractTests
         });
         Assert.All(surfaces.Take(2), surface =>
         {
-            Assert.NotNull(surface.Attribute("LayoutContext"));
-            Assert.Equal("True", (string?)surface.Attribute("UseStackChildIndent"));
+            Assert.NotNull(surface.Attribute(
+                XName.Get("FileItemSurface.LayoutContext", "using:DeskBox.Controls")));
+            Assert.Equal("True", (string?)surface.Attribute(
+                XName.Get("FileItemSurface.UseStackChildIndent", "using:DeskBox.Controls")));
         });
         Assert.All(surfaces.Skip(2), surface =>
         {
-            Assert.Null(surface.Attribute("LayoutContext"));
-            Assert.Equal("False", (string?)surface.Attribute("UseStackChildIndent"));
+            Assert.Null(surface.Attribute(
+                XName.Get("FileItemSurface.LayoutContext", "using:DeskBox.Controls")));
+            Assert.Equal("False", (string?)surface.Attribute(
+                XName.Get("FileItemSurface.UseStackChildIndent", "using:DeskBox.Controls")));
         });
         Assert.Contains(
-            "surface.LayoutContext ??= ViewModel",
+            "FileItemSurface.SetLayoutContext(border, ViewModel)",
             visuals,
             StringComparison.Ordinal);
     }
@@ -565,34 +573,36 @@ public sealed class FileSurfaceParityContractTests
         string root = FindRepositoryRoot();
         string xaml = File.ReadAllText(Path.Combine(
             root,
-            "src/DeskBox/Controls/FileItemSurface.xaml"));
+            "src/DeskBox/Controls/WidgetContents/FileSurfaceContent.xaml"));
         string source = File.ReadAllText(Path.Combine(
             root,
             "src/DeskBox/Controls/FileItemSurface.xaml.cs"));
+        string opening = File.ReadAllText(Path.Combine(
+            root,
+            "src/DeskBox/Controls/WidgetContents/FileSurfaceContent.Opening.cs"));
 
-        Assert.Contains("ListItemDetailVisibility", xaml, StringComparison.Ordinal);
-        Assert.Contains("ShowFileItemPathTooltips", xaml, StringComparison.Ordinal);
-        Assert.Equal(
-            1,
-            xaml.Split(
-                "Text=\"{Binding FullPath}\"",
-                StringSplitOptions.None).Length - 1);
+        Assert.Contains("Tag=\"ListItemDetailText\"", xaml, StringComparison.Ordinal);
         Assert.Contains(
-            "Visibility=\"{x:Bind ActivityStatusVisibility, Mode=OneWay}\"",
+            "{x:Bind SecondaryInfo, Mode=OneWay}",
             xaml,
             StringComparison.Ordinal);
+        Assert.Contains("ListItemDetailVisibility", source, StringComparison.Ordinal);
+        Assert.Contains("ShowFileItemPathTooltips", source, StringComparison.Ordinal);
         Assert.Contains(
-            "Visibility=\"{x:Bind PathTooltipVisibility, Mode=OneWay}\"",
-            xaml,
+            "_toolTipPath.Text = DataContext?.FullPath",
+            source,
             StringComparison.Ordinal);
+        Assert.Contains("ActivityStatusText", source, StringComparison.Ordinal);
         Assert.DoesNotContain("PathOnlyTooltipVisibility", source, StringComparison.Ordinal);
         Assert.Contains(
-            "DataContextChanged += FileItemSurface_DataContextChanged",
-            source,
+            "surface.ResetForReuse();",
+            opening,
             StringComparison.Ordinal);
         Assert.Contains(
-            "VisualStateChanged?.Invoke",
-            source,
+            "tile.RefreshToolTip();",
+            File.ReadAllText(Path.Combine(
+                root,
+                "src/DeskBox/Controls/WidgetContents/FileSurfaceContent.ItemVisuals.cs")),
             StringComparison.Ordinal);
     }
 

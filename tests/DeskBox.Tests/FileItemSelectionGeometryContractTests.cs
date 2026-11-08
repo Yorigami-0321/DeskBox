@@ -18,33 +18,11 @@ public sealed class FileItemSelectionGeometryContractTests
             "http://schemas.microsoft.com/winfx/2006/xaml/presentation";
         XNamespace x =
             "http://schemas.microsoft.com/winfx/2006/xaml";
-        XNamespace controls = "using:DeskBox.Controls";
 
+        // The icon tile keeps the Windows desktop selection footprint: the
+        // surface spans its column with a one-pixel visual gutter.
         Assert.Contains(
-            "public HorizontalAlignment SurfaceHorizontalAlignment =>",
-            source,
-            StringComparison.Ordinal);
-        int alignmentStart = source.IndexOf(
-            "public HorizontalAlignment SurfaceHorizontalAlignment",
-            StringComparison.Ordinal);
-        int alignmentEnd = source.IndexOf(
-            "public double SurfaceMaxWidth",
-            StringComparison.Ordinal);
-        string alignmentProperty = source[alignmentStart..alignmentEnd];
-        Assert.Contains(
-            "HorizontalAlignment.Stretch",
-            alignmentProperty,
-            StringComparison.Ordinal);
-        Assert.DoesNotContain(
-            "HorizontalAlignment.Left",
-            alignmentProperty,
-            StringComparison.Ordinal);
-        Assert.Contains(
-            "return new Thickness(1, 0, 1, 0);",
-            source,
-            StringComparison.Ordinal);
-        Assert.Contains(
-            "public double SurfaceMaxWidth => double.PositiveInfinity;",
+            "Border.Margin = new Thickness(1, 0, 1, 0);",
             source,
             StringComparison.Ordinal);
 
@@ -62,10 +40,15 @@ public sealed class FileItemSelectionGeometryContractTests
                         templateKey,
                         StringComparison.Ordinal));
             XElement surface = template
-                .Descendants(controls + "FileItemSurface")
-                .Single();
+                .Descendants(presentation + "Border")
+                .Single(element =>
+                    (string?)element.Attribute("Tag") == "InteractiveSurface");
 
-            Assert.Equal("Icon", (string?)surface.Attribute("Mode"));
+            Assert.Equal(
+                "Icon",
+                (string?)surface.Attribute(XName.Get(
+                    "FileItemSurface.Mode",
+                    "using:DeskBox.Controls")));
             Assert.Equal(
                 "Stretch",
                 (string?)surface.Attribute("HorizontalAlignment"));
@@ -86,7 +69,6 @@ public sealed class FileItemSelectionGeometryContractTests
             "http://schemas.microsoft.com/winfx/2006/xaml/presentation";
         XNamespace x =
             "http://schemas.microsoft.com/winfx/2006/xaml";
-        XNamespace controls = "using:DeskBox.Controls";
 
         // Hover and selection paint on the interactive surface, so both
         // list hosts must stretch it across the row instead of letting it
@@ -105,10 +87,15 @@ public sealed class FileItemSelectionGeometryContractTests
                         templateKey,
                         StringComparison.Ordinal));
             XElement surface = template
-                .Descendants(controls + "FileItemSurface")
-                .Single();
+                .Descendants(presentation + "Border")
+                .Single(element =>
+                    (string?)element.Attribute("Tag") == "InteractiveSurface");
 
-            Assert.Equal("List", (string?)surface.Attribute("Mode"));
+            Assert.Equal(
+                "List",
+                (string?)surface.Attribute(XName.Get(
+                    "FileItemSurface.Mode",
+                    "using:DeskBox.Controls")));
             Assert.Equal(
                 "Stretch",
                 (string?)surface.Attribute("HorizontalAlignment"));
@@ -147,15 +134,15 @@ public sealed class FileItemSelectionGeometryContractTests
             "src/DeskBox/Controls/FileItemSurface.xaml.cs"));
         string surfaceXaml = File.ReadAllText(Path.Combine(
             root,
-            "src/DeskBox/Controls/FileItemSurface.xaml"));
+            "src/DeskBox/Controls/WidgetContents/FileSurfaceContent.xaml"));
         string routingSource = File.ReadAllText(Path.Combine(
             root,
             "src/DeskBox/Controls/WidgetContents/FileSurfaceContent.xaml.cs"));
 
-        // The label block is named so the surface can measure it next to
+        // The label block is tagged so the tile state can measure it next to
         // the icon host, and the zone check keeps its slack pinned.
         Assert.Contains(
-            "x:Name=\"ListItemTextHost\"",
+            "Tag=\"ListItemTextHost\"",
             surfaceXaml,
             StringComparison.Ordinal);
         Assert.Contains(
@@ -235,7 +222,7 @@ public sealed class FileItemSelectionGeometryContractTests
         // check on its result is dead code — the exact bug that made the
         // zone and marquee silently no-ops in the field.
         Assert.Contains(
-            "private static FileItemSurface? FindItemSurface",
+            "private static FileItemTileState? FindItemSurface",
             selectionSource,
             StringComparison.Ordinal);
         Assert.Contains(

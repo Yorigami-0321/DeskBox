@@ -87,13 +87,16 @@ public sealed partial class FileSurfaceContent
             }
 
             DependencyObject? container = activeView.ContainerFromItem(item);
-            FileItemSurface? itemSurface = container is null
+            Border? itemTile = container is null
                 ? null
-                : FindAotLocalFileDescendant<FileItemSurface>(container);
-            bool containerRealized = container is not null && itemSurface is not null;
-            bool dataContextMatches = itemSurface is not null &&
-                ReferenceEquals(itemSurface.DataContext, item);
-            string projectedName = itemSurface?.ItemNameText.Text ?? string.Empty;
+                : FindAotLocalFileTile(container);
+            bool containerRealized = container is not null && itemTile is not null;
+            bool dataContextMatches = itemTile is not null &&
+                ReferenceEquals(itemTile.DataContext, item);
+            string projectedName = itemTile is null
+                ? string.Empty
+                : FileItemSurface.FindOwner(itemTile)?.ItemNameText?.Text ??
+                    string.Empty;
             bool nameProjected = string.Equals(
                 projectedName,
                 item.Name,
@@ -142,6 +145,27 @@ public sealed partial class FileSurfaceContent
             activeView.Visibility == Visibility.Visible,
             ViewModel.ViewMode.ToString(),
             items);
+    }
+
+    private static Border? FindAotLocalFileTile(DependencyObject root)
+    {
+        if (root is Border border && FileItemSurface.IsInteractiveSurface(border))
+        {
+            return border;
+        }
+
+        int childCount = VisualTreeHelper.GetChildrenCount(root);
+        for (int index = 0; index < childCount; index++)
+        {
+            Border? nested = FindAotLocalFileTile(
+                VisualTreeHelper.GetChild(root, index));
+            if (nested is not null)
+            {
+                return nested;
+            }
+        }
+
+        return null;
     }
 
     private static T? FindAotLocalFileDescendant<T>(DependencyObject root)

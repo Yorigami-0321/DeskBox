@@ -2165,13 +2165,12 @@ public sealed partial class FileSurfaceContent
 
     private void DetachStackPopoverItemSurfaces(DependencyObject root)
     {
-        if (root is FileItemSurface surface)
+        if (root is Border border &&
+            FileItemSurface.IsInteractiveSurface(border))
         {
-            surface.VisualStateChanged -= ItemSurface_VisualStateChanged;
-            surface.DataContextChanged -= ItemSurface_DataContextChanged;
-            surface.LayoutContext = null;
-            _itemSurfaces.Remove(surface.InteractiveBorder);
-            if (ReferenceEquals(surface.InteractiveBorder, _folderDropTarget))
+            FileItemSurface.SetLayoutContext(border, null);
+            _itemSurfaces.Remove(border);
+            if (ReferenceEquals(border, _folderDropTarget))
             {
                 _folderDropTarget = null;
                 _folderDropVisualActive = false;

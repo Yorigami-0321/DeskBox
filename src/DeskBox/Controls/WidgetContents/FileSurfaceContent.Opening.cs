@@ -300,7 +300,7 @@ public sealed partial class FileSurfaceContent
         string status = isOpening ? OpeningStatusText : string.Empty;
         foreach (Border border in _itemSurfaces.ToArray())
         {
-            FileItemSurface? surface = FileItemSurface.FindOwner(border);
+            FileItemTileState? surface = FileItemSurface.FindOwner(border);
             if (surface?.DataContext is WidgetItem surfaceItem &&
                 ReferenceEquals(surfaceItem, item))
             {
@@ -309,7 +309,7 @@ public sealed partial class FileSurfaceContent
         }
     }
 
-    private void ApplyOpeningStateToSurface(FileItemSurface surface)
+    private void ApplyOpeningStateToSurface(FileItemTileState surface)
     {
         if (surface.DataContext is not WidgetItem item)
         {
@@ -326,17 +326,24 @@ public sealed partial class FileSurfaceContent
         FrameworkElement sender,
         DataContextChangedEventArgs args)
     {
-        if (!_isDisposed && sender is FileItemSurface surface)
+        if (_isDisposed ||
+            FileItemSurface.TryGetInteractiveBorder(sender) is not { } border)
         {
-            ApplyOpeningStateToSurface(surface);
-            // A recycled container can strand the expansion suppression: the
-            // hidden label would stay hidden on whichever item inherits it.
-            // Collapse the expansion so the recycled surface starts clean.
-            if (_nameExpansionNameText is { } hiddenLabel &&
-                ReferenceEquals(hiddenLabel, surface.ItemNameText))
-            {
-                HideAllNameExpansions();
-            }
+            return;
+        }
+
+        FileItemTileState surface = FileItemTileState.For(border);
+        surface.ResetForReuse();
+        FileItemSurface.ApplyLayoutMetrics(border);
+        ApplyOpeningStateToSurface(surface);
+        ApplyItemSurfaceVisual(border, surface.VisualState);
+        // A recycled container can strand the expansion suppression: the
+        // hidden label would stay hidden on whichever item inherits it.
+        // Collapse the expansion so the recycled surface starts clean.
+        if (_nameExpansionNameText is { } hiddenLabel &&
+            ReferenceEquals(hiddenLabel, surface.ItemNameText))
+        {
+            HideAllNameExpansions();
         }
     }
 

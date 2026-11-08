@@ -101,7 +101,6 @@ public sealed class WidgetForegroundContractTests
 
     [Theory]
     [InlineData("src/DeskBox/Controls/WidgetShell.xaml")]
-    [InlineData("src/DeskBox/Controls/FileItemSurface.xaml")]
     [InlineData("src/DeskBox/Controls/WidgetContents/FileSurfaceContent.xaml")]
     [InlineData("src/DeskBox/Controls/WidgetContents/GlanceWidgetContent.xaml")]
     [InlineData("src/DeskBox/Controls/WidgetContents/MusicWidgetContent.xaml")]

@@ -92,7 +92,7 @@ public sealed partial class FileSurfaceContent
             FileItemSurface.FindOwner(border) is { Mode: FileItemSurfaceMode.Icon } surface &&
             surface.ItemNameText is { IsTextTrimmed: true } nameText)
         {
-            ShowNameExpansion(isPopoverView, soleItem, surface, nameText);
+            ShowNameExpansion(isPopoverView, soleItem, border, nameText);
         }
         else
         {
@@ -103,7 +103,7 @@ public sealed partial class FileSurfaceContent
     private void ShowNameExpansion(
         bool isPopoverView,
         WidgetItem item,
-        FileItemSurface surface,
+        Border tile,
         TextBlock nameText)
     {
         Border? overlay = isPopoverView
@@ -120,7 +120,6 @@ public sealed partial class FileSurfaceContent
             return;
         }
 
-        Border tile = surface.InteractiveBorder;
         Windows.Foundation.Point tileTopLeft = tile
             .TransformToVisual(overlayHost)
             .TransformPoint(new Windows.Foundation.Point(0, 0));
@@ -348,28 +347,47 @@ public sealed partial class FileSurfaceContent
         object sender,
         RoutedEventArgs e)
     {
-        if (sender is FileItemSurface surface)
+        if (FileItemSurface.TryGetInteractiveBorder(sender) is not { } border)
         {
-            // Popover templates are created lazily and avoid runtime bindings
-            // to the parent ItemsControl so they add no Native AOT trim paths.
-            // Main-surface templates already supply this value through XAML;
-            // assigning the same context here is a safe fallback for both.
-            surface.LayoutContext ??= ViewModel;
-            // State and data-context callbacks are wired once by the template.
-            // They must already work during first realization and remain
-            // connected when WinUI recycles an item without another Loaded.
-            ApplyOpeningStateToSurface(surface);
+            return;
         }
 
-        if (FileItemSurface.TryGetInteractiveBorder(sender) is { } border)
+        FileItemTileState tile = FileItemTileState.For(border);
+        // Popover templates are created lazily and avoid runtime bindings to
+        // the parent ItemsControl; main-surface templates supply this value
+        // through XAML. Assigning it here is a safe fallback for both.
+        if (FileItemSurface.GetLayoutContext(border) is null)
         {
-            RestoreStackAnimationElement(border);
-            _itemSurfaces.Add(border);
-            ApplyItemSurfaceVisual(
-                border,
-                FileItemSurface.FindOwner(border)?.VisualState ??
-                    FileItemSurfaceVisualState.Normal);
+            FileItemSurface.SetLayoutContext(border, ViewModel);
         }
+
+        tile.ResetPointerForLoaded();
+        FileItemSurface.ApplyLayoutMetrics(border);
+        // State and data-context callbacks are wired once by the template.
+        // They must already work during first realization and remain connected
+        // when WinUI recycles an item without another Loaded.
+        ApplyOpeningStateToSurface(tile);
+        EnsurePointerMovedHandler(border, tile);
+        RestoreStackAnimationElement(border);
+        _itemSurfaces.Add(border);
+        ApplyItemSurfaceVisual(border, tile.VisualState);
+    }
+
+    private void EnsurePointerMovedHandler(Border border, FileItemTileState tile)
+    {
+        if (tile.PointerMovedHandlerAttached)
+        {
+            return;
+        }
+
+        tile.PointerMovedHandlerAttached = true;
+        // PointerEntered alone is not a reliable recovery signal during initial
+        // layout or container reuse. Observe movement even when a child handles
+        // it, without consuming input or taking pointer capture.
+        border.AddHandler(
+            UIElement.PointerMovedEvent,
+            new PointerEventHandler(ItemSurface_PointerMoved),
+            handledEventsToo: true);
     }
 
     private void ItemSurface_Unloaded(
@@ -386,22 +404,76 @@ public sealed partial class FileSurfaceContent
             }
 
             _itemSurfaces.Remove(border);
+            FileItemTileState tile = FileItemTileState.For(border);
+            tile.DetachToolTip();
+            tile.SetOpeningState(false, string.Empty);
+            tile.ResetPointerFeedback();
+            tile.SetVisualState(FileItemSurfaceVisualState.Normal);
         }
     }
 
-    private void ItemSurface_VisualStateChanged(
-        object? sender,
-        FileItemSurfaceVisualStateChangedEventArgs e)
+    private void ItemSurface_PointerEntered(
+        object sender,
+        PointerRoutedEventArgs e)
     {
-        if (_isDisposed)
+        if (FileItemSurface.TryGetInteractiveBorder(sender) is not { } border ||
+            _isDisposed)
         {
             return;
         }
 
-        if (FileItemSurface.TryGetInteractiveBorder(sender) is { } border)
+        FileItemTileState tile = FileItemTileState.For(border);
+        ObservePointerPosition(tile, border, e);
+        FileItemSurfaceVisualState state = tile.OnPointerEntered();
+        tile.RefreshToolTip();
+        SetTileVisualState(border, tile, state);
+    }
+
+    private void ItemSurface_PointerExited(
+        object sender,
+        PointerRoutedEventArgs e)
+    {
+        if (FileItemSurface.TryGetInteractiveBorder(sender) is { } border &&
+            !_isDisposed)
         {
-            ApplyItemSurfaceVisual(border, e.State);
+            FileItemTileState tile = FileItemTileState.For(border);
+            SetTileVisualState(border, tile, tile.OnPointerExited());
         }
+    }
+
+    private void ItemSurface_PointerMoved(
+        object sender,
+        PointerRoutedEventArgs e)
+    {
+        if (FileItemSurface.TryGetInteractiveBorder(sender) is not { } border ||
+            _isDisposed)
+        {
+            return;
+        }
+
+        var point = e.GetCurrentPoint(border);
+        if (point.Position.X < 0 || point.Position.Y < 0 ||
+            point.Position.X > border.ActualWidth ||
+            point.Position.Y > border.ActualHeight)
+        {
+            return;
+        }
+
+        FileItemTileState tile = FileItemTileState.For(border);
+        FileItemSurfaceVisualState previousState = tile.VisualState;
+        FileItemSurfaceVisualState nextState = tile.OnPointerMoved(
+            point.IsInContact,
+            point.Position.X,
+            point.Position.Y);
+        if (previousState != nextState &&
+            nextState == FileItemSurfaceVisualState.Hover)
+        {
+            // PointerEntered can be missed during initial layout or container
+            // reuse; the movement recovery must also restore the tooltip.
+            tile.RefreshToolTip();
+        }
+
+        SetTileVisualState(border, tile, nextState);
     }
 
     private void ItemSurface_PointerPressed(
@@ -413,6 +485,10 @@ public sealed partial class FileSurfaceContent
         {
             return;
         }
+
+        FileItemTileState tile = FileItemTileState.For(border);
+        ObservePointerPosition(tile, border, e);
+        SetTileVisualState(border, tile, tile.OnPointerPressed());
 
         var pointerPoint = e.GetCurrentPoint(border);
         bool isPrimaryContact =
@@ -429,9 +505,7 @@ public sealed partial class FileSurfaceContent
         // rename when its press landed on the name label, never on the icon
         // (where a press usually stages a drag). List mode keeps whole-row
         // hit semantics, matching Explorer detail view.
-        _lastItemPressOnLabel =
-            FileItemSurface.FindOwner(border) is not { } pressedSurface ||
-            IsPointerWithinNameLabel(pressedSurface, e);
+        _lastItemPressOnLabel = IsPointerWithinNameLabel(tile, e);
 
         ListViewBase listView = GetActiveItemsView();
         _pendingPointerDragItems = listView.SelectedItems.Contains(item)
@@ -449,20 +523,40 @@ public sealed partial class FileSurfaceContent
     }
 
     private static bool IsPointerWithinNameLabel(
-        FileItemSurface surface,
+        FileItemTileState tile,
         PointerRoutedEventArgs e)
     {
-        if (surface.Mode != FileItemSurfaceMode.Icon)
+        if (tile.Mode != FileItemSurfaceMode.Icon ||
+            tile.ItemNameText is not { } nameText)
         {
             return true;
         }
 
-        TextBlock nameText = surface.ItemNameText;
         Windows.Foundation.Point point = e.GetCurrentPoint(nameText).Position;
         return point.X >= 0 &&
             point.Y >= 0 &&
             point.X <= nameText.ActualWidth &&
             point.Y <= nameText.ActualHeight;
+    }
+
+    private void ItemSurface_PointerReleased(
+        object sender,
+        PointerRoutedEventArgs e)
+    {
+        if (FileItemSurface.TryGetInteractiveBorder(sender) is { } border &&
+            !_isDisposed)
+        {
+            FileItemTileState tile = FileItemTileState.For(border);
+            Windows.Foundation.Point point = ObservePointerPosition(tile, border, e);
+            bool inside =
+                point.X >= 0 &&
+                point.Y >= 0 &&
+                point.X <= border.ActualWidth &&
+                point.Y <= border.ActualHeight;
+            SetTileVisualState(border, tile, tile.OnPointerReleased(inside));
+        }
+
+        _pendingPointerDragItems = [];
     }
 
     private void ItemSurface_PointerGestureEnded(
@@ -476,6 +570,31 @@ public sealed partial class FileSurfaceContent
         // (it reads as an active drag) after an opened file's app takes the
         // foreground.
         _pendingPointerDragItems = [];
+        if (FileItemSurface.TryGetInteractiveBorder(sender) is { } border &&
+            !_isDisposed)
+        {
+            FileItemTileState tile = FileItemTileState.For(border);
+            SetTileVisualState(border, tile, FileItemSurfaceVisualState.Normal);
+        }
+    }
+
+    private void SetTileVisualState(
+        Border border,
+        FileItemTileState tile,
+        FileItemSurfaceVisualState state)
+    {
+        tile.SetVisualState(state);
+        ApplyItemSurfaceVisual(border, state);
+    }
+
+    private static Windows.Foundation.Point ObservePointerPosition(
+        FileItemTileState tile,
+        Border border,
+        PointerRoutedEventArgs e)
+    {
+        Windows.Foundation.Point point = e.GetCurrentPoint(border).Position;
+        tile.RecordPointerPosition(point.X, point.Y);
+        return point;
     }
 
     private void ItemSurface_DragOver(
@@ -1270,11 +1389,11 @@ public sealed partial class FileSurfaceContent
         out Border border,
         out WidgetItem folder)
     {
-        if (sender is FileItemSurface surface &&
-            surface.DataContext is WidgetItem item &&
+        if (FileItemSurface.TryGetInteractiveBorder(sender) is { } targetBorder &&
+            targetBorder.DataContext is WidgetItem item &&
             ItemDropBehaviorPolicy.Resolve(item) == ItemDropBehavior.FolderImport)
         {
-            border = surface.InteractiveBorder;
+            border = targetBorder;
             folder = item;
             return true;
         }
@@ -1289,11 +1408,11 @@ public sealed partial class FileSurfaceContent
         out Border border,
         out WidgetItem launchTarget)
     {
-        if (sender is FileItemSurface surface &&
-            surface.DataContext is WidgetItem item &&
+        if (FileItemSurface.TryGetInteractiveBorder(sender) is { } targetBorder &&
+            targetBorder.DataContext is WidgetItem item &&
             ItemDropBehaviorPolicy.Resolve(item) == ItemDropBehavior.Launch)
         {
-            border = surface.InteractiveBorder;
+            border = targetBorder;
             launchTarget = item;
             return true;
         }
@@ -1308,12 +1427,12 @@ public sealed partial class FileSurfaceContent
         out Border border,
         out WidgetItem binTile)
     {
-        if (sender is FileItemSurface surface &&
-            surface.DataContext is WidgetItem item &&
+        if (FileItemSurface.TryGetInteractiveBorder(sender) is { } targetBorder &&
+            targetBorder.DataContext is WidgetItem item &&
             ItemDropBehaviorPolicy.Resolve(item) ==
                 ItemDropBehavior.RecycleBinDelete)
         {
-            border = surface.InteractiveBorder;
+            border = targetBorder;
             binTile = item;
             return true;
         }
@@ -1557,8 +1676,8 @@ public sealed partial class FileSurfaceContent
         object sender,
         DragEventArgs e)
     {
-        if (sender is not FileItemSurface surface ||
-            surface.IconHitTestElement is not { } iconHost)
+        if (FileItemSurface.TryGetInteractiveBorder(sender) is not { } border ||
+            FileItemSurface.FindOwner(border)?.IconHitTestElement is not { } iconHost)
         {
             return false;
         }
@@ -1845,9 +1964,7 @@ public sealed partial class FileSurfaceContent
     {
         foreach (Border border in _itemSurfaces)
         {
-            WidgetItem? candidate =
-                FileItemSurface.FindOwner(border)?.DataContext as WidgetItem ??
-                border.DataContext as WidgetItem;
+            WidgetItem? candidate = border.DataContext as WidgetItem;
             if (ReferenceEquals(candidate, item))
             {
                 return border;
@@ -2780,10 +2897,8 @@ public sealed partial class FileSurfaceContent
             state = FileItemSurfaceVisualState.DropTarget;
         }
 
-        WidgetItem? item =
-            FileItemSurface.FindOwner(border)?.DataContext as WidgetItem ??
-            border.DataContext as WidgetItem;
-        FileItemSurface? surface = FileItemSurface.FindOwner(border);
+        WidgetItem? item = border.DataContext as WidgetItem;
+        FileItemTileState? surface = FileItemSurface.FindOwner(border);
         FileTransferPathState transferState = GetTransferState(item);
         surface?.SetTransferState(
             transferState,

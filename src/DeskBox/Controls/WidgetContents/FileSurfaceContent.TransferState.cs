@@ -44,14 +44,13 @@ public sealed partial class FileSurfaceContent
                 continue;
             }
 
-            FileItemSurface? surface = FileItemSurface.FindOwner(border);
+            FileItemTileState? surface = FileItemSurface.FindOwner(border);
             if (surface is null)
             {
                 continue;
             }
 
-            WidgetItem? item = surface.DataContext as WidgetItem ??
-                border.DataContext as WidgetItem;
+            WidgetItem? item = surface.DataContext ?? border.DataContext as WidgetItem;
             FileTransferPathState state = GetTransferState(item);
             surface.SetTransferState(
                 state,

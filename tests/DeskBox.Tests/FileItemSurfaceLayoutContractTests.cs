@@ -8,101 +8,127 @@ public sealed class FileItemSurfaceLayoutContractTests
     private static readonly XNamespace Presentation = "http://schemas.microsoft.com/winfx/2006/xaml/presentation";
 
     [Fact]
-    public void InteractionShell_RemainsEagerAndKeepsItsHitTestAndPointerContract()
+    public void InteractionShells_RemainEagerAndKeepTheirHitTestAndPointerContract()
     {
-        XElement surface = LoadSurface().Root!;
-        XElement border = surface.Element(Presentation + "Border")!;
+        XDocument document = LoadSurface();
+        XElement[] templates = GetItemTemplates(document).ToArray();
+        Assert.Equal(4, templates.Length);
 
-        Assert.Equal("SurfaceBorder", (string?)border.Attribute(Xaml + "Name"));
-        Assert.Equal("InteractiveSurface", (string?)border.Attribute("Tag"));
-        Assert.Equal("Transparent", (string?)border.Attribute("Background"));
-        Assert.Null(border.Attribute("DataContext"));
-        Assert.Null(border.Attribute(Xaml + "Load"));
-        Assert.Equal("{Binding SurfaceMargin, ElementName=SurfaceRoot}", (string?)border.Attribute("Margin"));
-        Assert.Equal("{Binding SurfacePadding, ElementName=SurfaceRoot}", (string?)border.Attribute("Padding"));
-        Assert.Equal("{Binding SurfaceHorizontalAlignment, ElementName=SurfaceRoot}",
-            (string?)border.Attribute("HorizontalAlignment"));
+        foreach (XElement template in templates)
+        {
+            XElement border = template.Descendants(Presentation + "Border")
+                .Single(element =>
+                    (string?)element.Attribute("Tag") == "InteractiveSurface");
+            Assert.Equal("Transparent", (string?)border.Attribute("Background"));
+            Assert.Equal("2", (string?)border.Attribute("CornerRadius"));
+            Assert.Equal("True", (string?)border.Attribute("AllowDrop"));
+            Assert.Null(border.Attribute("DataContext"));
 
-        foreach (string eventName in new[]
+            foreach (string eventName in new[]
+            {
+                "Loaded", "Unloaded", "DataContextChanged",
+                "PointerEntered", "PointerExited",
+                "PointerPressed", "PointerReleased", "PointerCaptureLost",
+                "DragLeave", "DragOver", "Drop"
+            })
+            {
+                Assert.StartsWith(
+                    "ItemSurface_",
+                    (string?)border.Attribute(eventName),
+                    StringComparison.Ordinal);
+            }
+
+            // The former UserControl wrapper is gone: the interaction shell is
+            // part of the compiled item template.
+            Assert.DoesNotContain(
+                template.Descendants(),
+                element => element.Name.LocalName == "FileItemSurface");
+        }
+    }
+
+    [Fact]
+    public void Presentations_KeepFileIdentityOnCompiledBindings()
+    {
+        XDocument document = LoadSurface();
+        foreach (XElement template in GetItemTemplates(document))
         {
-            "Loaded", "Unloaded", "PointerEntered", "PointerExited",
-            "PointerPressed", "PointerReleased", "PointerCaptureLost"
-        })
-        {
-            Assert.Equal("SurfaceBorder_" + eventName, (string?)border.Attribute(eventName));
+            Assert.Equal("models:WidgetItem", (string?)template.Attribute(Xaml + "DataType"));
+
+            XElement image = template.Descendants(Presentation + "Image").Single();
+            Assert.Equal("{x:Bind Icon, Mode=OneWay}", (string?)image.Attribute("Source"));
+            Assert.Equal(
+                "{x:Bind IconVisibility, Mode=OneWay}",
+                (string?)image.Attribute("Visibility"));
+
+            XElement name = template.Descendants(Presentation + "TextBlock").Single(element =>
+                (string?)element.Attribute("Tag") == "ItemNameText");
+            Assert.Equal("{x:Bind Name, Mode=OneWay}", (string?)name.Attribute("Text"));
+
+            // The presentation must never replace the inherited WidgetItem
+            // DataContext with a layout wrapper or owner.
+            Assert.DoesNotContain(
+                template.DescendantsAndSelf(),
+                element => element.Attribute("DataContext") is not null);
         }
 
-        // The outer hit target survives independently of either presentation.
-        XElement layoutHost = border.Element(Presentation + "Grid")!;
-        Assert.Null(layoutHost.Attribute("DataContext"));
-        Assert.Null(layoutHost.Attribute(Xaml + "Load"));
-        Assert.Empty(layoutHost.Elements());
+        string state = File.ReadAllText(TestPaths.FromRepository(
+            "src/DeskBox/Controls/FileItemSurface.xaml.cs"));
+        Assert.Contains(
+            "_nameText.MaxWidth = layout.IconLabelMaxWidth;",
+            state,
+            StringComparison.Ordinal);
+        Assert.Contains(
+            "_nameText.Visibility = layout.IconLabelVisibility;",
+            state,
+            StringComparison.Ordinal);
+        Assert.Contains(
+            "_detailText.Visibility = layout.ListItemDetailVisibility;",
+            state,
+            StringComparison.Ordinal);
     }
 
     [Theory]
-    [InlineData("IconItemLayoutTemplate", "IconItemNameText", "IconLayoutVisibility")]
-    [InlineData("ListItemLayoutTemplate", "ListItemNameText", "ListLayoutVisibility")]
-    public void Presentations_KeepFileIdentitySeparateFromSurfacePresentationBindings(
-        string templateKey,
-        string nameElement,
-        string visibilityProperty)
+    [InlineData("SurfaceFileIconTemplate")]
+    [InlineData("SurfaceFileListTemplate")]
+    public void Presentations_DoNotIntroduceInputHandlersAndKeepActivityBadgeNonInteractive(
+        string templateKey)
     {
         XElement template = GetTemplate(templateKey);
-        Assert.Equal("controls:FileItemSurface", (string?)template.Attribute(Xaml + "DataType"));
-        XElement layout = template.Elements().Single();
-        Assert.Equal("{x:Bind " + visibilityProperty + ", Mode=OneWay}",
-            (string?)layout.Attribute("Visibility"));
-
-        // File operations resolve WidgetItem through the inherited DataContext.
-        // A presentation must never replace it with a layout wrapper or owner.
-        Assert.DoesNotContain(layout.DescendantsAndSelf(), element => element.Attribute("DataContext") is not null);
-        XElement image = layout.Descendants(Presentation + "Image").Single();
-        Assert.Equal("{Binding Icon}", (string?)image.Attribute("Source"));
-        Assert.Equal("{Binding IconVisibility}", (string?)image.Attribute("Visibility"));
-        XElement name = layout.Descendants(Presentation + "TextBlock").Single(element =>
-            (string?)element.Attribute(Xaml + "Name") == nameElement);
-        Assert.Equal("{Binding Name}", (string?)name.Attribute("Text"));
-    }
-
-    [Theory]
-    [InlineData("IconItemLayoutTemplate")]
-    [InlineData("ListItemLayoutTemplate")]
-    public void Presentations_DoNotIntroduceInputHandlersAndKeepActivityBadgeNonInteractive(string templateKey)
-    {
-        XElement layout = GetTemplate(templateKey).Elements().Single();
+        XElement border = template.Descendants(Presentation + "Border")
+            .Single(element =>
+                (string?)element.Attribute("Tag") == "InteractiveSurface");
         string[] inputAttributes =
         [
             "AllowDrop", "DragOver", "DragEnter", "DragLeave", "Drop", "DragStarting",
             "PointerPressed", "PointerReleased", "PointerMoved", "Tapped", "DoubleTapped"
         ];
-        Assert.DoesNotContain(layout.DescendantsAndSelf().Attributes(), attribute =>
+
+        // Only the interaction shell owns input; the inline presentation below
+        // it stays passive.
+        XElement content = border.Elements().Single();
+        Assert.DoesNotContain(content.DescendantsAndSelf().Attributes(), attribute =>
             inputAttributes.Contains(attribute.Name.LocalName, StringComparer.Ordinal));
 
-        XElement badge = layout.Descendants(Presentation + "Border").Single(element =>
-            (string?)element.Attribute("Visibility") == "{x:Bind ActivityBadgeVisibility, Mode=OneWay}");
+        XElement badge = border.Descendants(Presentation + "Border").Single(element =>
+            (string?)element.Attribute("Tag") == "ActivityBadge");
         Assert.Equal("False", (string?)badge.Attribute("IsHitTestVisible"));
-        XElement badgeContent = badge.Element(Presentation + "ContentControl")!;
-        Assert.Equal(
-            "{x:Bind ActivityBadgeContent, Mode=OneWay}",
-            (string?)badgeContent.Attribute("Content"));
-        Assert.Equal(
-            "{x:Bind ActivityBadgeTemplate, Mode=OneWay}",
-            (string?)badgeContent.Attribute("ContentTemplate"));
-
-        // The spinner exists only in the active-badge template; inactivity
-        // keeps the ProgressRing out of every realized tile.
-        XElement ringTemplate = LoadSurface()
-            .Descendants(Presentation + "DataTemplate")
-            .Single(element =>
-                (string?)element.Attribute(Xaml + "Key") == "ActivityBadgeRingTemplate");
-        XElement ring = ringTemplate.Descendants(Presentation + "ProgressRing").Single();
-        Assert.Equal("True", (string?)ring.Attribute("IsActive"));
+        Assert.Equal("Collapsed", (string?)badge.Attribute("Visibility"));
+        XElement ring = badge.Element(Presentation + "ContentControl")!;
+        Assert.Equal("ActivityBadgeRing", (string?)ring.Attribute("Tag"));
     }
+
+    private static IEnumerable<XElement> GetItemTemplates(XDocument document) =>
+        document.Descendants(Presentation + "DataTemplate")
+            .Where(element => (string?)element.Attribute(Xaml + "Key") is
+                "SurfaceFileIconTemplate" or
+                "SurfaceFileListTemplate" or
+                "StackPopoverFileIconTemplate" or
+                "StackPopoverFileListTemplate");
 
     private static XElement GetTemplate(string key) => LoadSurface()
         .Descendants(Presentation + "DataTemplate")
         .Single(element => (string?)element.Attribute(Xaml + "Key") == key);
 
     private static XDocument LoadSurface() => XDocument.Load(TestPaths.FromRepository(
-        "src/DeskBox/Controls/FileItemSurface.xaml"));
+        "src/DeskBox/Controls/WidgetContents/FileSurfaceContent.xaml"));
 }

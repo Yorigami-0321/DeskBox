@@ -1129,7 +1129,7 @@ public sealed partial class FileSurfaceContent :
             return;
         }
 
-        FileItemSurface? hitSurface =
+        FileItemTileState? hitSurface =
             FindItemSurface(e.OriginalSource);
 
         // Explorer list semantics: only the icon+label block of a list row
@@ -1139,15 +1139,14 @@ public sealed partial class FileSurfaceContent :
         // Icon-mode tiles are primary zone throughout.
         if (hitSurface is { IsListMode: true } listSurface &&
             !listSurface.IsPointWithinListPrimaryContent(
-                e.GetPosition(listSurface)))
+                e.GetPosition(listSurface.Border)))
         {
             ShowContentAreaFlyoutForBlankTap(sender, e);
             return;
         }
 
-        WidgetItem? item =
-            (hitSurface ?? FindItemElement(e.OriginalSource))
-                ?.DataContext as WidgetItem;
+        WidgetItem? item = hitSurface?.DataContext ??
+            FindItemElement(e.OriginalSource)?.DataContext as WidgetItem;
         if (item is null)
         {
             ShowContentAreaFlyoutForBlankTap(sender, e);

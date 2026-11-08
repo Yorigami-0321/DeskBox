@@ -23,12 +23,12 @@ public class FileNameLineCountContractTests
     public void IconView_FileAndStackNames_BindToConfiguredLineCount()
     {
         string root = FindRepositoryRoot();
-        string itemSurface = File.ReadAllText(Path.Combine(root, "src/DeskBox/Controls/FileItemSurface.xaml"));
+        string itemState = File.ReadAllText(Path.Combine(root, "src/DeskBox/Controls/FileItemSurface.xaml.cs"));
         string fileSurface = File.ReadAllText(Path.Combine(root, "src/DeskBox/Controls/WidgetContents/FileSurfaceContent.xaml"));
 
-        Assert.Contains("LayoutContext.IconLabelMaxLines", itemSurface, StringComparison.Ordinal);
+        Assert.Contains("layout.IconLabelMaxLines", itemState, StringComparison.Ordinal);
+        Assert.Contains("layout.IconLabelVisibility", itemState, StringComparison.Ordinal);
         Assert.Contains("DataContext.IconLabelMaxLines", fileSurface, StringComparison.Ordinal);
-        Assert.Contains("LayoutContext.IconLabelVisibility", itemSurface, StringComparison.Ordinal);
         Assert.Contains("DataContext.IconLabelVisibility", fileSurface, StringComparison.Ordinal);
     }
 

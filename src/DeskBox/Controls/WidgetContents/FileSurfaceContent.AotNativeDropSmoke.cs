@@ -25,11 +25,10 @@ public sealed partial class FileSurfaceContent
         DependencyObject container = activeView.ContainerFromItem(item) ??
             throw new InvalidOperationException(
                 "The owned folder target does not have a realized container.");
-        FileItemSurface surface =
-            FindAotLocalFileDescendant<FileItemSurface>(container) ??
+        Border border =
+            FindAotLocalFileTile(container) ??
             throw new InvalidOperationException(
-                "The owned folder target has no FileItemSurface.");
-        Border border = surface.InteractiveBorder;
+                "The owned folder target has no interactive file tile.");
         AotNativeDropScreenBounds rootBounds =
             CaptureAotNativeDropScreenBounds(Root);
         AotNativeDropScreenBounds folderBounds =
@@ -62,14 +61,14 @@ public sealed partial class FileSurfaceContent
         DependencyObject? container = item is null
             ? null
             : activeView.ContainerFromItem(item);
-        FileItemSurface? surface = container is null
+        Border? surface = container is null
             ? null
-            : FindAotLocalFileDescendant<FileItemSurface>(container);
+            : FindAotLocalFileTile(container);
         return new AotNativeDropHighlightState(
             HasActiveChildDropTargetVisual,
             _folderDropTarget is not null,
             _stackMemberDropTarget is not null,
-            GetAotNativeFolderVisualState(surface?.InteractiveBorder));
+            GetAotNativeFolderVisualState(surface));
     }
 
     internal AotNativeDropProgressSnapshot CaptureAotNativeDropProgress()

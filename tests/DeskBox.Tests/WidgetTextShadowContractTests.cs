@@ -109,7 +109,7 @@ public sealed class WidgetTextShadowContractTests
         // No hand-wired hosts and no second TextBlock copies that could wrap
         // or trim differently.
         string files = File.ReadAllText(TestPaths.FromRepository(
-            "src/DeskBox/Controls/FileItemSurface.xaml"));
+            "src/DeskBox/Controls/WidgetContents/FileSurfaceContent.xaml"));
         foreach (string xaml in new[] { shell, files })
         {
             Assert.DoesNotContain("WidgetTextShadow.Layer", xaml, StringComparison.Ordinal);

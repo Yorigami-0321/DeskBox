@@ -107,7 +107,7 @@ public sealed class AotStage5B4C1AContractTests
         Assert.Contains("GetActiveItemsView", surface, StringComparison.Ordinal);
         Assert.Contains("ContainerFromItem", surface, StringComparison.Ordinal);
         Assert.Contains("FileItemSurface", surface, StringComparison.Ordinal);
-        Assert.Contains("ItemNameText.Text", surface, StringComparison.Ordinal);
+        Assert.Contains("ItemNameText", surface, StringComparison.Ordinal);
         Assert.Contains("? FolderNavigationText.Text", surface, StringComparison.Ordinal);
         Assert.Contains(": string.Empty", surface, StringComparison.Ordinal);
         Assert.Contains("DataContextMatches", surface, StringComparison.Ordinal);
@@ -132,28 +132,20 @@ public sealed class AotStage5B4C1AContractTests
     [Fact]
     public void NonEmptyFileTemplates_HaveNarrowGeneratedAotProviders()
     {
-        string surface = ReadRepositoryFile(
-            "src/DeskBox/Controls/FileItemSurface.AotBindableProperties.cs");
         string item = ReadRepositoryFile(
             "src/DeskBox/Models/WidgetItem.AotBindableProperties.cs");
         string viewModel = ReadRepositoryFile(
             "src/DeskBox/ViewModels/WidgetViewModel.AotBindableProperties.cs");
 
-        Assert.Contains("#if DESKBOX_NATIVE_AOT", surface, StringComparison.Ordinal);
+        // The inline tile has no runtime bindings targeting a surface object;
+        // compiled x:Bind covers its item identity, so the former per-control
+        // provider must stay deleted.
+        Assert.False(File.Exists(TestPaths.FromRepository(
+            "src/DeskBox/Controls/FileItemSurface.AotBindableProperties.cs")));
         Assert.Contains("#if DESKBOX_NATIVE_AOT", item, StringComparison.Ordinal);
         Assert.Contains("#if DESKBOX_NATIVE_AOT", viewModel, StringComparison.Ordinal);
-        Assert.Equal(1, CountOccurrences(surface, "[WinRT.GeneratedBindableCustomProperty("));
         Assert.Equal(1, CountOccurrences(item, "[WinRT.GeneratedBindableCustomProperty("));
         Assert.Equal(1, CountOccurrences(viewModel, "[WinRT.GeneratedBindableCustomProperty("));
-        foreach (string property in new[]
-        {
-            "IconLayoutVisibility", "ListLayoutVisibility",
-            "SurfaceHorizontalAlignment", "SurfaceMargin", "SurfaceMaxWidth",
-            "SurfacePadding"
-        })
-        {
-            Assert.Contains($"nameof({property})", surface, StringComparison.Ordinal);
-        }
         foreach (string property in new[]
         {
             "FallbackIconVisibility", "FullPath", "Icon", "IconVisibility",

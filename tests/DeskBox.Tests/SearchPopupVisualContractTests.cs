@@ -94,7 +94,7 @@ public sealed class SearchPopupVisualContractTests
         string root = FindRepositoryRoot();
         string fileSurface = File.ReadAllText(Path.Combine(
             root,
-            "src/DeskBox/Controls/FileItemSurface.xaml"));
+            "src/DeskBox/Controls/WidgetContents/FileSurfaceContent.xaml"));
         string resultRow = File.ReadAllText(Path.Combine(
             root,
             "src/DeskBox/Controls/SearchResultRowControl.xaml"));

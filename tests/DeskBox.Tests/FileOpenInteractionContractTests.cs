@@ -300,7 +300,7 @@ public sealed class FileOpenInteractionContractTests
             "PointerPressed=\"ItemSurface_PointerPressed\"",
             StringSplitOptions.None).Length - 1;
         int releasedCount = xaml.Split(
-            "PointerReleased=\"ItemSurface_PointerGestureEnded\"",
+            "PointerReleased=\"ItemSurface_PointerReleased\"",
             StringSplitOptions.None).Length - 1;
         int captureLostCount = xaml.Split(
             "PointerCaptureLost=\"ItemSurface_PointerGestureEnded\"",
@@ -309,22 +309,23 @@ public sealed class FileOpenInteractionContractTests
         Assert.Equal(pressedCount, releasedCount);
         Assert.Equal(pressedCount, captureLostCount);
 
-        Assert.Contains(
-            "private void ItemSurface_PointerGestureEnded(",
-            visuals,
-            StringComparison.Ordinal);
-        int handlerStart = visuals.IndexOf(
-            "private void ItemSurface_PointerGestureEnded(",
-            StringComparison.Ordinal);
-        int handlerEnd = visuals.IndexOf(
-            "private void ItemSurface_DragOver(",
-            handlerStart,
-            StringComparison.Ordinal);
-        Assert.True(handlerStart >= 0 && handlerEnd > handlerStart);
-        Assert.Contains(
-            "_pendingPointerDragItems = [];",
-            visuals[handlerStart..handlerEnd],
-            StringComparison.Ordinal);
+        foreach (string handlerName in new[]
+                 {
+                     "private void ItemSurface_PointerReleased(",
+                     "private void ItemSurface_PointerGestureEnded("
+                 })
+        {
+            int handlerStart = visuals.IndexOf(handlerName, StringComparison.Ordinal);
+            int handlerEnd = visuals.IndexOf(
+                "private void ItemSurface_DragOver(",
+                handlerStart,
+                StringComparison.Ordinal);
+            Assert.True(handlerStart >= 0 && handlerEnd > handlerStart);
+            Assert.Contains(
+                "_pendingPointerDragItems = [];",
+                visuals[handlerStart..handlerEnd],
+                StringComparison.Ordinal);
+        }
 
         int captureLostStart = selection.IndexOf(
             "private void HandleItemsPointerCaptureLost(",
@@ -345,23 +346,39 @@ public sealed class FileOpenInteractionContractTests
     {
         string source = File.ReadAllText(TestPaths.FromRepository(
             "src/DeskBox/Controls/FileItemSurface.xaml.cs"));
+        string opening = File.ReadAllText(TestPaths.FromRepository(
+            "src/DeskBox/Controls/WidgetContents/FileSurfaceContent.Opening.cs"));
 
-        Assert.Contains("SetVisualState(_pointerFeedback.OnOpenDispatched())", source, StringComparison.Ordinal);
-        Assert.Contains("SetVisualState(_pointerFeedback.OnPointerEntered())", source, StringComparison.Ordinal);
-        Assert.Contains("SetVisualState(_pointerFeedback.OnPointerPressed())", source, StringComparison.Ordinal);
-        Assert.Contains("SetVisualState(_pointerFeedback.OnPointerReleased(inside))", source, StringComparison.Ordinal);
+        Assert.Contains("_pointerFeedback.OnOpenDispatched()", source, StringComparison.Ordinal);
+        Assert.Contains("_pointerFeedback.OnPointerEntered()", source, StringComparison.Ordinal);
+        Assert.Contains("_pointerFeedback.OnPointerPressed()", source, StringComparison.Ordinal);
+        Assert.Contains("_pointerFeedback.OnPointerReleased(inside)", source, StringComparison.Ordinal);
+        Assert.Contains("_pointerFeedback.OnPointerMoved(", source, StringComparison.Ordinal);
 
-        foreach (string handler in new[]
-                 {
-                     "private void FileItemSurface_DataContextChanged(",
-                     "private void SurfaceBorder_Loaded(",
-                     "private void SurfaceBorder_Unloaded("
-                 })
-        {
-            int start = source.IndexOf(handler, StringComparison.Ordinal);
-            int end = source.IndexOf("\n    private ", start + handler.Length, StringComparison.Ordinal);
-            Assert.Contains("_pointerFeedback.ResetForReuse()", source[start..end], StringComparison.Ordinal);
-        }
+        // A recycled container must drop pointer, activity and tooltip state.
+        int resetStart = source.IndexOf(
+            "internal void ResetForReuse()",
+            StringComparison.Ordinal);
+        int resetEnd = source.IndexOf(
+            "internal void ResetPointerFeedback()",
+            resetStart,
+            StringComparison.Ordinal);
+        string reset = source[resetStart..resetEnd];
+        Assert.Contains("ResetPointerFeedback();", reset, StringComparison.Ordinal);
+        Assert.Contains("SetOpeningState(false, string.Empty);", reset, StringComparison.Ordinal);
+        Assert.Contains(
+            "SetTransferState(FileTransferPathState.None, string.Empty);",
+            reset,
+            StringComparison.Ordinal);
+
+        int dataContextStart = opening.IndexOf(
+            "private void ItemSurface_DataContextChanged(",
+            StringComparison.Ordinal);
+        Assert.True(dataContextStart >= 0);
+        Assert.Contains(
+            "surface.ResetForReuse();",
+            opening[dataContextStart..],
+            StringComparison.Ordinal);
     }
 
     [Fact]
@@ -383,15 +400,15 @@ public sealed class FileOpenInteractionContractTests
     public void FileItemActivityBadge_ReusesExistingTransferVisual()
     {
         string xaml = File.ReadAllText(TestPaths.FromRepository(
-            "src/DeskBox/Controls/FileItemSurface.xaml"));
+            "src/DeskBox/Controls/WidgetContents/FileSurfaceContent.xaml"));
         string code = File.ReadAllText(TestPaths.FromRepository(
             "src/DeskBox/Controls/FileItemSurface.xaml.cs"));
 
-        Assert.Contains("ActivityBadgeVisibility", xaml, StringComparison.Ordinal);
-        Assert.Contains("ActivityBadgeTemplate", xaml, StringComparison.Ordinal);
-        Assert.Contains("ActivityBadgeContent", xaml, StringComparison.Ordinal);
+        Assert.Contains("Tag=\"ActivityBadge\"", xaml, StringComparison.Ordinal);
+        Assert.Contains("Tag=\"ActivityBadgeRing\"", xaml, StringComparison.Ordinal);
         Assert.Contains("IsActivityActive", code, StringComparison.Ordinal);
         Assert.Contains("SetOpeningState", code, StringComparison.Ordinal);
+        Assert.Contains("new ProgressRing", code, StringComparison.Ordinal);
         Assert.DoesNotContain("OpenItemSurface", xaml, StringComparison.Ordinal);
     }
 

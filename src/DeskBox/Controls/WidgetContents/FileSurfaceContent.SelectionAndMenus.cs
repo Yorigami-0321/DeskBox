@@ -241,7 +241,7 @@ public sealed partial class FileSurfaceContent
         {
             _selectionPressOnRowBlank = surface.IsListMode &&
                 !surface.IsPointWithinListPrimaryContent(
-                    e.GetCurrentPoint(surface).Position);
+                    e.GetCurrentPoint(surface.Border).Position);
             return _selectionPressOnRowBlank;
         }
 
@@ -486,20 +486,16 @@ public sealed partial class FileSurfaceContent
     /// never return the surface itself (which silently disabled the list
     /// right-click zone until this helper existed).
     /// </summary>
-    private static FileItemSurface? FindItemSurface(object? source)
+    private static FileItemTileState? FindItemSurface(object? source)
     {
-        DependencyObject? current = source as DependencyObject;
-        while (current is not null)
+        if (source is not DependencyObject current)
         {
-            if (current is FileItemSurface surface)
-            {
-                return surface;
-            }
-
-            current = VisualTreeHelper.GetParent(current);
+            return null;
         }
 
-        return null;
+        return FileItemSurface.FindInteractiveBorder(current) is { } border
+            ? FileItemTileState.For(border)
+            : null;
     }
 
     private static FrameworkElement? FindItemElement(object? source)

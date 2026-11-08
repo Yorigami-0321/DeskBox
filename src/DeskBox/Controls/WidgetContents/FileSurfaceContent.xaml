@@ -5,6 +5,7 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:helpers="using:DeskBox.Helpers"
     xmlns:controls="using:DeskBox.Controls"
+    xmlns:models="using:DeskBox.Models"
     xmlns:svc="using:DeskBox.Services"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
@@ -184,31 +185,91 @@
             <ItemsStackPanel Orientation="Vertical" />
         </ItemsPanelTemplate>
 
-        <DataTemplate x:Key="SurfaceFileIconTemplate">
+        <!-- The tile visual tree is inline. FileItemTileState applies the
+             per-widget metrics and only creates the activity ring / tooltip
+             when an item actually needs them. -->
+        <DataTemplate x:Key="SurfaceFileIconTemplate" x:DataType="models:WidgetItem">
             <Grid
                 Tag="ItemSlot"
-                Width="{Binding DataContext.IconTileWidth, ElementName=ItemsGrid}"
-                Height="{Binding DataContext.IconTileHeight, ElementName=ItemsGrid}"
-                Margin="{Binding DataContext.IconTileMargin, ElementName=ItemsGrid}"
                 HorizontalAlignment="Left"
                 VerticalAlignment="Top">
-                <controls:FileItemSurface
-                    Mode="Icon"
-                    LayoutContext="{Binding DataContext, ElementName=ItemsGrid}"
-                    UseStackChildIndent="True"
+                <Border
+                    Tag="InteractiveSurface"
+                    controls:FileItemSurface.Mode="Icon"
+                    controls:FileItemSurface.LayoutContext="{Binding DataContext, ElementName=ItemsGrid}"
+                    controls:FileItemSurface.UseStackChildIndent="True"
+                    Background="Transparent"
+                    CornerRadius="2"
                     HorizontalAlignment="Stretch"
                     VerticalAlignment="Top"
                     AllowDrop="True"
                     Loaded="ItemSurface_Loaded"
                     Unloaded="ItemSurface_Unloaded"
-                    VisualStateChanged="ItemSurface_VisualStateChanged"
                     DataContextChanged="ItemSurface_DataContextChanged"
                     DragLeave="ItemSurface_DragLeave"
                     DragOver="ItemSurface_DragOver"
                     Drop="ItemSurface_Drop"
+                    PointerEntered="ItemSurface_PointerEntered"
+                    PointerExited="ItemSurface_PointerExited"
                     PointerPressed="ItemSurface_PointerPressed"
-                    PointerReleased="ItemSurface_PointerGestureEnded"
-                    PointerCaptureLost="ItemSurface_PointerGestureEnded" />
+                    PointerReleased="ItemSurface_PointerReleased"
+                    PointerCaptureLost="ItemSurface_PointerGestureEnded">
+                    <StackPanel Tag="ItemContentStack" HorizontalAlignment="Center">
+                        <Grid Tag="ItemIconHost" HorizontalAlignment="Center" VerticalAlignment="Center">
+                            <Image
+                                Tag="ItemIconImage"
+                                Source="{x:Bind Icon, Mode=OneWay}"
+                                Stretch="Uniform"
+                                Visibility="{x:Bind IconVisibility, Mode=OneWay}" />
+                            <Viewbox
+                                Tag="ItemFallbackIcon"
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center"
+                                IsHitTestVisible="False"
+                                Visibility="{x:Bind FallbackIconVisibility, Mode=OneWay}">
+                                <Border
+                                    Width="36"
+                                    Height="36"
+                                    Background="{ThemeResource SubtleFillColorSecondaryBrush}"
+                                    BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                                    BorderThickness="1"
+                                    CornerRadius="9"
+                                    Opacity="0.62" />
+                            </Viewbox>
+                            <Border
+                                Tag="ActivityBadge"
+                                Width="20"
+                                Height="20"
+                                Margin="0,1,1,0"
+                                HorizontalAlignment="Right"
+                                VerticalAlignment="Top"
+                                Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                                BorderThickness="1"
+                                CornerRadius="10"
+                                IsHitTestVisible="False"
+                                Visibility="Collapsed">
+                                <ContentControl
+                                    Tag="ActivityBadgeRing"
+                                    Width="13"
+                                    Height="13"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center" />
+                            </Border>
+                        </Grid>
+                        <Grid>
+                            <TextBlock
+                                helpers:WidgetTextShadow.Cast="True"
+                                Tag="ItemNameText"
+                                Margin="2,0"
+                                HorizontalAlignment="Center"
+                                Text="{x:Bind Name, Mode=OneWay}"
+                                TextAlignment="Center"
+                                TextTrimming="CharacterEllipsis"
+                                TextWrapping="Wrap" />
+                        </Grid>
+                    </StackPanel>
+                </Border>
             </Grid>
         </DataTemplate>
 
@@ -354,63 +415,279 @@
             </Border>
         </DataTemplate>
 
-        <DataTemplate x:Key="SurfaceFileListTemplate">
-            <controls:FileItemSurface
-                Mode="List"
-                LayoutContext="{Binding DataContext, ElementName=ItemsList}"
-                UseStackChildIndent="True"
+        <DataTemplate x:Key="SurfaceFileListTemplate" x:DataType="models:WidgetItem">
+            <Border
+                Tag="InteractiveSurface"
+                controls:FileItemSurface.Mode="List"
+                controls:FileItemSurface.LayoutContext="{Binding DataContext, ElementName=ItemsList}"
+                controls:FileItemSurface.UseStackChildIndent="True"
+                Background="Transparent"
+                CornerRadius="2"
                 HorizontalAlignment="Stretch"
                 AllowDrop="True"
                 Loaded="ItemSurface_Loaded"
                 Unloaded="ItemSurface_Unloaded"
-                VisualStateChanged="ItemSurface_VisualStateChanged"
                 DataContextChanged="ItemSurface_DataContextChanged"
                 DragLeave="ItemSurface_DragLeave"
                 DragOver="ItemSurface_DragOver"
                 Drop="ItemSurface_Drop"
+                PointerEntered="ItemSurface_PointerEntered"
+                PointerExited="ItemSurface_PointerExited"
                 PointerPressed="ItemSurface_PointerPressed"
-                PointerReleased="ItemSurface_PointerGestureEnded"
-                PointerCaptureLost="ItemSurface_PointerGestureEnded" />
+                PointerReleased="ItemSurface_PointerReleased"
+                PointerCaptureLost="ItemSurface_PointerGestureEnded">
+                <Grid HorizontalAlignment="Stretch" ColumnSpacing="10">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <Grid Tag="ItemIconHost">
+                        <Image
+                            Tag="ItemIconImage"
+                            Source="{x:Bind Icon, Mode=OneWay}"
+                            Stretch="Uniform"
+                            Visibility="{x:Bind IconVisibility, Mode=OneWay}" />
+                        <Viewbox
+                            Tag="ItemFallbackIcon"
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center"
+                            IsHitTestVisible="False"
+                            Visibility="{x:Bind FallbackIconVisibility, Mode=OneWay}">
+                            <Border
+                                Width="36"
+                                Height="36"
+                                Background="{ThemeResource SubtleFillColorSecondaryBrush}"
+                                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                                BorderThickness="1"
+                                CornerRadius="9"
+                                Opacity="0.62" />
+                        </Viewbox>
+                        <Border
+                            Tag="ActivityBadge"
+                            Width="18"
+                            Height="18"
+                            Margin="0,1,1,0"
+                            HorizontalAlignment="Right"
+                            VerticalAlignment="Top"
+                            Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                            BorderThickness="1"
+                            CornerRadius="9"
+                            IsHitTestVisible="False"
+                            Visibility="Collapsed">
+                            <ContentControl
+                                Tag="ActivityBadgeRing"
+                                Width="13"
+                                Height="13"
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center" />
+                        </Border>
+                    </Grid>
+                    <StackPanel
+                        Tag="ListItemTextHost"
+                        Grid.Column="1"
+                        HorizontalAlignment="Left"
+                        VerticalAlignment="Center"
+                        Spacing="1">
+                        <Grid>
+                            <TextBlock
+                                helpers:WidgetTextShadow.Cast="True"
+                                Tag="ItemNameText"
+                                HorizontalAlignment="Left"
+                                Text="{x:Bind Name, Mode=OneWay}"
+                                TextTrimming="CharacterEllipsis"
+                                TextWrapping="NoWrap" />
+                        </Grid>
+                        <TextBlock
+                            helpers:WidgetTextShadow.Cast="True"
+                            Tag="ListItemDetailText"
+                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                            HorizontalAlignment="Left"
+                            Text="{x:Bind SecondaryInfo, Mode=OneWay}"
+                            Visibility="Collapsed"
+                            TextTrimming="CharacterEllipsis"
+                            TextWrapping="NoWrap" />
+                    </StackPanel>
+                </Grid>
+            </Border>
         </DataTemplate>
 
         <!-- Created only while a stack popover is open. The member objects and
              existing item surface are reused, while stack-child indentation is
              deliberately disabled because the panel already provides context. -->
-        <DataTemplate x:Key="StackPopoverFileIconTemplate">
-            <controls:FileItemSurface
-                Mode="Icon"
-                UseStackChildIndent="False"
+        <DataTemplate x:Key="StackPopoverFileIconTemplate" x:DataType="models:WidgetItem">
+            <Border
+                Tag="InteractiveSurface"
+                controls:FileItemSurface.Mode="Icon"
+                controls:FileItemSurface.UseStackChildIndent="False"
+                Background="Transparent"
+                CornerRadius="2"
                 HorizontalAlignment="Stretch"
                 VerticalAlignment="Top"
                 AllowDrop="True"
                 Loaded="ItemSurface_Loaded"
                 Unloaded="ItemSurface_Unloaded"
-                VisualStateChanged="ItemSurface_VisualStateChanged"
                 DataContextChanged="ItemSurface_DataContextChanged"
                 DragLeave="ItemSurface_DragLeave"
                 DragOver="ItemSurface_DragOver"
                 Drop="ItemSurface_Drop"
+                PointerEntered="ItemSurface_PointerEntered"
+                PointerExited="ItemSurface_PointerExited"
                 PointerPressed="ItemSurface_PointerPressed"
-                PointerReleased="ItemSurface_PointerGestureEnded"
-                PointerCaptureLost="ItemSurface_PointerGestureEnded" />
+                PointerReleased="ItemSurface_PointerReleased"
+                PointerCaptureLost="ItemSurface_PointerGestureEnded">
+                <StackPanel Tag="ItemContentStack" HorizontalAlignment="Center">
+                    <Grid Tag="ItemIconHost" HorizontalAlignment="Center" VerticalAlignment="Center">
+                        <Image
+                            Tag="ItemIconImage"
+                            Source="{x:Bind Icon, Mode=OneWay}"
+                            Stretch="Uniform"
+                            Visibility="{x:Bind IconVisibility, Mode=OneWay}" />
+                        <Viewbox
+                            Tag="ItemFallbackIcon"
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center"
+                            IsHitTestVisible="False"
+                            Visibility="{x:Bind FallbackIconVisibility, Mode=OneWay}">
+                            <Border
+                                Width="36"
+                                Height="36"
+                                Background="{ThemeResource SubtleFillColorSecondaryBrush}"
+                                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                                BorderThickness="1"
+                                CornerRadius="9"
+                                Opacity="0.62" />
+                        </Viewbox>
+                        <Border
+                            Tag="ActivityBadge"
+                            Width="20"
+                            Height="20"
+                            Margin="0,1,1,0"
+                            HorizontalAlignment="Right"
+                            VerticalAlignment="Top"
+                            Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                            BorderThickness="1"
+                            CornerRadius="10"
+                            IsHitTestVisible="False"
+                            Visibility="Collapsed">
+                            <ContentControl
+                                Tag="ActivityBadgeRing"
+                                Width="13"
+                                Height="13"
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center" />
+                        </Border>
+                    </Grid>
+                    <Grid>
+                        <TextBlock
+                            helpers:WidgetTextShadow.Cast="True"
+                            Tag="ItemNameText"
+                            Margin="2,0"
+                            HorizontalAlignment="Center"
+                            Text="{x:Bind Name, Mode=OneWay}"
+                            TextAlignment="Center"
+                            TextTrimming="CharacterEllipsis"
+                            TextWrapping="Wrap" />
+                    </Grid>
+                </StackPanel>
+            </Border>
         </DataTemplate>
 
-        <DataTemplate x:Key="StackPopoverFileListTemplate">
-            <controls:FileItemSurface
-                Mode="List"
-                UseStackChildIndent="False"
+        <DataTemplate x:Key="StackPopoverFileListTemplate" x:DataType="models:WidgetItem">
+            <Border
+                Tag="InteractiveSurface"
+                controls:FileItemSurface.Mode="List"
+                controls:FileItemSurface.UseStackChildIndent="False"
+                Background="Transparent"
+                CornerRadius="2"
                 HorizontalAlignment="Stretch"
                 AllowDrop="True"
                 Loaded="ItemSurface_Loaded"
                 Unloaded="ItemSurface_Unloaded"
-                VisualStateChanged="ItemSurface_VisualStateChanged"
                 DataContextChanged="ItemSurface_DataContextChanged"
                 DragLeave="ItemSurface_DragLeave"
                 DragOver="ItemSurface_DragOver"
                 Drop="ItemSurface_Drop"
+                PointerEntered="ItemSurface_PointerEntered"
+                PointerExited="ItemSurface_PointerExited"
                 PointerPressed="ItemSurface_PointerPressed"
-                PointerReleased="ItemSurface_PointerGestureEnded"
-                PointerCaptureLost="ItemSurface_PointerGestureEnded" />
+                PointerReleased="ItemSurface_PointerReleased"
+                PointerCaptureLost="ItemSurface_PointerGestureEnded">
+                <Grid HorizontalAlignment="Stretch" ColumnSpacing="10">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <Grid Tag="ItemIconHost">
+                        <Image
+                            Tag="ItemIconImage"
+                            Source="{x:Bind Icon, Mode=OneWay}"
+                            Stretch="Uniform"
+                            Visibility="{x:Bind IconVisibility, Mode=OneWay}" />
+                        <Viewbox
+                            Tag="ItemFallbackIcon"
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center"
+                            IsHitTestVisible="False"
+                            Visibility="{x:Bind FallbackIconVisibility, Mode=OneWay}">
+                            <Border
+                                Width="36"
+                                Height="36"
+                                Background="{ThemeResource SubtleFillColorSecondaryBrush}"
+                                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                                BorderThickness="1"
+                                CornerRadius="9"
+                                Opacity="0.62" />
+                        </Viewbox>
+                        <Border
+                            Tag="ActivityBadge"
+                            Width="18"
+                            Height="18"
+                            Margin="0,1,1,0"
+                            HorizontalAlignment="Right"
+                            VerticalAlignment="Top"
+                            Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                            BorderThickness="1"
+                            CornerRadius="9"
+                            IsHitTestVisible="False"
+                            Visibility="Collapsed">
+                            <ContentControl
+                                Tag="ActivityBadgeRing"
+                                Width="13"
+                                Height="13"
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center" />
+                        </Border>
+                    </Grid>
+                    <StackPanel
+                        Tag="ListItemTextHost"
+                        Grid.Column="1"
+                        HorizontalAlignment="Left"
+                        VerticalAlignment="Center"
+                        Spacing="1">
+                        <Grid>
+                            <TextBlock
+                                helpers:WidgetTextShadow.Cast="True"
+                                Tag="ItemNameText"
+                                HorizontalAlignment="Left"
+                                Text="{x:Bind Name, Mode=OneWay}"
+                                TextTrimming="CharacterEllipsis"
+                                TextWrapping="NoWrap" />
+                        </Grid>
+                        <TextBlock
+                            helpers:WidgetTextShadow.Cast="True"
+                            Tag="ListItemDetailText"
+                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                            HorizontalAlignment="Left"
+                            Text="{x:Bind SecondaryInfo, Mode=OneWay}"
+                            Visibility="Collapsed"
+                            TextTrimming="CharacterEllipsis"
+                            TextWrapping="NoWrap" />
+                    </StackPanel>
+                </Grid>
+            </Border>
         </DataTemplate>
 
         <DataTemplate x:Key="SurfaceFileStackListTemplate">

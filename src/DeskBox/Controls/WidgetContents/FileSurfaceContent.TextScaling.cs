@@ -62,6 +62,30 @@ public sealed partial class FileSurfaceContent
         {
             HideAllNameExpansions();
         }
+
+        if (IsItemSurfaceLayoutProperty(e.PropertyName))
+        {
+            ApplyItemSurfaceLayoutMetrics();
+        }
+    }
+
+    private static bool IsItemSurfaceLayoutProperty(string? propertyName) =>
+        IsStackPopoverLayoutProperty(propertyName) ||
+        propertyName is nameof(WidgetViewModel.ShowListItemDetails) or
+            nameof(WidgetViewModel.ListItemDetailVisibility) or
+            nameof(WidgetViewModel.ShowFileItemPathTooltips);
+
+    private void ApplyItemSurfaceLayoutMetrics()
+    {
+        foreach (Border border in _itemSurfaces)
+        {
+            if (border.XamlRoot is null)
+            {
+                continue;
+            }
+
+            FileItemSurface.ApplyLayoutMetrics(border);
+        }
     }
 
     private void FileSurfaceContent_TextScaleFactorChanged()

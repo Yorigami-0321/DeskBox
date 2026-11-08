@@ -1,4 +1,3 @@
-using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using DeskBox.Models;
 using DeskBox.Services;
@@ -6,7 +5,6 @@ using DeskBox.ViewModels;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Automation;
 using Microsoft.UI.Xaml.Controls;
-using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 
 namespace DeskBox.Controls;
@@ -17,133 +15,94 @@ public enum FileItemSurfaceMode
     List
 }
 
-public sealed class FileItemSurfaceVisualStateChangedEventArgs(
-    FileItemSurfaceVisualState state) : EventArgs
+/// <summary>
+/// Behavior for one realized inline file tile. The tile visual tree lives in
+/// the item templates; this state carries the interaction bits that used to
+/// live inside the FileItemSurface UserControl.
+/// </summary>
+internal sealed class FileItemTileState
 {
-    public FileItemSurfaceVisualState State { get; } = state;
-}
+    private static readonly ConditionalWeakTable<Border, FileItemTileState> States = new();
 
-public sealed partial class FileItemSurface : UserControl, INotifyPropertyChanged
-{
-    public static readonly DependencyProperty ModeProperty =
-        DependencyProperty.Register(
-            nameof(Mode),
-            typeof(FileItemSurfaceMode),
-            typeof(FileItemSurface),
-            new PropertyMetadata(FileItemSurfaceMode.Icon, OnPresentationPropertyChanged));
+    /// <summary>Edge slack so the zone stays clickable on thin rows.</summary>
+    private const double PrimaryContentZoneInflation = 4;
 
-    public static readonly DependencyProperty LayoutContextProperty =
-        DependencyProperty.Register(
-            nameof(LayoutContext),
-            typeof(WidgetViewModel),
-            typeof(FileItemSurface),
-            new PropertyMetadata(null, OnPresentationPropertyChanged));
-
-    public static readonly DependencyProperty UseStackChildIndentProperty =
-        DependencyProperty.Register(
-            nameof(UseStackChildIndent),
-            typeof(bool),
-            typeof(FileItemSurface),
-            new PropertyMetadata(false, OnPresentationPropertyChanged));
-
-    public static readonly DependencyProperty ListItemTextMaxWidthProperty =
-        DependencyProperty.Register(
-            nameof(ListItemTextMaxWidth),
-            typeof(double),
-            typeof(FileItemSurface),
-            new PropertyMetadata(double.PositiveInfinity));
-
-    private FileItemSurfaceVisualState _visualState = FileItemSurfaceVisualState.Normal;
     private FileItemPointerFeedback _pointerFeedback;
     private FileTransferPathState _transferState = FileTransferPathState.None;
     private string _transferStatusText = string.Empty;
     private bool _isOpening;
     private string _openingStatusText = string.Empty;
-    private WidgetViewModel? _subscribedLayoutContext;
-    private bool _isSurfaceLoaded;
-    private FrameworkElement? _iconLayout;
-    private FrameworkElement? _listLayout;
-    private TextBlock? _iconItemNameText;
-    private TextBlock? _listItemNameText;
-    private FrameworkElement? _iconIconHost;
-    private FrameworkElement? _listIconHost;
+    private bool _partsCached;
+    private bool _pointerInside;
+    private Grid? _slot;
+    private Grid? _iconHost;
+    private TextBlock? _nameText;
+    private TextBlock? _detailText;
     private FrameworkElement? _listTextHost;
+    private Image? _iconImage;
+    private Viewbox? _fallbackIcon;
+    private StackPanel? _contentStack;
+    private Border? _activityBadge;
+    private ContentControl? _activityBadgeRing;
+    private ToolTip? _toolTip;
+    private TextBlock? _toolTipStatus;
+    private TextBlock? _toolTipPath;
+    private bool _toolTipAttached;
 
-    public FileItemSurface()
+    private FileItemTileState(Border border)
     {
-        InitializeComponent();
-        DataContextChanged += FileItemSurface_DataContextChanged;
-        // PointerEntered alone is not a reliable recovery signal during
-        // initial layout or container reuse. Observe movement even when a
-        // child handles it, without consuming input or taking pointer capture.
-        SurfaceBorder.AddHandler(
-            UIElement.PointerMovedEvent,
-            new PointerEventHandler(SurfaceBorder_PointerMoved),
-            handledEventsToo: true);
+        Border = border;
     }
 
-    public event EventHandler<FileItemSurfaceVisualStateChangedEventArgs>? VisualStateChanged;
+    internal static FileItemTileState For(Border border) =>
+        States.GetValue(border, static value => new FileItemTileState(value));
 
-    public event PropertyChangedEventHandler? PropertyChanged;
+    public Border Border { get; }
 
-    public FileItemSurfaceMode Mode
+    public FileItemSurfaceMode Mode => FileItemSurface.GetMode(Border);
+
+    public bool IsListMode => Mode == FileItemSurfaceMode.List;
+
+    public WidgetItem? DataContext => Border.DataContext as WidgetItem;
+
+    public WidgetViewModel? LayoutContext =>
+        FileItemSurface.GetLayoutContext(Border);
+
+    public FileItemSurfaceVisualState VisualState { get; set; }
+
+    internal bool PointerMovedHandlerAttached { get; set; }
+
+    public bool IsTransferActive => _transferState.IsActive;
+
+    public bool IsOpening => _isOpening;
+
+    public bool IsActivityActive => IsTransferActive || IsOpening;
+
+    public string ActivityStatusText =>
+        IsTransferActive ? _transferStatusText : _openingStatusText;
+
+    public TextBlock? ItemNameText
     {
-        get => (FileItemSurfaceMode)GetValue(ModeProperty);
-        set => SetValue(ModeProperty, value);
+        get
+        {
+            EnsureParts();
+            return _nameText;
+        }
     }
 
-    public WidgetViewModel? LayoutContext
+    public FrameworkElement? IconHitTestElement
     {
-        get => (WidgetViewModel?)GetValue(LayoutContextProperty);
-        set => SetValue(LayoutContextProperty, value);
+        get
+        {
+            EnsureParts();
+            return _iconHost;
+        }
     }
 
-    public bool UseStackChildIndent
+    internal bool IsPointWithinListPrimaryContent(Windows.Foundation.Point point)
     {
-        get => (bool)GetValue(UseStackChildIndentProperty);
-        set => SetValue(UseStackChildIndentProperty, value);
-    }
-
-    public double ListItemTextMaxWidth
-    {
-        get => (double)GetValue(ListItemTextMaxWidthProperty);
-        set => SetValue(ListItemTextMaxWidthProperty, value);
-    }
-
-    public Visibility IconLayoutVisibility =>
-        Mode == FileItemSurfaceMode.Icon
-            ? Visibility.Visible
-            : Visibility.Collapsed;
-
-    public Visibility ListLayoutVisibility =>
-        Mode == FileItemSurfaceMode.List
-            ? Visibility.Visible
-            : Visibility.Collapsed;
-
-    public HorizontalAlignment SurfaceHorizontalAlignment =>
-        // Both layouts stretch so the interactive surface - hover, selection,
-        // drop feedback - covers the full row in list mode (Explorer-style
-        // full-row select) and the full tile in icon mode. The list content
-        // itself stays left-aligned inside the stretched border.
-        HorizontalAlignment.Stretch;
-
-    internal bool IsListMode => Mode == FileItemSurfaceMode.List;
-
-    /// <summary>Edge slack so the zone stays clickable on thin rows.</summary>
-    private const double PrimaryContentZoneInflation = 4;
-
-    /// <summary>
-    /// Whether a point in this surface's coordinates lands on the list row's
-    /// primary content — the icon plus the name/detail block. Explorer
-    /// semantics: only this zone right-clicks into the item's menu; the
-    /// stretched remainder of the row is blank surface for the content-area
-    /// menu. Missing zone elements (template drift) fall back to the
-    /// legacy whole-row behavior instead of eating clicks.
-    /// </summary>
-    internal bool IsPointWithinListPrimaryContent(
-        Windows.Foundation.Point point)
-    {
-        if (_listIconHost is not { } iconHost ||
+        EnsureParts();
+        if (_iconHost is not { } iconHost ||
             _listTextHost is not { } textHost)
         {
             return true;
@@ -156,7 +115,7 @@ public sealed partial class FileItemSurface : UserControl, INotifyPropertyChange
             .Contains(point);
 
         Windows.Foundation.Rect BoundsRelativeToRoot(FrameworkElement element) =>
-            element.TransformToVisual(this)
+            element.TransformToVisual(Border)
                 .TransformBounds(new Windows.Foundation.Rect(
                     0,
                     0,
@@ -164,176 +123,61 @@ public sealed partial class FileItemSurface : UserControl, INotifyPropertyChange
                     element.ActualHeight));
     }
 
-    public double SurfaceMaxWidth => double.PositiveInfinity;
+    internal FileItemSurfaceVisualState OnOpenDispatched() =>
+        _pointerFeedback.OnOpenDispatched();
 
-    public Thickness SurfaceMargin
+    internal FileItemSurfaceVisualState OnPointerEntered()
     {
-        get
-        {
-            if (Mode == FileItemSurfaceMode.Icon)
-            {
-                // Match the Windows desktop selection footprint: occupy the
-                // full icon column while retaining a narrow visual gutter.
-                // Height remains content-driven so hidden, one-line, and
-                // two-line labels keep their natural vertical spacing.
-                return new Thickness(1, 0, 1, 0);
-            }
-
-            if (LayoutContext is null)
-            {
-                return new Thickness(0);
-            }
-
-            Thickness margin = LayoutContext.ListItemMargin;
-            return UseStackChildIndent &&
-                DataContext is WidgetItem { IsStackChild: true }
-                ? new Thickness(
-                    margin.Left + 18,
-                    margin.Top,
-                    margin.Right,
-                    margin.Bottom)
-                : margin;
-        }
+        _pointerInside = true;
+        return _pointerFeedback.OnPointerEntered();
     }
 
-    public Thickness SurfacePadding =>
-        LayoutContext is null
-            ? new Thickness(0)
-            : Mode == FileItemSurfaceMode.List
-                ? LayoutContext.ListItemPadding
-                : LayoutContext.IconTilePadding;
-
-    public FileItemSurfaceVisualState VisualState => _visualState;
-
-    public FileTransferPathState TransferState => _transferState;
-
-    public bool IsTransferActive => _transferState.IsActive;
-
-    public Visibility TransferBadgeVisibility =>
-        IsTransferActive ? Visibility.Visible : Visibility.Collapsed;
-
-    public Visibility TransferStatusVisibility =>
-        string.IsNullOrWhiteSpace(_transferStatusText)
-            ? Visibility.Collapsed
-            : Visibility.Visible;
-
-    public string TransferStatusText => _transferStatusText;
-
-    /// <summary>
-    /// Whether Windows Shell is currently handling an open request for this
-    /// item. It shares the existing compact activity badge with transfers so
-    /// opening a file does not add another visual tree per item.
-    /// </summary>
-    public bool IsOpening => _isOpening;
-
-    public bool IsActivityActive => IsTransferActive || IsOpening;
-
-    public Visibility ActivityBadgeVisibility =>
-        IsActivityActive ? Visibility.Visible : Visibility.Collapsed;
-
-    public DataTemplate? ActivityBadgeTemplate =>
-        IsActivityActive
-            ? (DataTemplate)Resources["ActivityBadgeRingTemplate"]
-            : null;
-
-    public object? ActivityBadgeContent => IsActivityActive ? this : null;
-
-    public Visibility ActivityStatusVisibility =>
-        string.IsNullOrWhiteSpace(ActivityStatusText)
-            ? Visibility.Collapsed
-            : Visibility.Visible;
-
-    public string ActivityStatusText =>
-        IsTransferActive ? _transferStatusText : _openingStatusText;
-
-    public Visibility PathTooltipVisibility =>
-        LayoutContext?.ShowFileItemPathTooltips == true
-            ? Visibility.Visible
-            : Visibility.Collapsed;
-
-    public bool ToolTipEnabled =>
-        ActivityStatusVisibility == Visibility.Visible ||
-        PathTooltipVisibility == Visibility.Visible;
-
-    public Border InteractiveBorder => SurfaceBorder;
-
-    /// <summary>
-    /// The icon glyph host of the active layout. Application-shortcut launch
-    /// hit-testing scopes to this element, so only the icon - not the label
-    /// or the tile padding around it - claims a launch drop.
-    /// </summary>
-    internal FrameworkElement? IconHitTestElement =>
-        Mode == FileItemSurfaceMode.List ? _listIconHost : _iconIconHost;
-
-    public TextBlock ItemNameText
+    internal FileItemSurfaceVisualState OnPointerExited()
     {
-        get
-        {
-            // Rename can ask for the name before the first Loaded event.
-            EnsureActiveLayout();
-            return Mode == FileItemSurfaceMode.List
-                ? _listItemNameText!
-                : _iconItemNameText!;
-        }
+        _pointerInside = false;
+        return FileItemSurfaceVisualState.Normal;
     }
 
-    protected override Windows.Foundation.Size MeasureOverride(
-        Windows.Foundation.Size availableSize)
+    internal FileItemSurfaceVisualState OnPointerPressed() =>
+        _pointerFeedback.OnPointerPressed();
+
+    internal FileItemSurfaceVisualState OnPointerMoved(
+        bool isInContact,
+        double x,
+        double y) =>
+        _pointerFeedback.OnPointerMoved(VisualState, isInContact, x, y);
+
+    internal void RecordPointerPosition(double x, double y) =>
+        _pointerFeedback.RecordPointerPosition(x, y);
+
+    internal FileItemSurfaceVisualState OnPointerReleased(bool inside) =>
+        _pointerFeedback.OnPointerReleased(inside);
+
+    internal void ResetPointerForLoaded()
     {
-        // XAML assigns Mode after construction. Waiting until measurement
-        // avoids creating an unused icon layout for every list-mode item,
-        // while still measuring the real content before it can receive input.
-        EnsureActiveLayout();
-        return base.MeasureOverride(availableSize);
+        ResetPointerFeedback();
+        SetVisualState(FileItemSurfaceVisualState.Normal);
     }
 
-    private void EnsureActiveLayout()
+    internal void ResetForReuse()
     {
-        if (Mode == FileItemSurfaceMode.List)
-        {
-            if (_listLayout is null)
-            {
-                (_listLayout, _listItemNameText, _listIconHost, _listTextHost) =
-                    CreateLayout(
-                        "ListItemLayoutTemplate",
-                        "ListItemNameText",
-                        "ListItemIconHost",
-                        "ListItemTextHost");
-            }
-        }
-        else if (_iconLayout is null)
-        {
-            (_iconLayout, _iconItemNameText, _iconIconHost, _) = CreateLayout(
-                "IconItemLayoutTemplate", "IconItemNameText", "IconItemIconHost",
-                null);
-        }
+        ResetPointerFeedback();
+        SetVisualState(FileItemSurfaceVisualState.Normal);
+        SetOpeningState(false, string.Empty);
+        SetTransferState(FileTransferPathState.None, string.Empty);
     }
 
-    private (FrameworkElement Layout, TextBlock NameText, FrameworkElement IconHost, FrameworkElement? TextHost) CreateLayout(
-        string templateKey,
-        string nameElement,
-        string iconHostElement,
-        string? textHostElement)
+    internal void ResetPointerFeedback()
     {
-        var template = (DataTemplate)Resources[templateKey];
-        var layout = (FrameworkElement)template.LoadContent();
-        var nameText = (TextBlock)layout.FindName(nameElement);
-        var iconHost = (FrameworkElement)layout.FindName(iconHostElement);
-        var textHost = textHostElement is null
-            ? null
-            : (FrameworkElement?)layout.FindName(textHostElement);
-        var bindings = Microsoft.UI.Xaml.Markup.XamlBindingHelper
-            .GetDataTemplateComponent(layout) ??
-            throw new InvalidOperationException($"Missing file item bindings: {templateKey}");
-
-        // Compiled presentation bindings read this surface. ProcessBindings
-        // also detaches the generated DataContextChanged handler before the
-        // layout inherits the WidgetItem from its unchanged interaction shell.
-        // Ordinary file/thumbnail bindings therefore keep their original source.
-        bindings.ProcessBindings(this, 0, 0, out _);
-        LayoutHost.Children.Add(layout);
-        return (layout, nameText, iconHost, textHost);
+        _pointerInside = false;
+        _pointerFeedback.ResetForReuse();
     }
+
+    internal void SetVisualState(FileItemSurfaceVisualState state) =>
+        VisualState = state;
+
+    internal void ClearPointerFeedbackAfterOpen() =>
+        SetVisualState(OnOpenDispatched());
 
     internal void SetTransferState(
         FileTransferPathState state,
@@ -351,17 +195,10 @@ public sealed partial class FileItemSurface : UserControl, INotifyPropertyChange
 
         _transferState = state;
         _transferStatusText = normalizedStatus;
-        OnPropertyChanged(nameof(TransferState));
-        OnPropertyChanged(nameof(IsTransferActive));
-        OnPropertyChanged(nameof(TransferBadgeVisibility));
-        OnPropertyChanged(nameof(TransferStatusVisibility));
-        OnPropertyChanged(nameof(TransferStatusText));
         UpdateActivityPresentation();
     }
 
-    internal void SetOpeningState(
-        bool isOpening,
-        string? statusText)
+    internal void SetOpeningState(bool isOpening, string? statusText)
     {
         string normalizedStatus = statusText ?? string.Empty;
         if (_isOpening == isOpening &&
@@ -375,45 +212,355 @@ public sealed partial class FileItemSurface : UserControl, INotifyPropertyChange
 
         _isOpening = isOpening;
         _openingStatusText = normalizedStatus;
-        OnPropertyChanged(nameof(IsOpening));
         UpdateActivityPresentation();
     }
 
-    internal void ClearPointerFeedbackAfterOpen() =>
-        SetVisualState(_pointerFeedback.OnOpenDispatched());
+    internal void ApplyLayoutMetrics()
+    {
+        EnsureParts();
+        WidgetViewModel? layout = LayoutContext;
+        if (Mode == FileItemSurfaceMode.Icon)
+        {
+            if (_slot is not null && layout is not null)
+            {
+                _slot.Width = layout.IconTileWidth;
+                _slot.Height = layout.IconTileHeight;
+                _slot.Margin = layout.IconTileMargin;
+            }
+
+            Border.Margin = new Thickness(1, 0, 1, 0);
+            if (layout is null)
+            {
+                RefreshToolTip();
+                return;
+            }
+
+            Border.Padding = layout.IconTilePadding;
+            if (_contentStack is not null)
+            {
+                _contentStack.Spacing = layout.IconContentSpacing;
+            }
+
+            SetIconSize(layout.IconImageSize);
+            if (_nameText is not null)
+            {
+                _nameText.MaxWidth = layout.IconLabelMaxWidth;
+                _nameText.FontSize = layout.IconLabelFontSize;
+                _nameText.MaxLines = layout.IconLabelMaxLines;
+                _nameText.Visibility = layout.IconLabelVisibility;
+            }
+        }
+        else if (layout is not null)
+        {
+            Border.Padding = layout.ListItemPadding;
+            Thickness margin = layout.ListItemMargin;
+            if (FileItemSurface.GetUseStackChildIndent(Border) &&
+                DataContext is { IsStackChild: true })
+            {
+                margin = new Thickness(
+                    margin.Left + 18,
+                    margin.Top,
+                    margin.Right,
+                    margin.Bottom);
+            }
+
+            Border.Margin = margin;
+            SetIconSize(layout.ListIconSize);
+            if (_iconHost is not null)
+            {
+                _iconHost.Width = layout.ListIconSize;
+            }
+
+            if (_nameText is not null)
+            {
+                _nameText.FontSize = layout.ListLabelFontSize;
+            }
+
+            if (_detailText is not null)
+            {
+                _detailText.FontSize = layout.ListItemDetailFontSize;
+                _detailText.Visibility = layout.ListItemDetailVisibility;
+            }
+        }
+
+        RefreshToolTip();
+    }
+
+    internal void RefreshToolTip()
+    {
+        bool hasStatus = !string.IsNullOrWhiteSpace(ActivityStatusText);
+        bool hasPath = LayoutContext?.ShowFileItemPathTooltips == true;
+        if (!hasStatus && !hasPath)
+        {
+            if (_toolTipAttached)
+            {
+                ToolTipService.SetToolTip(Border, null);
+                _toolTipAttached = false;
+            }
+
+            return;
+        }
+
+        // Keep the first frame free of one ToolTip + two TextBlocks per tile.
+        // Create and attach only once a pointer actually enters; the tooltip
+        // service still sees it before the hover delay elapses.
+        if (!_pointerInside)
+        {
+            return;
+        }
+
+        EnsureToolTip();
+        if (_toolTipStatus is not null)
+        {
+            _toolTipStatus.Text = ActivityStatusText;
+            _toolTipStatus.Visibility = hasStatus
+                ? Visibility.Visible
+                : Visibility.Collapsed;
+        }
+
+        if (_toolTipPath is not null)
+        {
+            _toolTipPath.Text = DataContext?.FullPath ?? string.Empty;
+            _toolTipPath.Visibility = hasPath
+                ? Visibility.Visible
+                : Visibility.Collapsed;
+        }
+
+        if (!_toolTipAttached && _toolTip is not null)
+        {
+            ToolTipService.SetToolTip(Border, _toolTip);
+            _toolTipAttached = true;
+        }
+    }
+
+    internal void DetachToolTip()
+    {
+        if (_toolTipAttached)
+        {
+            ToolTipService.SetToolTip(Border, null);
+            _toolTipAttached = false;
+        }
+    }
 
     private void UpdateActivityPresentation()
     {
-        AutomationProperties.SetItemStatus(
-            SurfaceBorder,
-            ActivityStatusText);
-        OnPropertyChanged(nameof(IsActivityActive));
-        OnPropertyChanged(nameof(ActivityBadgeVisibility));
-        OnPropertyChanged(nameof(ActivityBadgeTemplate));
-        OnPropertyChanged(nameof(ActivityBadgeContent));
-        OnPropertyChanged(nameof(ActivityStatusVisibility));
-        OnPropertyChanged(nameof(ActivityStatusText));
-        OnPropertyChanged(nameof(ToolTipEnabled));
-    }
-
-    public static Border? TryGetInteractiveBorder(object? source)
-    {
-        return source switch
+        EnsureParts();
+        AutomationProperties.SetItemStatus(Border, ActivityStatusText);
+        bool active = IsActivityActive;
+        if (_activityBadge is not null)
         {
-            FileItemSurface surface => surface.InteractiveBorder,
-            Border border => border,
-            _ => null
-        };
+            _activityBadge.Visibility = active
+                ? Visibility.Visible
+                : Visibility.Collapsed;
+        }
+
+        if (active)
+        {
+            if (_activityBadgeRing is not null &&
+                _activityBadgeRing.Content is null)
+            {
+                _activityBadgeRing.Content = new ProgressRing
+                {
+                    Width = 13,
+                    Height = 13,
+                    IsActive = true
+                };
+            }
+        }
+        else if (_activityBadgeRing?.Content is not null)
+        {
+            _activityBadgeRing.Content = null;
+        }
+
+        RefreshToolTip();
     }
 
-    public static FileItemSurface? FindOwner(DependencyObject source)
+    private void EnsureToolTip()
+    {
+        if (_toolTip is not null)
+        {
+            return;
+        }
+
+        _toolTipStatus = new TextBlock
+        {
+            FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
+            Visibility = Visibility.Collapsed
+        };
+        _toolTipPath = new TextBlock
+        {
+            MaxWidth = 360,
+            MaxLines = 2,
+            TextTrimming = TextTrimming.CharacterEllipsis,
+            TextWrapping = TextWrapping.Wrap,
+            Visibility = Visibility.Collapsed
+        };
+        var content = new StackPanel { Spacing = 2 };
+        content.Children.Add(_toolTipStatus);
+        content.Children.Add(_toolTipPath);
+        _toolTip = new ToolTip { Content = content };
+    }
+
+    private void SetIconSize(double size)
+    {
+        if (_iconImage is not null)
+        {
+            _iconImage.Width = size;
+            _iconImage.Height = size;
+        }
+
+        if (_fallbackIcon is not null)
+        {
+            _fallbackIcon.Width = size;
+            _fallbackIcon.Height = size;
+        }
+    }
+
+    private void EnsureParts()
+    {
+        if (_partsCached)
+        {
+            return;
+        }
+
+        _slot = FindAncestorByTag(Border, "ItemSlot") as Grid;
+        CacheParts(Border);
+        // Attached presentation properties are assigned while the template is
+        // still being inflated. Keep re-scanning until the content exists;
+        // afterwards the parts are stable for the container's lifetime.
+        _partsCached = _nameText is not null;
+    }
+
+    private void CacheParts(DependencyObject root)
+    {
+        int childCount = VisualTreeHelper.GetChildrenCount(root);
+        for (int index = 0; index < childCount; index++)
+        {
+            DependencyObject child = VisualTreeHelper.GetChild(root, index);
+            if (child is FrameworkElement element &&
+                element.Tag is string tag)
+            {
+                switch (tag)
+                {
+                    case "ItemIconHost":
+                        _iconHost ??= element as Grid;
+                        break;
+                    case "ItemNameText":
+                        _nameText ??= element as TextBlock;
+                        break;
+                    case "ListItemTextHost":
+                        _listTextHost ??= element;
+                        break;
+                    case "ListItemDetailText":
+                        _detailText ??= element as TextBlock;
+                        break;
+                    case "ItemIconImage":
+                        _iconImage ??= element as Image;
+                        break;
+                    case "ItemFallbackIcon":
+                        _fallbackIcon ??= element as Viewbox;
+                        break;
+                    case "ItemContentStack":
+                        _contentStack ??= element as StackPanel;
+                        break;
+                    case "ActivityBadge":
+                        _activityBadge ??= element as Border;
+                        break;
+                    case "ActivityBadgeRing":
+                        _activityBadgeRing ??= element as ContentControl;
+                        break;
+                }
+            }
+
+            CacheParts(child);
+        }
+    }
+
+    private static FrameworkElement? FindAncestorByTag(
+        DependencyObject source,
+        string tag)
+    {
+        DependencyObject? current = VisualTreeHelper.GetParent(source);
+        while (current is not null)
+        {
+            if (current is FrameworkElement element &&
+                string.Equals(element.Tag as string, tag, StringComparison.Ordinal))
+            {
+                return element;
+            }
+
+            current = VisualTreeHelper.GetParent(current);
+        }
+
+        return null;
+    }
+}
+
+/// <summary>
+/// Static helpers for the inline file tile. The visual tree is owned by the
+/// item templates; this type resolves the interactive border, per-tile state,
+/// and attached presentation values.
+/// </summary>
+public static class FileItemSurface
+{
+    public static readonly DependencyProperty ModeProperty =
+        DependencyProperty.RegisterAttached(
+            "Mode",
+            typeof(FileItemSurfaceMode),
+            typeof(FileItemSurface),
+            new PropertyMetadata(
+                FileItemSurfaceMode.Icon,
+                OnPresentationPropertyChanged));
+
+    public static readonly DependencyProperty LayoutContextProperty =
+        DependencyProperty.RegisterAttached(
+            "LayoutContext",
+            typeof(WidgetViewModel),
+            typeof(FileItemSurface),
+            new PropertyMetadata(null, OnPresentationPropertyChanged));
+
+    public static readonly DependencyProperty UseStackChildIndentProperty =
+        DependencyProperty.RegisterAttached(
+            "UseStackChildIndent",
+            typeof(bool),
+            typeof(FileItemSurface),
+            new PropertyMetadata(false, OnPresentationPropertyChanged));
+
+    public static FileItemSurfaceMode GetMode(DependencyObject element) =>
+        (FileItemSurfaceMode)element.GetValue(ModeProperty);
+
+    public static void SetMode(
+        DependencyObject element,
+        FileItemSurfaceMode value) =>
+        element.SetValue(ModeProperty, value);
+
+    public static WidgetViewModel? GetLayoutContext(DependencyObject element) =>
+        (WidgetViewModel?)element.GetValue(LayoutContextProperty);
+
+    public static void SetLayoutContext(
+        DependencyObject element,
+        WidgetViewModel? value) =>
+        element.SetValue(LayoutContextProperty, value);
+
+    public static bool GetUseStackChildIndent(DependencyObject element) =>
+        (bool)element.GetValue(UseStackChildIndentProperty);
+
+    public static void SetUseStackChildIndent(
+        DependencyObject element,
+        bool value) =>
+        element.SetValue(UseStackChildIndentProperty, value);
+
+    public static Border? TryGetInteractiveBorder(object? source) =>
+        source is Border border && IsInteractiveSurface(border) ? border : null;
+
+    public static Border? FindInteractiveBorder(DependencyObject source)
     {
         DependencyObject? current = source;
         while (current is not null)
         {
-            if (current is FileItemSurface surface)
+            if (current is Border border && IsInteractiveSurface(border))
             {
-                return surface;
+                return border;
             }
 
             current = VisualTreeHelper.GetParent(current);
@@ -422,185 +569,27 @@ public sealed partial class FileItemSurface : UserControl, INotifyPropertyChange
         return null;
     }
 
+    internal static FileItemTileState? FindOwner(DependencyObject source) =>
+        FindInteractiveBorder(source) is { } border
+            ? FileItemTileState.For(border)
+            : null;
+
+    public static bool IsInteractiveSurface(Border border) =>
+        string.Equals(
+            border.Tag as string,
+            "InteractiveSurface",
+            StringComparison.Ordinal);
+
+    internal static void ApplyLayoutMetrics(Border border) =>
+        FileItemTileState.For(border).ApplyLayoutMetrics();
+
     private static void OnPresentationPropertyChanged(
         DependencyObject sender,
         DependencyPropertyChangedEventArgs args)
     {
-        if (sender is FileItemSurface surface)
+        if (sender is Border border && IsInteractiveSurface(border))
         {
-            if (args.Property == LayoutContextProperty)
-            {
-                surface.RefreshLayoutContextSubscription();
-            }
-
-            if (args.Property == ModeProperty)
-            {
-                if (surface._iconLayout is not null || surface._listLayout is not null)
-                {
-                    surface.EnsureActiveLayout();
-                }
-                surface.InvalidateMeasure();
-            }
-
-            surface.NotifyPresentationChanged();
+            FileItemTileState.For(border).ApplyLayoutMetrics();
         }
-    }
-
-    private void RefreshLayoutContextSubscription()
-    {
-        if (!_isSurfaceLoaded || ReferenceEquals(_subscribedLayoutContext, LayoutContext))
-        {
-            return;
-        }
-
-        if (_subscribedLayoutContext is not null)
-        {
-            _subscribedLayoutContext.PropertyChanged -= LayoutContext_PropertyChanged;
-        }
-
-        _subscribedLayoutContext = LayoutContext;
-        if (_subscribedLayoutContext is not null)
-        {
-            _subscribedLayoutContext.PropertyChanged += LayoutContext_PropertyChanged;
-        }
-    }
-
-    private void DetachLayoutContextSubscription()
-    {
-        if (_subscribedLayoutContext is not null)
-        {
-            _subscribedLayoutContext.PropertyChanged -= LayoutContext_PropertyChanged;
-            _subscribedLayoutContext = null;
-        }
-    }
-
-    private void LayoutContext_PropertyChanged(object? sender, PropertyChangedEventArgs e)
-    {
-        NotifyPresentationChanged();
-    }
-
-    private void FileItemSurface_DataContextChanged(
-        FrameworkElement sender,
-        DataContextChangedEventArgs args)
-    {
-        // ListView virtualization can reuse a loaded surface for a different
-        // item without raising Loaded again. Reset pointer state and ask the
-        // host to reapply all item-dependent styling, especially cut opacity.
-        _pointerFeedback.ResetForReuse();
-        _visualState = FileItemSurfaceVisualState.Normal;
-        SetOpeningState(false, string.Empty);
-        SetTransferState(FileTransferPathState.None, string.Empty);
-        VisualStateChanged?.Invoke(
-            this,
-            new FileItemSurfaceVisualStateChangedEventArgs(_visualState));
-        OnPropertyChanged(nameof(VisualState));
-        NotifyPresentationChanged();
-    }
-
-    private void NotifyPresentationChanged()
-    {
-        OnPropertyChanged(nameof(IconLayoutVisibility));
-        OnPropertyChanged(nameof(ListLayoutVisibility));
-        OnPropertyChanged(nameof(SurfaceHorizontalAlignment));
-        OnPropertyChanged(nameof(SurfaceMaxWidth));
-        OnPropertyChanged(nameof(SurfaceMargin));
-        OnPropertyChanged(nameof(SurfacePadding));
-        OnPropertyChanged(nameof(PathTooltipVisibility));
-        OnPropertyChanged(nameof(ToolTipEnabled));
-    }
-
-    private void SurfaceBorder_Loaded(object sender, RoutedEventArgs e)
-    {
-        EnsureActiveLayout();
-        _isSurfaceLoaded = true;
-        RefreshLayoutContextSubscription();
-        _pointerFeedback.ResetForReuse();
-        SetVisualState(FileItemSurfaceVisualState.Normal);
-        NotifyPresentationChanged();
-    }
-
-    private void SurfaceBorder_Unloaded(object sender, RoutedEventArgs e)
-    {
-        _isSurfaceLoaded = false;
-        DetachLayoutContextSubscription();
-        SetOpeningState(false, string.Empty);
-        _pointerFeedback.ResetForReuse();
-        SetVisualState(FileItemSurfaceVisualState.Normal);
-    }
-
-    private void SurfaceBorder_PointerEntered(object sender, PointerRoutedEventArgs e)
-    {
-        ObservePointerPosition(e);
-        SetVisualState(_pointerFeedback.OnPointerEntered());
-    }
-
-    private void SurfaceBorder_PointerExited(object sender, PointerRoutedEventArgs e)
-    {
-        SetVisualState(FileItemSurfaceVisualState.Normal);
-    }
-
-    private void SurfaceBorder_PointerMoved(object sender, PointerRoutedEventArgs e)
-    {
-        var point = e.GetCurrentPoint(SurfaceBorder);
-        if (point.Position.X < 0 || point.Position.Y < 0 ||
-            point.Position.X > SurfaceBorder.ActualWidth ||
-            point.Position.Y > SurfaceBorder.ActualHeight)
-        {
-            return;
-        }
-
-        SetVisualState(_pointerFeedback.OnPointerMoved(
-            _visualState,
-            point.IsInContact,
-            point.Position.X,
-            point.Position.Y));
-    }
-
-    private void SurfaceBorder_PointerPressed(object sender, PointerRoutedEventArgs e)
-    {
-        ObservePointerPosition(e);
-        SetVisualState(_pointerFeedback.OnPointerPressed());
-    }
-
-    private void SurfaceBorder_PointerReleased(object sender, PointerRoutedEventArgs e)
-    {
-        Windows.Foundation.Point point = ObservePointerPosition(e);
-        bool inside =
-            point.X >= 0 &&
-            point.Y >= 0 &&
-            point.X <= SurfaceBorder.ActualWidth &&
-            point.Y <= SurfaceBorder.ActualHeight;
-        SetVisualState(_pointerFeedback.OnPointerReleased(inside));
-    }
-
-    private void SurfaceBorder_PointerCaptureLost(object sender, PointerRoutedEventArgs e)
-    {
-        SetVisualState(FileItemSurfaceVisualState.Normal);
-    }
-
-    private Windows.Foundation.Point ObservePointerPosition(PointerRoutedEventArgs e)
-    {
-        Windows.Foundation.Point point = e.GetCurrentPoint(SurfaceBorder).Position;
-        _pointerFeedback.RecordPointerPosition(point.X, point.Y);
-        return point;
-    }
-
-    private void SetVisualState(FileItemSurfaceVisualState state)
-    {
-        if (_visualState == state)
-        {
-            return;
-        }
-
-        _visualState = state;
-        VisualStateChanged?.Invoke(
-            this,
-            new FileItemSurfaceVisualStateChangedEventArgs(state));
-        OnPropertyChanged(nameof(VisualState));
-    }
-
-    private void OnPropertyChanged([CallerMemberName] string? propertyName = null)
-    {
-        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
     }
 }

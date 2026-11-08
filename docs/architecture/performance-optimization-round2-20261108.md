@@ -17,6 +17,7 @@
 | R7 | 外部状态恢复误重载 | jump-list 呼出触发 650ms 后全量文件刷新 | 去掉第二次 `LoadFolderContents` 与目录重载尾巴；剩余图标/XAML 尾巴 | 低 | 已实现（AOT 验证） |
 | R8 | 首唤动画期间暂停图标水合 | 图标水合与动画完成回调抢 UI | 动画先完成，图标在动画后补齐；首帧等待 338→约 194ms | 中 | 已实现（AOT 验证） |
 | R9 | 64 tile 首帧布局 | 每 tile 隐藏 ProgressRing + 占位 ControlTemplate | 首帧 194→180.6ms；剩余 64 UserControl/ToolTip | 中 | 已实现（AOT 验证） |
+| R10 | tile 视觉树内联 | 每 tile 一个带 XAML/资源/模板的 UserControl，首帧还要 LoadContent 内层模板 | 去掉 UserControl、每实例资源和 eager ToolTip；动画期帧回调 52–62→8–13ms、丢帧 20–24→0–1 | 高（UI 回归） | 已实现（AOT 验证） |
 | — | 搜索、动画、排序、图标路径、设置锁等 | 见 §6 | 中—小 | 中 | 候选/暂缓 |
 
 ## 2. R1：备份调度顺序与线程归属
@@ -285,6 +286,36 @@ internal IEnumerable<WidgetItem> HydrationUniverseItems => UsesStackProjection
 - `preparedShow` 16.636；`SharedShow` 16.642；`RenderWindow` 30→64 16.644/16.658；首个动画帧约 16.823（elapsed 246.4、completed 17.069）；`SetAllWidgetsVisible` 849.8ms。
 - 隐藏 `ProgressRing` 与占位 `ContentControl` 只贡献约 13ms；剩余约 180ms 主要是 64 个 `FileItemSurface` UserControl/模板与每 tile `ToolTip`。下一步要么按需创建 ToolTip（低风险），要么内联 tile 模板（大改，需 UI 回归）。
 
+### 5.10 tile 视觉树内联（R10，实施中）
+
+- 证据：R9 后 `SharedShow`→首个动画帧仍约 180.6ms（64 tile，约 2.8ms/tile）。每个 tile 目前由 `FileItemSurface` UserControl 承载：每实例 `InitializeComponent` 都创建一个 `Border`、一个含两段文本的 `ToolTip`、三个 `DataTemplate` 资源；首次 `Measure` 再 `LoadContent` 内层图标/列表模板并 `ProcessBindings`。UserControl 还额外提供一层内容宿主。首帧成本同时包含“每实例 XAML/资源”和“内层模板实例化”，R9 只去掉了隐藏 `ProgressRing` 与占位 `ControlTemplate`。
+- 设计（内联 + 薄状态层，不保留 UserControl）：
+  1. 删除 `FileItemSurface.xaml`。图标/列表视觉树直接写进 `SurfaceFileIconTemplate`、`SurfaceFileListTemplate`、`StackPopoverFileIconTemplate`、`StackPopoverFileListTemplate`；条目数据用 `x:DataType="models:WidgetItem"` 的 `x:Bind`（Icon/Name/SecondaryInfo/可见性），不再经过运行时 `{Binding}`。
+  2. 新增 `FileItemTileState`（`ConditionalWeakTable<Border, FileItemTileState>`）：保存指针反馈、transfer/opening 状态、活动徽标、按需 ToolTip、以及按 Tag 缓存的 `ItemIconHost`/`ItemNameText`/`ActivityBadge` 引用。交互根仍是 `Border Tag="InteractiveSurface"`，宿主现有 `_itemSurfaces`、拖放、选择、样式缓存全部复用。
+  3. `FileItemSurface` 从控件改为静态辅助类：附加 `Mode`/`LayoutContext`/`UseStackChildIndent` 属性、`FindOwner`/`TryGetInteractiveBorder`、`ApplyLayoutMetrics`、活动状态更新。`FindOwner` 仍返回带实例语义的状态对象，宿主调用点保持相近。
+  4. 布局度量（tile 宽高/margin/padding、图标尺寸、字号、MaxLines、标签可见性、列表详情/缩进）在 `DataContextChanged`/`Loaded` 时由代码写入，并随 ViewModel 布局属性变化重应用到已实现 tile；去掉每 tile 的 ElementName/x:Bind 布局绑定和每实例 `LayoutContext.PropertyChanged` 订阅。
+  5. ToolTip 改为首次悬停时按需创建；仅当路径提示开启或存在传输/打开状态时才挂到 `ToolTipService`。首帧不再为每个 tile 创建 `ToolTip` + 两段 `TextBlock` + 绑定。
+  6. AOT 冒烟改为按 Tag 找交互 Border、经状态层取 `ItemNameText`；删除 `FileItemSurface.AotBindableProperties.cs`（不再有指向该控件的运行时绑定）。
+- 验收：AOT 同一 1200 文件首唤，`SharedShow`→首个动画帧低于 180.6ms；图标/列表两种模式视觉与交互回归（hover/press/selection/cut、传输/打开徽标、路径 ToolTip、慢击重命名、拖放/文件夹目标、快捷方式图标命中、堆叠弹层）；全量 x64 测试 passed == total；Debug 实机截图冒烟。
+- 风险与回滚：行为迁移面大（指针反馈、重命名、拖放、弹层、AOT）；布局度量若晚于首次 measure 可能多一轮布局。回滚为恢复 `FileItemSurface.xaml`/`xaml.cs` 与四个模板，状态层独立可删。
+
+**AOT 同场 A/B（2026-11-08 晚，R9 与 R10 交替四轮；同一 1200 文件、`--startup` + `--toggle-widgets`）**：
+
+| 指标 | R9 `065521a` | R10 |
+|---|---|---|
+| `SharedShow`→首个动画帧 | 259.4–294.0ms | 257.0–288.3ms |
+| `SetAllWidgetsVisible` | 1005.3–1183.1ms | 971.3–1044.7ms |
+| `preparedShow`→完成 | 516–553ms | 514–546ms |
+| 动画 `maxCallbackMs` | **52.4–63.2ms** | **8.4–13.5ms** |
+| 估计丢帧 | **20–26** | **0–1** |
+| 动画 elapse | 241.3–246.6ms | 243.7–246.3ms |
+
+- 首帧墙钟与 R9 基本持平（中位数约低 10ms，方差大于差异）；R10 的稳定收益在动画开始后的帧调度：R9 每轮丢 20–26 帧，R10 为 0–1 帧，`maxCallbackMs` 从 52–63ms 降到 8–14ms。说明 64 tile 的 UserControl/内层模板主要拖慢动画期间的 UI 线程，而不是决定 `SharedShow` 到首个 `Rendering` 回调的墙钟。
+- 历史 R9 的 180.6ms 在当前机器负载下无法复现：同一份 R9 AOT 今天为 259–294ms。因此首帧结论以本轮同场 A/B 为准，不直接与历史绝对值比较。
+- 首唤墙钟的主要剩余项不在 tile XAML：`SharedShow` 后约 250ms 才收到首个动画帧，期间只有 RenderWindow 30→64 与一次首帧提交；后续若要继续压低，需要给 `WidgetTrayBatchAnimationDriver` 增加 `SharedShow→首个 Rendering` 的分段计时，再判断是合成器提交还是布局。
+- ToolTip 的按需创建在第二轮 R10 构建（`r10b`）中生效：首帧仍与 R9 持平，说明此前每 tile 的 `ToolTip` 对象不是墙钟主因；它仍减少了 64 组 ToolTip/TextBlock 的分配。
+- UI 冒烟（Debug，隔离根）：图标模式、列表模式、列表整行选区、自动堆叠 tile、堆叠弹层均正常截图；悬停/路径 ToolTip 未能截图验证，因为生产实例与 IDE 窗口覆盖了测试窗口的工作区，且窗口消息注入不触发 WinUI PointerEntered。指针状态机仍由既有 `FileItemPointerFeedbackTests` 覆盖，事件接线与按需 ToolTip 分支由契约测试覆盖。
+
 ## 6. 候选与暂缓项
 
 以下项已核实，但本轮不做；保留证据供后续轮次选择。
@@ -337,6 +368,7 @@ internal IEnumerable<WidgetItem> HydrationUniverseItems => UsesStackProjection
 - **R7（`7241c8f` + `4206e6e`）**：外部状态恢复不再重载正在加载/2s 内刚加载的 File 格子；AOT 首唤无第二次 watcher/`RefreshFromConfig`；`SetAllWidgetsVisible` 997.4ms、动画 max 43.4ms；全量 5936/5936。
 - **R8（`423b232`）**：`WidgetIconHydrationGate` 在显示分支暂停 hydration pass，图标在动画后补齐；AOT 动画期间无大目录图标加载，首帧等待 338→约 194ms、`SetAllWidgetsVisible` 868.4ms；全量 5940/5940。
 - **R9（`065521a`）**：活动 `ProgressRing` 改为仅在传输/打开时实例化，占位 `ContentControl/ControlTemplate` 改为 `Viewbox+Border`；AOT 首帧 194→180.6ms、`SetAllWidgetsVisible` 849.8ms、动画 max 39.9ms；全量 5940/5940。
+- **R10（本轮）**：删除 `FileItemSurface.xaml`/AOT provider；四个条目模板内联图标/列表视觉树（`x:DataType=WidgetItem` 的 `x:Bind`）；新增 `FileItemTileState`（指针反馈、传输/打开徽标、按需 ToolTip、按 Tag 缓存元素）与静态 `FileItemSurface` 辅助（附加 Mode/LayoutContext/UseStackChildIndent、布局度量）；布局度量改由代码在 `DataContextChanged`/`Loaded` 及 VM 布局属性变化时应用；ToolTip 改为指针进入后按需创建。AOT 同场四轮 A/B：首帧墙钟 257–288 vs 259–294ms（持平），动画 `maxCallbackMs` 52–63→8–14ms、丢帧 20–26→0–1，总耗时约 −20~35ms；全量 **5938/5938**。
 - 全量 x64：R1–R3 后 **5919/5919**，R5 后 **5924/5924** 通过。
 - Debug 冒烟（隔离数据根、`--startup`、`DESKBOX_PERF_LOG=1`）：`OnLaunched completed successfully`；`[Startup] Pipeline: 42 steps (5 critical), 0 degraded, 0 failed`；`[Perf] DataBackup.DueCheck elapsedMs=1.0`，无 `SourceDataScan`、未创建新快照。最慢单步 `automatic-snapshot` 688ms，但该步骤内部先 `await settingsLoadTask`，耗时主要是设置加载等待，不是备份 I/O（见 §6）。
 - AOT 零售复测见 §11。
