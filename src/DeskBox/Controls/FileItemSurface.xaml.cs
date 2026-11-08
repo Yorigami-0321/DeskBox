@@ -231,6 +231,13 @@ public sealed partial class FileItemSurface : UserControl, INotifyPropertyChange
     public Visibility ActivityBadgeVisibility =>
         IsActivityActive ? Visibility.Visible : Visibility.Collapsed;
 
+    public DataTemplate? ActivityBadgeTemplate =>
+        IsActivityActive
+            ? (DataTemplate)Resources["ActivityBadgeRingTemplate"]
+            : null;
+
+    public object? ActivityBadgeContent => IsActivityActive ? this : null;
+
     public Visibility ActivityStatusVisibility =>
         string.IsNullOrWhiteSpace(ActivityStatusText)
             ? Visibility.Collapsed
@@ -382,6 +389,8 @@ public sealed partial class FileItemSurface : UserControl, INotifyPropertyChange
             ActivityStatusText);
         OnPropertyChanged(nameof(IsActivityActive));
         OnPropertyChanged(nameof(ActivityBadgeVisibility));
+        OnPropertyChanged(nameof(ActivityBadgeTemplate));
+        OnPropertyChanged(nameof(ActivityBadgeContent));
         OnPropertyChanged(nameof(ActivityStatusVisibility));
         OnPropertyChanged(nameof(ActivityStatusText));
         OnPropertyChanged(nameof(ToolTipEnabled));

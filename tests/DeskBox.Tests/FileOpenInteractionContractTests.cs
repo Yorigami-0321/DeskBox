@@ -388,7 +388,9 @@ public sealed class FileOpenInteractionContractTests
             "src/DeskBox/Controls/FileItemSurface.xaml.cs"));
 
         Assert.Contains("ActivityBadgeVisibility", xaml, StringComparison.Ordinal);
-        Assert.Contains("IsActivityActive", xaml, StringComparison.Ordinal);
+        Assert.Contains("ActivityBadgeTemplate", xaml, StringComparison.Ordinal);
+        Assert.Contains("ActivityBadgeContent", xaml, StringComparison.Ordinal);
+        Assert.Contains("IsActivityActive", code, StringComparison.Ordinal);
         Assert.Contains("SetOpeningState", code, StringComparison.Ordinal);
         Assert.DoesNotContain("OpenItemSurface", xaml, StringComparison.Ordinal);
     }

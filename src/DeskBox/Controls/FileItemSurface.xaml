@@ -10,27 +10,14 @@
     HorizontalAlignment="Stretch"
     VerticalAlignment="Stretch">
     <UserControl.Resources>
-        <Style x:Key="FileIconLoadingPlaceholderStyle" TargetType="ContentControl">
-            <Setter Property="HorizontalAlignment" Value="Center" />
-            <Setter Property="VerticalAlignment" Value="Center" />
-            <Setter Property="IsHitTestVisible" Value="False" />
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="ContentControl">
-                        <Viewbox Stretch="Uniform">
-                            <Grid Width="36" Height="36">
-                                <Border
-                                    Background="{ThemeResource SubtleFillColorSecondaryBrush}"
-                                    BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
-                                    BorderThickness="1"
-                                    CornerRadius="9"
-                                    Opacity="0.62" />
-                            </Grid>
-                        </Viewbox>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
+        <DataTemplate x:Key="ActivityBadgeRingTemplate">
+            <ProgressRing
+                Width="13"
+                Height="13"
+                HorizontalAlignment="Center"
+                VerticalAlignment="Center"
+                IsActive="True" />
+        </DataTemplate>
 
         <DataTemplate x:Key="IconItemLayoutTemplate" x:DataType="controls:FileItemSurface">
             <StackPanel
@@ -44,11 +31,22 @@
                         Source="{Binding Icon}"
                         Stretch="Uniform"
                         Visibility="{Binding IconVisibility}" />
-                    <ContentControl
-                        Style="{StaticResource FileIconLoadingPlaceholderStyle}"
+                    <Viewbox
                         Width="{x:Bind LayoutContext.IconImageSize, Mode=OneWay}"
                         Height="{x:Bind LayoutContext.IconImageSize, Mode=OneWay}"
-                        Visibility="{Binding FallbackIconVisibility}" />
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Center"
+                        IsHitTestVisible="False"
+                        Visibility="{Binding FallbackIconVisibility}">
+                        <Border
+                            Width="36"
+                            Height="36"
+                            Background="{ThemeResource SubtleFillColorSecondaryBrush}"
+                            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                            BorderThickness="1"
+                            CornerRadius="9"
+                            Opacity="0.62" />
+                    </Viewbox>
                     <Border
                         Width="20"
                         Height="20"
@@ -61,12 +59,13 @@
                         CornerRadius="10"
                         IsHitTestVisible="False"
                         Visibility="{x:Bind ActivityBadgeVisibility, Mode=OneWay}">
-                        <ProgressRing
+                        <ContentControl
                             Width="13"
                             Height="13"
-                            IsActive="{x:Bind IsActivityActive, Mode=OneWay}"
                             HorizontalAlignment="Center"
-                            VerticalAlignment="Center" />
+                            VerticalAlignment="Center"
+                            Content="{x:Bind ActivityBadgeContent, Mode=OneWay}"
+                            ContentTemplate="{x:Bind ActivityBadgeTemplate, Mode=OneWay}" />
                     </Border>
                 </Grid>
                 <Grid>
@@ -103,12 +102,22 @@
                         Source="{Binding Icon}"
                         Stretch="Uniform"
                         Visibility="{Binding IconVisibility}" />
-                    <ContentControl
-                        x:Name="IconLoadingPlaceholder"
-                        Style="{StaticResource FileIconLoadingPlaceholderStyle}"
+                    <Viewbox
                         Width="{x:Bind LayoutContext.ListIconSize, Mode=OneWay}"
                         Height="{x:Bind LayoutContext.ListIconSize, Mode=OneWay}"
-                        Visibility="{Binding FallbackIconVisibility}" />
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Center"
+                        IsHitTestVisible="False"
+                        Visibility="{Binding FallbackIconVisibility}">
+                        <Border
+                            Width="36"
+                            Height="36"
+                            Background="{ThemeResource SubtleFillColorSecondaryBrush}"
+                            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                            BorderThickness="1"
+                            CornerRadius="9"
+                            Opacity="0.62" />
+                    </Viewbox>
                     <Border
                         Width="18"
                         Height="18"
@@ -121,12 +130,13 @@
                         CornerRadius="9"
                         IsHitTestVisible="False"
                         Visibility="{x:Bind ActivityBadgeVisibility, Mode=OneWay}">
-                        <ProgressRing
-                            Width="12"
-                            Height="12"
-                            IsActive="{x:Bind IsActivityActive, Mode=OneWay}"
+                        <ContentControl
+                            Width="13"
+                            Height="13"
                             HorizontalAlignment="Center"
-                            VerticalAlignment="Center" />
+                            VerticalAlignment="Center"
+                            Content="{x:Bind ActivityBadgeContent, Mode=OneWay}"
+                            ContentTemplate="{x:Bind ActivityBadgeTemplate, Mode=OneWay}" />
                     </Border>
                 </Grid>
                 <StackPanel

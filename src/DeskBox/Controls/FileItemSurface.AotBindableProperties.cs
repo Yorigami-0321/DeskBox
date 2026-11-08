@@ -6,6 +6,8 @@ namespace DeskBox.Controls;
 // generated provider limited to properties consumed by the real surface.
 [WinRT.GeneratedBindableCustomProperty([
     nameof(ActivityBadgeVisibility),
+    nameof(ActivityBadgeTemplate),
+    nameof(ActivityBadgeContent),
     nameof(ActivityStatusText),
     nameof(ActivityStatusVisibility),
     nameof(IconLayoutVisibility),

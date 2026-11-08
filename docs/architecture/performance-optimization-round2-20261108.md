@@ -16,6 +16,7 @@
 | R6 | 首唤内容就绪门控 | 先显示窗口、后加载内容，首帧空白约 252ms | AOT 1200 文件首唤：内容就绪 +414ms，动画 max callback 252→79.5ms | 中 | 已实现（AOT 验证） |
 | R7 | 外部状态恢复误重载 | jump-list 呼出触发 650ms 后全量文件刷新 | 去掉第二次 `LoadFolderContents` 与目录重载尾巴；剩余图标/XAML 尾巴 | 低 | 已实现（AOT 验证） |
 | R8 | 首唤动画期间暂停图标水合 | 图标水合与动画完成回调抢 UI | 动画先完成，图标在动画后补齐；首帧等待 338→约 194ms | 中 | 已实现（AOT 验证） |
+| R9 | 64 tile 首帧布局 | 每 tile 隐藏 ProgressRing + 占位 ControlTemplate | 降低首帧 64 tile 布局；目标 <194ms | 中 | 实施中 |
 | — | 搜索、动画、排序、图标路径、设置锁等 | 见 §6 | 中—小 | 中 | 候选/暂缓 |
 
 ## 2. R1：备份调度顺序与线程归属
@@ -266,6 +267,12 @@ internal IEnumerable<WidgetItem> HydrationUniverseItems => UsesStackProjection
 - `preparedShow` +422ms；首次 `LoadFolderContents` 7.5ms；`WaitForInitialContentReady` 256.5ms；`SharedShow` 44.812；`SetAllVisible completed` 45.252；图标加载 45.435（在 completed 之后）。
 - 首帧由 `TrayAnimation elapsed=246.4` 与 `completed=45.252` 反推约 45.006；`SharedShow` 44.812→首帧 45.006 的 **194ms 是 64 个 tile 的 XAML 布局/首帧等待**，不是动画后的完成尾巴。`MemorySample`/`External state recovery`（45.048）发生在首帧之后、动画中，不是这 194ms。
 - 下一项候选是首帧布局本身：延后 30→64 渲染窗口增长、预布局后再显示、或简化 tile 模板；都会改变首帧完整度/复杂度，需要体验取舍。
+
+### 5.9 64 tile 首帧布局优化（R9，实施中）
+
+- 证据：R8 首帧 194ms；64 个 `FileItemSurface`，每 tile 模板含隐藏的 `ProgressRing`、带 `Viewbox/Grid/Border` 的占位 `ContentControl` 与内联 `ToolTip`；benchmark 的 `widgetTextShadowEnabled=false`，文本阴影已排除。
+- 设计：活动徽标改为 `ContentControl` + `ActivityBadgeRingTemplate`，仅 `IsActivityActive` 时实例化 `ProgressRing`；占位 `ContentControl/ControlTemplate` 改为 `Viewbox+Border`；保持视觉。ToolTip 与内联模板不在本步。
+- 验收：AOT 首帧布局时间低于 194ms（目标），64 tile 视觉无回归，全量测试 passed == total。
 
 ## 6. 候选与暂缓项
 

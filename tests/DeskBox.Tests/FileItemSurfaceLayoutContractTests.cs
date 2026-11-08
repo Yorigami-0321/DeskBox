@@ -81,8 +81,22 @@ public sealed class FileItemSurfaceLayoutContractTests
         XElement badge = layout.Descendants(Presentation + "Border").Single(element =>
             (string?)element.Attribute("Visibility") == "{x:Bind ActivityBadgeVisibility, Mode=OneWay}");
         Assert.Equal("False", (string?)badge.Attribute("IsHitTestVisible"));
-        XElement ring = badge.Element(Presentation + "ProgressRing")!;
-        Assert.Equal("{x:Bind IsActivityActive, Mode=OneWay}", (string?)ring.Attribute("IsActive"));
+        XElement badgeContent = badge.Element(Presentation + "ContentControl")!;
+        Assert.Equal(
+            "{x:Bind ActivityBadgeContent, Mode=OneWay}",
+            (string?)badgeContent.Attribute("Content"));
+        Assert.Equal(
+            "{x:Bind ActivityBadgeTemplate, Mode=OneWay}",
+            (string?)badgeContent.Attribute("ContentTemplate"));
+
+        // The spinner exists only in the active-badge template; inactivity
+        // keeps the ProgressRing out of every realized tile.
+        XElement ringTemplate = LoadSurface()
+            .Descendants(Presentation + "DataTemplate")
+            .Single(element =>
+                (string?)element.Attribute(Xaml + "Key") == "ActivityBadgeRingTemplate");
+        XElement ring = ringTemplate.Descendants(Presentation + "ProgressRing").Single();
+        Assert.Equal("True", (string?)ring.Attribute("IsActive"));
     }
 
     private static XElement GetTemplate(string key) => LoadSurface()
