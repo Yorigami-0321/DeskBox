@@ -136,9 +136,14 @@ public sealed class FileItemIconLongHiddenReleaseContractTests
         // funnel pin above is the durable guarantee of that fix.
 
         // The popover displays every folded member at once, so opening it
-        // must acquire their icons.
+        // must both add those members to the hydration domain and acquire
+        // their icons.
         string popover = ReadRepositoryFile(
             "src/DeskBox/Controls/WidgetContents/FileSurfaceContent.StackPopover.cs");
+        Assert.Contains(
+            "ViewModel.SetHydrationPinnedItems(_stackPopoverMembers);",
+            popover,
+            StringComparison.Ordinal);
         Assert.Contains(
             "ViewModel.HealReleasedItemIconsIfIdle();",
             popover,

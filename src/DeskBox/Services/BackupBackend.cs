@@ -37,7 +37,12 @@ internal sealed class BackupBackend(
     }
 
     public Task<LocalBackupResult> CreateSnapshotAsync(bool force, CancellationToken cancellationToken) =>
-        local.CreateAutomaticSnapshotResultAsync(force, cancellationToken);
+        // Snapshot copy, compression and hashing must not run on the
+        // dispatcher; the runtime awaits this from the UI thread and reports
+        // the completion there.
+        Task.Run(
+            () => local.CreateAutomaticSnapshotResultAsync(force, cancellationToken),
+            cancellationToken);
 
     public Task<string> ExportAsync(string destinationDirectory, CancellationToken cancellationToken) =>
         local.ExportBackupAsync(destinationDirectory, cancellationToken);

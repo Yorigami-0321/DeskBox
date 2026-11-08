@@ -296,6 +296,8 @@ public partial class WidgetViewModel
         }
     }
 
+    private int _hydrationRestartRequested;
+
     private void StartItemHydration()
     {
         if (_isDisposed)
@@ -303,6 +305,7 @@ public partial class WidgetViewModel
             return;
         }
 
+        Interlocked.Exchange(ref _hydrationRestartRequested, 0);
         int generation = Interlocked.Increment(ref _itemHydrationGeneration);
         var cancellation = new CancellationTokenSource();
         CancelItemHydration(
@@ -413,6 +416,12 @@ public partial class WidgetViewModel
                 null,
                 cancellation);
             cancellation.Dispose();
+            if (Volatile.Read(ref _itemHydrationActiveCount) == 0 &&
+                Interlocked.Exchange(ref _hydrationRestartRequested, 0) != 0 &&
+                !_isDisposed)
+            {
+                StartItemHydration();
+            }
         }
     }
 
@@ -447,6 +456,11 @@ public partial class WidgetViewModel
         }
 
         var displayed = ComputeDisplayedIconKeepSet(RenderedItems);
+        if (_hydrationPinnedItems.Count > 0)
+        {
+            displayed.UnionWith(_hydrationPinnedItems);
+        }
+
         int released = 0;
         foreach (var item in Items)
         {
@@ -498,19 +512,35 @@ public partial class WidgetViewModel
     /// </summary>
     internal void HealReleasedItemIconsIfIdle()
     {
-        if (_isDisposed || IsItemHydrationActive)
+        if (_isDisposed)
         {
             return;
         }
 
-        foreach (WidgetItem item in HydrationUniverseItems)
+        bool hasMissingIcon = false;
+        foreach (WidgetItem item in HydrationDisplayedItems)
         {
             if (item.Icon is null)
             {
-                StartItemHydration();
-                return;
+                hasMissingIcon = true;
+                break;
             }
         }
+
+        if (!hasMissingIcon)
+        {
+            return;
+        }
+
+        if (IsItemHydrationActive)
+        {
+            // The running pass snapshotted the displayed set before this
+            // transition; ask its completion to start a follow-up pass.
+            Volatile.Write(ref _hydrationRestartRequested, 1);
+            return;
+        }
+
+        StartItemHydration();
     }
 
     private void RefreshAllIcons()
@@ -532,7 +562,7 @@ public partial class WidgetViewModel
         {
             cancellationToken.ThrowIfCancellationRequested();
             if (generation != Volatile.Read(ref _itemHydrationGeneration) ||
-                !Items.Any(item => item.Icon is null))
+                !HydrationDisplayedItems.Any(item => item.Icon is null))
             {
                 return;
             }
@@ -553,7 +583,7 @@ public partial class WidgetViewModel
         bool clearCacheBeforeLoad,
         CancellationToken cancellationToken)
     {
-        var items = HydrationUniverseItems
+        var items = HydrationDisplayedItems
             .Where(item => item.Icon is null)
             .OrderByDescending(item => item.IsShortcut)
             .ThenBy(item => item.SortOrder)
@@ -682,7 +712,7 @@ public partial class WidgetViewModel
         int generation,
         CancellationToken cancellationToken)
     {
-        var folders = HydrationUniverseItems
+        var folders = HydrationDisplayedItems
             .Where(item => item.IsFolder && !item.IsFolderItemCountLoaded)
             .ToList();
         int processed = 0;
@@ -742,7 +772,7 @@ public partial class WidgetViewModel
         // Loaded flags keep this proportional: without them every
         // generation re-read the shell link of every shortcut in the
         // universe — the stack-projection scroll amplifier.
-        var shortcuts = HydrationUniverseItems
+        var shortcuts = HydrationShortcutTargetItems
             .Where(item => item.IsShortcut && !item.IsShortcutTargetLoaded)
             .OrderBy(item => item.SortOrder)
             .ToList();
@@ -788,7 +818,7 @@ public partial class WidgetViewModel
         int generation,
         CancellationToken cancellationToken)
     {
-        var items = HydrationUniverseItems
+        var items = HydrationShellKindItems
             .Where(item => !item.IsShellKindLoaded)
             .OrderBy(item => item.SortOrder)
             .ToList();

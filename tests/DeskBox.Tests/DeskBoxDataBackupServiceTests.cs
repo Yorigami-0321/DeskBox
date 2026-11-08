@@ -479,6 +479,32 @@ public sealed class DeskBoxDataBackupServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task CreateAutomaticSnapshotIfDueAsync_FreshSnapshotSkipsSourceScan()
+    {
+        await SeedBackupSourceDataAsync(_appDataRoot);
+        var service = new DeskBoxDataBackupService(_appDataRoot);
+        service.UpdateAutomaticBackupOptions(new AutomaticBackupOptions(
+            IsEnabled: true,
+            IntervalMinutes: 1440,
+            RetentionCount: 7,
+            CustomDirectory: null));
+
+        string recentSnapshot = Path.Combine(
+            service.AutomaticSnapshotDirectory,
+            "DeskBox-Auto-20260101-000000.zip");
+        Directory.CreateDirectory(service.AutomaticSnapshotDirectory);
+        await File.WriteAllTextAsync(recentSnapshot, "placeholder");
+        File.SetLastWriteTimeUtc(recentSnapshot, DateTime.UtcNow.AddMinutes(-2));
+
+        Assert.Null(await service.CreateAutomaticSnapshotIfDueAsync());
+        Assert.Equal(0, service.SourceDataScanCount);
+
+        File.SetLastWriteTimeUtc(recentSnapshot, DateTime.UtcNow.AddDays(-2));
+        Assert.NotNull(await service.CreateAutomaticSnapshotIfDueAsync());
+        Assert.True(service.SourceDataScanCount > 0);
+    }
+
+    [Fact]
     public async Task AutomaticSnapshot_IsStoredOutsideAppDataAndCanBeDiscoveredAfterReinstall()
     {
         string dataDirectory = Directory.CreateDirectory(Path.Combine(_appDataRoot, "data")).FullName;

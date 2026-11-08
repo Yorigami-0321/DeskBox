@@ -588,6 +588,7 @@ public sealed partial class FileSurfaceContent
             // member at once; acquiring their icons here keeps the
             // release/acquire pairing intact when a release ran while the
             // stack was collapsed (group switch, long-hidden maintenance).
+            ViewModel.SetHydrationPinnedItems(_stackPopoverMembers);
             ViewModel.HealReleasedItemIconsIfIdle();
             _stackPopoverLayout = layout;
             _stackPopoverPopupClosing = false;
@@ -2249,6 +2250,7 @@ public sealed partial class FileSurfaceContent
         // The collection is intentionally retained during ordinary light
         // dismisses, but a lifecycle release must drop every member reference
         // before the cached native tree is detached.
+        ViewModel.SetHydrationPinnedItems(null);
         _stackPopoverItems.Clear();
 
         if (_stackPopoverSurface is { } surface)

@@ -69,16 +69,53 @@ public partial class WidgetViewModel
 
     internal bool CanGrowRenderWindow => EffectiveRenderTarget < VisibleItemCount;
 
+    private HashSet<WidgetItem> _hydrationPinnedItems = [];
+
     /// <summary>
-    /// Items eligible for metadata hydration (icons, folder counts, shortcut
-    /// targets, shell kinds). Stack grouping reads <c>ShellKind</c> from every
-    /// item, so the full list stays eligible while stacks are enabled;
-    /// otherwise a windowed folder hydrates only its rendered prefix and
-    /// picks the remaining items up as the window grows.
+    /// Items whose metadata a realized UI element can display: the rendered
+    /// prefix, collapsed stack previews, and any surface that shows members
+    /// outside the prefix (the stack popover).
     /// </summary>
-    internal IEnumerable<WidgetItem> HydrationUniverseItems => UsesStackProjection
-        ? Items
-        : RenderedItems;
+    internal HashSet<WidgetItem> HydrationDisplayedItems
+    {
+        get
+        {
+            HashSet<WidgetItem> displayed = ComputeDisplayedIconKeepSet(RenderedItems);
+            // Stack wrappers render their preview members' icons, not their
+            // own; hydrating the wrapper would never resolve and would keep
+            // every heal pass looking busy.
+            displayed.RemoveWhere(item => item is WidgetStackItem);
+            if (_hydrationPinnedItems.Count > 0)
+            {
+                displayed.UnionWith(_hydrationPinnedItems);
+            }
+
+            return displayed;
+        }
+    }
+
+    /// <summary>
+    /// Stack grouping reads <c>ShellKind</c> from every item, so that domain
+    /// stays on the full list while the stack projection is active. Icons,
+    /// folder counts, and shortcut targets follow <see cref="HydrationDisplayedItems"/>.
+    /// </summary>
+    internal IEnumerable<WidgetItem> HydrationShellKindItems =>
+        UsesStackProjection ? Items : HydrationDisplayedItems;
+
+    /// <summary>
+    /// ShellKind for a shortcut classifies its target, so target hydration
+    /// must cover the same full list the shell-kind pass reads while stacks
+    /// are enabled. Without stacks, both follow the displayed domain.
+    /// </summary>
+    internal IEnumerable<WidgetItem> HydrationShortcutTargetItems =>
+        UsesStackProjection ? Items : HydrationDisplayedItems;
+
+    internal void SetHydrationPinnedItems(IEnumerable<WidgetItem>? items)
+    {
+        _hydrationPinnedItems = items is null
+            ? []
+            : new HashSet<WidgetItem>(items);
+    }
 
     private void AttachRenderWindowTracking()
     {
@@ -188,6 +225,7 @@ public partial class WidgetViewModel
     internal void ResetRenderWindow()
     {
         _renderWindowBudget = RenderWindowInitialSize;
+        _hydrationPinnedItems.Clear();
         ReconcileRenderWindow();
     }
 

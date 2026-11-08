@@ -2226,17 +2226,20 @@ public partial class App : Application
     {
         try
         {
-            IReadOnlyList<string> active = DisplayIdentityTokens.ActiveProfileSet(SettingsService.Settings);
+            var settings = SettingsService.Settings;
+            IReadOnlyList<string> active = DisplayIdentityTokens.ActiveProfileSet(settings);
             if (active.Count == 0)
             {
                 return;
             }
 
+            StartupDisplaySettlingUsage usage =
+                StartupDisplaySettlingPolicy.CollectUsedTokens(settings);
             var deadline = DateTimeOffset.UtcNow + TimeSpan.FromSeconds(5);
             while (DateTimeOffset.UtcNow < deadline)
             {
                 IReadOnlyList<string> current = DisplayIdentityTokens.CurrentSet();
-                if (!DisplayIdentityTokens.IsTrueSubset(current, active))
+                if (!StartupDisplaySettlingPolicy.ShouldWait(active, current, usage))
                 {
                     break;
                 }

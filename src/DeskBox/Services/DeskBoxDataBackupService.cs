@@ -291,6 +291,19 @@ public sealed partial class DeskBoxDataBackupService
                 return new(BackupOutcome.Skipped);
             }
 
+            // Due check before the source scan and write probe: a fresh
+            // snapshot makes this tick a no-op without touching the data tree.
+            AutomaticSnapshotTarget quickTarget =
+                ResolveAutomaticSnapshotTarget(probeWriteAccess: false);
+            if (!force &&
+                IsAutomaticSnapshotFresh(quickTarget.Directory, options.IntervalMinutes))
+            {
+                App.LogVerbose(
+                    $"[DataBackup] Skipped the scheduled snapshot: " +
+                    $"reason=interval directory='{quickTarget.Directory}'.");
+                return new(BackupOutcome.Skipped);
+            }
+
             if (!HasBackupSourceData())
             {
                 return new(BackupOutcome.Skipped);
@@ -298,14 +311,14 @@ public sealed partial class DeskBoxDataBackupService
 
             AutomaticSnapshotTarget target = ResolveAutomaticSnapshotTarget(probeWriteAccess: true);
             Directory.CreateDirectory(target.Directory);
-            string? latestSnapshot = Directory
-                .EnumerateFiles(target.Directory, "DeskBox-Auto-*.zip")
-                .OrderByDescending(File.GetLastWriteTimeUtc)
-                .FirstOrDefault();
-            if (!force && latestSnapshot is not null &&
-                DateTime.UtcNow - File.GetLastWriteTimeUtc(latestSnapshot) <
-                    TimeSpan.FromMinutes(Math.Max(1, options.IntervalMinutes)))
+            // The probe may have fallen back to another directory; that
+            // directory can already hold a fresh snapshot.
+            if (!force &&
+                IsAutomaticSnapshotFresh(target.Directory, options.IntervalMinutes))
             {
+                App.LogVerbose(
+                    $"[DataBackup] Skipped the scheduled snapshot after the " +
+                    $"directory probe: reason=interval directory='{target.Directory}'.");
                 return new(BackupOutcome.Skipped);
             }
 
@@ -2481,8 +2494,17 @@ public sealed partial class DeskBoxDataBackupService
         }
     }
 
+    private int _sourceDataScanCount;
+
+    /// <summary>Test/diagnostic counter for the recursive source-data probe.</summary>
+    internal int SourceDataScanCount => Volatile.Read(ref _sourceDataScanCount);
+
     private bool HasBackupSourceData()
     {
+        using var perfScope = PerformanceLogger.Measure(
+            "DataBackup.SourceDataScan",
+            $"root={DataDirectory}");
+        Interlocked.Increment(ref _sourceDataScanCount);
         // "Source data" means data the archive filter would actually keep:
         // a data directory holding only device.id, sync/ protocol state or
         // cache/ produces an empty snapshot whose validation would fail —
@@ -2494,12 +2516,54 @@ public sealed partial class DeskBoxDataBackupService
                         .Replace(Path.DirectorySeparatorChar, '/')));
     }
 
+    private bool IsAutomaticSnapshotFresh(string directory, int intervalMinutes)
+    {
+        using var perfScope = PerformanceLogger.Measure(
+            "DataBackup.DueCheck",
+            $"directory={directory}");
+        try
+        {
+            if (!Directory.Exists(directory))
+            {
+                return false;
+            }
+
+            DateTime latestWriteUtc = DateTime.MinValue;
+            foreach (string snapshotPath in Directory.EnumerateFiles(
+                         directory,
+                         "DeskBox-Auto-*.zip"))
+            {
+                DateTime writeUtc = File.GetLastWriteTimeUtc(snapshotPath);
+                if (writeUtc > latestWriteUtc)
+                {
+                    latestWriteUtc = writeUtc;
+                }
+            }
+
+            return latestWriteUtc != DateTime.MinValue &&
+                DateTime.UtcNow - latestWriteUtc <
+                    TimeSpan.FromMinutes(Math.Max(1, intervalMinutes));
+        }
+        catch (Exception ex) when (
+            ex is IOException or UnauthorizedAccessException or
+            System.Security.SecurityException)
+        {
+            App.Log(
+                $"[DataBackup] Automatic snapshot due check failed for " +
+                $"'{directory}': {ex.Message}");
+            return false;
+        }
+    }
+
     private async Task CreateArchiveCoreAsync(
         string archivePath,
         string backupKind,
         CancellationToken cancellationToken,
         bool requireSettings = true)
     {
+        using var perfScope = PerformanceLogger.Measure(
+            "DataBackup.Archive",
+            $"kind={backupKind}");
         string snapshotRoot = Path.Combine(
             BackupSnapshotStagingDirectory,
             Guid.NewGuid().ToString("N"));
