@@ -16,7 +16,7 @@
 | R6 | 首唤内容就绪门控 | 先显示窗口、后加载内容，首帧空白约 252ms | AOT 1200 文件首唤：内容就绪 +414ms，动画 max callback 252→79.5ms | 中 | 已实现（AOT 验证） |
 | R7 | 外部状态恢复误重载 | jump-list 呼出触发 650ms 后全量文件刷新 | 去掉第二次 `LoadFolderContents` 与目录重载尾巴；剩余图标/XAML 尾巴 | 低 | 已实现（AOT 验证） |
 | R8 | 首唤动画期间暂停图标水合 | 图标水合与动画完成回调抢 UI | 动画先完成，图标在动画后补齐；首帧等待 338→约 194ms | 中 | 已实现（AOT 验证） |
-| R9 | 64 tile 首帧布局 | 每 tile 隐藏 ProgressRing + 占位 ControlTemplate | 降低首帧 64 tile 布局；目标 <194ms | 中 | 实施中 |
+| R9 | 64 tile 首帧布局 | 每 tile 隐藏 ProgressRing + 占位 ControlTemplate | 首帧 194→180.6ms；剩余 64 UserControl/ToolTip | 中 | 已实现（AOT 验证） |
 | — | 搜索、动画、排序、图标路径、设置锁等 | 见 §6 | 中—小 | 中 | 候选/暂缓 |
 
 ## 2. R1：备份调度顺序与线程归属
@@ -274,6 +274,17 @@ internal IEnumerable<WidgetItem> HydrationUniverseItems => UsesStackProjection
 - 设计：活动徽标改为 `ContentControl` + `ActivityBadgeRingTemplate`，仅 `IsActivityActive` 时实例化 `ProgressRing`；占位 `ContentControl/ControlTemplate` 改为 `Viewbox+Border`；保持视觉。ToolTip 与内联模板不在本步。
 - 验收：AOT 首帧布局时间低于 194ms（目标），64 tile 视觉无回归，全量测试 passed == total。
 
+**AOT 复测（`065521a`，同一 1200 文件）**：
+
+| 指标 | R8 | R9 |
+|---|---|---|
+| `SharedShow`→首个动画帧 | 约 194ms | **约 180.6ms** |
+| `SetAllWidgetsVisible` | 868.4ms | **849.8ms** |
+| 动画 max callback | 49.2ms | **39.9ms** |
+
+- `preparedShow` 16.636；`SharedShow` 16.642；`RenderWindow` 30→64 16.644/16.658；首个动画帧约 16.823（elapsed 246.4、completed 17.069）；`SetAllWidgetsVisible` 849.8ms。
+- 隐藏 `ProgressRing` 与占位 `ContentControl` 只贡献约 13ms；剩余约 180ms 主要是 64 个 `FileItemSurface` UserControl/模板与每 tile `ToolTip`。下一步要么按需创建 ToolTip（低风险），要么内联 tile 模板（大改，需 UI 回归）。
+
 ## 6. 候选与暂缓项
 
 以下项已核实，但本轮不做；保留证据供后续轮次选择。
@@ -325,6 +336,7 @@ internal IEnumerable<WidgetItem> HydrationUniverseItems => UsesStackProjection
 - **R6（`9b44004`）**：首唤 prepare 等待 `ContentReadyTask`（首次 `LoadFolderContents`），5s 上限；jump-list 与托盘/热键共用；AOT 内容就绪 +414ms、动画 max callback 252→79.5ms；全量 5929/5929。
 - **R7（`7241c8f` + `4206e6e`）**：外部状态恢复不再重载正在加载/2s 内刚加载的 File 格子；AOT 首唤无第二次 watcher/`RefreshFromConfig`；`SetAllWidgetsVisible` 997.4ms、动画 max 43.4ms；全量 5936/5936。
 - **R8（`423b232`）**：`WidgetIconHydrationGate` 在显示分支暂停 hydration pass，图标在动画后补齐；AOT 动画期间无大目录图标加载，首帧等待 338→约 194ms、`SetAllWidgetsVisible` 868.4ms；全量 5940/5940。
+- **R9（`065521a`）**：活动 `ProgressRing` 改为仅在传输/打开时实例化，占位 `ContentControl/ControlTemplate` 改为 `Viewbox+Border`；AOT 首帧 194→180.6ms、`SetAllWidgetsVisible` 849.8ms、动画 max 39.9ms；全量 5940/5940。
 - 全量 x64：R1–R3 后 **5919/5919**，R5 后 **5924/5924** 通过。
 - Debug 冒烟（隔离数据根、`--startup`、`DESKBOX_PERF_LOG=1`）：`OnLaunched completed successfully`；`[Startup] Pipeline: 42 steps (5 critical), 0 degraded, 0 failed`；`[Perf] DataBackup.DueCheck elapsedMs=1.0`，无 `SourceDataScan`、未创建新快照。最慢单步 `automatic-snapshot` 688ms，但该步骤内部先 `await settingsLoadTask`，耗时主要是设置加载等待，不是备份 I/O（见 §6）。
 - AOT 零售复测见 §11。
