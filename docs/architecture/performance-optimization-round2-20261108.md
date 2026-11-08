@@ -343,6 +343,7 @@ internal IEnumerable<WidgetItem> HydrationUniverseItems => UsesStackProjection
 - 首帧墙钟相对 R9 同场下降约 **110–145ms**，相对 R11 探针轮次下降约 **72–75ms**。原因是 reveal 首帧只布置可见视口需要的 48 个 tile，64 个 tile 的滚动缓冲在动画结束后补上；`RenderWindow` 在 `WidgetVisibleContentResumed`（动画完成 + 约 242ms）时回到 64。
 - 可见性：48 是 `ComputeViewportRenderMinimum(bufferRows:0)` 的计算结果，覆盖当前视口；若用户在 240ms 动画期间立即滚动，`ViewChanged`/动画完成后的恢复仍会补渲染。该场景未单独截图验证；静态图标/列表/弹层截图见 §5.10。
 - 风险与回滚：reveal pending 若未收到完成回调，滚动缓冲会保持 0；`OnWindowVisibilityChanged(false)` 会清除 pending，动画失败路径也走 `OnWindowRevealCompleted`。回滚为删除 `OnWindowRevealStarted` 生命周期与 `_isWindowRevealPending` 分支。
+- 热窗口补充测量（R12 同一构建）：首次显示→隐藏→再次显示，第二次 reveal 首帧仅 **17.8ms**，`preparedShow`→完成 277ms。隐藏后的 64 个 tile 容器仍然预热，热窗口不存在 R12 的首帧布局问题。因此评估过“隐藏时把 render budget 缩回视口”的方案，结论是**负收益**（会丢掉热容器），未实施。
 
 ## 6. 候选与暂缓项
 
