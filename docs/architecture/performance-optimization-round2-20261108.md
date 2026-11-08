@@ -20,7 +20,7 @@
 | R10 | tile 视觉树内联 | 每 tile 一个带 XAML/资源/模板的 UserControl，首帧还要 LoadContent 内层模板 | 去掉 UserControl、每实例资源和 eager ToolTip；动画期帧回调 52–62→8–13ms、丢帧 20–24→0–1 | 高（UI 回归） | 已实现（AOT 验证） |
 | R12 | reveal 期间只渲染视口 | 首帧把 64 个 tile 全部布局，UI 线程忙约 150–200ms | 首帧 259–294→149–152ms；reveal 渲染窗口 64→48 | 中 | 已实现（AOT 验证） |
 | R13 | 热窗口 reveal 预算回收 | 预算单调，隐藏后仍保留 64 | 评估后否决（热唤 17.8ms，缩预算会丢热容器） | 中 | 已否决 |
-| R14 | 全量刷新排序索引 | `SortItems` 对每项 `Items.IndexOf`，大目录 O(N²) | 1200 项 3.7/2.3→1.9/0.1ms；5000 项 2.0/1.0ms | 低 | 已实现（测试绿） |
+| R14 | 全量刷新排序索引 | `SortItems` 对每项 `Items.IndexOf`，大目录 O(N²) | 1200 项 3.7/2.3→1.9/0.1ms；5000 项 18.6–181.3→0.5–3.9ms | 低 | 已实现（实测 A/B） |
 | — | 搜索、动画、排序、图标路径、设置锁等 | 见 §6 | 中—小 | 中 | 候选/暂缓 |
 
 ## 2. R1：备份调度顺序与线程归属
@@ -351,7 +351,10 @@ internal IEnumerable<WidgetItem> HydrationUniverseItems => UsesStackProjection
 
 - 证据：`SortItems` 先 `ToList().Sort`，再对每个目标项执行 `Items.IndexOf` 和必要的 `Items.Move`。1200 项实测 `count=1200 moves=0 elapsedMs=3.7/2.3`；`IndexOf` 的线性查找随 N 增长，5000 项理论成本约为 1200 的 17 倍，而实际 `moves=0` 说明常见刷新路径的代价几乎全在查找。
 - 设计：新增 `WidgetViewModel.ApplySortedOrder`：用 `ReferenceEqualityComparer` 建一次“项→当前索引”字典，按目标顺序只移动真正错位的项；每次移动后只修复被平移区间的索引，避免重复线性查找。`SortItems` 保留排序比较器与 `NormalizeSortOrder`，排序语义不变；手动模式仍直接返回。
-- 验收：新增 `WidgetSortOrderTests` 覆盖已排序、逆序、局部乱序和后续索引正确性；1200 项实测 1.9/0.1ms；5000 项实测 2.0/1.0ms。该优化主要保护 5000+ 项目录，1200 项的绝对收益只有约 2ms。
+- 验收：新增 `WidgetSortOrderTests` 覆盖已排序、逆序、局部乱序和后续索引正确性；1200 项实测 1.9/0.1ms；5000 项新旧 A/B（同一隔离目录、同一 Debug 构建、交替脚本）：
+  - 旧 `IndexOf` 循环 `SortItems`：55.5 / 19.3 / 18.6 / 28.7 / 181.3ms（5 轮，moves=0）。
+  - 新索引映射 `SortItems`：3.9 / 0.5 / 1.0ms（对应轮次）及此前 2.0 / 1.0 / 1.8 / 1.9 / 0.1ms。
+  - 5000 项 `LoadFolderContents` 新构建稳定在 98.6–108.5ms；旧构建出现 157.5–472.5ms，其中慢轮分解为 `enumMs=43 addedMs=5 syncMs=235 sortMs=189`。`sort` 已降至约 1ms，`syncMs`（GroupBy/ToDictionary 全量对账）成为下一个大目录热点，未在本轮处理。
 - 风险：依赖 `WidgetItem` 的引用身份；`Items` 不应包含同一实例两次（现有同步路径按路径去重）。若出现重复引用，字典只保留最后一个索引，排序结果仍由后续 `Move` 收敛，但移动次数可能增加。
 
 
