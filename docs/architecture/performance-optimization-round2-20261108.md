@@ -14,7 +14,7 @@
 | R5 | ShellKind 按需水合 | 自动堆叠关闭时 ShellKind 没有消费者，却仍全量水合 | AOT 1200 项目录 1200→64 条 ShellKind；开启自动堆叠时保持 1200 | 中 | 已实现（AOT 验证） |
 | R4-A | 静默启动懒建窗 | 启动仍全量创建隐藏窗口与 compact chrome | AOT `--startup`：0 窗口，Private 97.3MB、OnLaunched 309.8ms | 中（产品取舍） | 已实现（AOT 验证） |
 | R6 | 首唤内容就绪门控 | 先显示窗口、后加载内容，首帧空白约 252ms | AOT 1200 文件首唤：内容就绪 +414ms，动画 max callback 252→79.5ms | 中 | 已实现（AOT 验证） |
-| R7 | 外部状态恢复误重载 | jump-list 呼出触发 650ms 后全量文件刷新 | 去掉第二次 `LoadFolderContents` 与约 400ms 尾巴 | 低 | 已实现（AOT 待复测） |
+| R7 | 外部状态恢复误重载 | jump-list 呼出触发 650ms 后全量文件刷新 | 去掉第二次 `LoadFolderContents` 与目录重载尾巴；剩余图标/XAML 尾巴 | 低 | 已实现（AOT 验证） |
 | — | 搜索、动画、排序、图标路径、设置锁等 | 见 §6 | 中—小 | 中 | 候选/暂缓 |
 
 ## 2. R1：备份调度顺序与线程归属
@@ -229,7 +229,7 @@ internal IEnumerable<WidgetItem> HydrationUniverseItems => UsesStackProjection
 | `SetAllWidgetsVisible` 完成 | +1059ms（含动画后第二次 `LoadFolderContents` 63.8ms 与完成回调尾） |
 
 - 窗口在 +414ms 出现时内容已经就绪，首帧不再空白；动画 max callback 从 252ms 降到 79.5ms，动画活动时钟 246ms（约 +660ms 完成）。
-- `SetAllWidgetsVisible` 的 1.06s 不是首帧延迟：动画结束后在 +950ms 触发了一次 63.8ms 的第二次 `LoadFolderContents`，随后才是完成回调；这是后续可单独消除的尾巴。
+- `SetAllWidgetsVisible` 的 1.06s 不是首帧延迟：动画结束后在 +950ms 触发了一次 63.8ms 的第二次 `LoadFolderContents`，随后才是完成回调；该第二次加载已由 §5.7 消除。
 - 仍有 79.5ms 单帧空档（预算 6.9ms）与第二次加载；第二次加载的根因见 §5.7，不影响“内容就绪后再播动画”的验收。
 
 ### 5.7 外部状态恢复误触发文件重载（R7，实施中）
@@ -239,6 +239,13 @@ internal IEnumerable<WidgetItem> HydrationUniverseItems => UsesStackProjection
 - 设计：`ScheduleExternalStateRecovery` 返回本次是否新调度；`HandleExternalActivationAsync` 读取 jump-list 参数后，若“本次新调度 + `--toggle-widgets`”，清除 `_externalStateRecoveryRefreshFileWidgets`；生命周期/裸激活/其他 jumplist 保持文件刷新，QuickCapture 剪贴板恢复仍执行。
 - 首次 AOT 复测（仅该 flag）：恢复由启动/生命周期先排，`scheduledStateRecovery=false`，toggle 无法清除，第二次 `RefreshFromConfig` 仍发生（本次 904.4ms、总 2455.6ms）。最终增加 per-widget 守卫：`RefreshFileWidgetAsync(skipIfRecentlyLoaded)` 在 VM `IsLoading` 或 2s 内刚加载时跳过该格子；其他 File 格子仍刷新。
 - 验收：AOT 首唤不再出现第二次 `FolderWatcher`/`RefreshFromConfig`；`SetAllWidgetsVisible` 尾巴下降；jump-list 呼出/隐藏正常；正在加载/刚加载的格子不被恢复重载；全量测试 passed == total。
+
+**AOT 复测（`4206e6e`，同一 1200 文件）**：
+
+- 无第二个 `FolderWatcher`/`RefreshFromConfig`/`LoadFolderContents`；外部恢复在 08.306 完成但未刷新文件格子。
+- 内容就绪 `preparedShow` +403ms；动画活动时钟 244.6ms、max callback **43.4ms**（内容门控前 252、门控后 79.5）；`SetAllWidgetsVisible` 997.4ms。
+- 动画活动时钟结束后仍有约 338ms 完成尾巴；08.52 的图标加载说明剩余尾巴来自图标水合/XAML 完成，不再是目录重载，可作为后续候选。
+- 中间尝试（仅激活 flag）2455.6ms 无效：恢复由启动/生命周期先排，`scheduledStateRecovery=false`；per-widget guard 是最终修复。
 
 ## 6. 候选与暂缓项
 
@@ -289,6 +296,7 @@ internal IEnumerable<WidgetItem> HydrationUniverseItems => UsesStackProjection
 - **R5（后续，`deecc3a`）**：`FileStackShellKindHydrationPolicy`；自动堆叠关闭时 ShellKind 走显示域，开启时保持全量；运行时开关关闭→开启补跑一轮；策略 4 例 + 契约测试；全量 5924/5924。
 - **R4-A（`81bfc8e`）**：`--startup`/启动任务激活且启动本应隐藏时复用 lazy 窗口创建；手动启动与可见启动保持 eager；AOT `loadedWidgets=0`、Private 97.3MB、OnLaunched 309.8ms；全量 5928/5928。
 - **R6（`9b44004`）**：首唤 prepare 等待 `ContentReadyTask`（首次 `LoadFolderContents`），5s 上限；jump-list 与托盘/热键共用；AOT 内容就绪 +414ms、动画 max callback 252→79.5ms；全量 5929/5929。
+- **R7（`7241c8f` + `4206e6e`）**：外部状态恢复不再重载正在加载/2s 内刚加载的 File 格子；AOT 首唤无第二次 watcher/`RefreshFromConfig`；`SetAllWidgetsVisible` 997.4ms、动画 max 43.4ms；全量 5936/5936。
 - 全量 x64：R1–R3 后 **5919/5919**，R5 后 **5924/5924** 通过。
 - Debug 冒烟（隔离数据根、`--startup`、`DESKBOX_PERF_LOG=1`）：`OnLaunched completed successfully`；`[Startup] Pipeline: 42 steps (5 critical), 0 degraded, 0 failed`；`[Perf] DataBackup.DueCheck elapsedMs=1.0`，无 `SourceDataScan`、未创建新快照。最慢单步 `automatic-snapshot` 688ms，但该步骤内部先 `await settingsLoadTask`，耗时主要是设置加载等待，不是备份 I/O（见 §6）。
 - AOT 零售复测见 §11。
