@@ -14,6 +14,7 @@
 | R5 | ShellKind 按需水合 | 自动堆叠关闭时 ShellKind 没有消费者，却仍全量水合 | AOT 1200 项目录 1200→64 条 ShellKind；开启自动堆叠时保持 1200 | 中 | 已实现（AOT 验证） |
 | R4-A | 静默启动懒建窗 | 启动仍全量创建隐藏窗口与 compact chrome | AOT `--startup`：0 窗口，Private 97.3MB、OnLaunched 309.8ms | 中（产品取舍） | 已实现（AOT 验证） |
 | R6 | 首唤内容就绪门控 | 先显示窗口、后加载内容，首帧空白约 252ms | AOT 1200 文件首唤：内容就绪 +414ms，动画 max callback 252→79.5ms | 中 | 已实现（AOT 验证） |
+| R7 | 外部状态恢复误重载 | jump-list 呼出触发 650ms 后全量文件刷新 | 去掉第二次 `LoadFolderContents` 与约 400ms 尾巴 | 低 | 实施中 |
 | — | 搜索、动画、排序、图标路径、设置锁等 | 见 §6 | 中—小 | 中 | 候选/暂缓 |
 
 ## 2. R1：备份调度顺序与线程归属
@@ -229,7 +230,14 @@ internal IEnumerable<WidgetItem> HydrationUniverseItems => UsesStackProjection
 
 - 窗口在 +414ms 出现时内容已经就绪，首帧不再空白；动画 max callback 从 252ms 降到 79.5ms，动画活动时钟 246ms（约 +660ms 完成）。
 - `SetAllWidgetsVisible` 的 1.06s 不是首帧延迟：动画结束后在 +950ms 触发了一次 63.8ms 的第二次 `LoadFolderContents`，随后才是完成回调；这是后续可单独消除的尾巴。
-- 仍有 79.5ms 单帧空档（预算 6.9ms）与第二次加载；可作为后续候选，但不影响“内容就绪后再播动画”的验收。
+- 仍有 79.5ms 单帧空档（预算 6.9ms）与第二次加载；第二次加载的根因见 §5.7，不影响“内容就绪后再播动画”的验收。
+
+### 5.7 外部状态恢复误触发文件重载（R7，实施中）
+
+- 证据：首唤时间线中激活在 35.406，650ms 后 36.388 出现 `[Lifecycle] External state recovery completed`；其中 `RefreshFromConfig` 309.6ms、第二次 `FolderWatcher` 36.292、第二次 `LoadFolderContents` 63.8ms。链路为 `HandleExternalActivationAsync → ScheduleExternalStateRecovery → RecoverExternalStateAsync → RefreshFileWidgetAsync → RefreshFromConfig`。
+- 机制：每次外部激活（包括 jump-list `--toggle-widgets`）都会在 650ms 后刷新所有 File 格子。`--toggle-widgets` 只改变窗口可见性，不改变外部文件状态；刚由首唤创建并加载完成的窗口被完整重载、watcher 重启，拖住动画完成回调。
+- 设计：`ScheduleExternalStateRecovery` 返回本次是否新调度；`HandleExternalActivationAsync` 读取 jump-list 参数后，若“本次新调度 + `--toggle-widgets`”，清除 `_externalStateRecoveryRefreshFileWidgets`；生命周期/裸激活/其他 jumplist 保持文件刷新，QuickCapture 剪贴板恢复仍执行。
+- 验收：AOT 首唤不再出现第二次 `FolderWatcher`/`RefreshFromConfig`；`SetAllWidgetsVisible` 尾巴下降；jump-list 呼出/隐藏正常；全量测试 passed == total。
 
 ## 6. 候选与暂缓项
 

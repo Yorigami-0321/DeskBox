@@ -214,6 +214,7 @@ public partial class App : Application
     private DateTimeOffset _lastSettingsPersistenceNotificationAt = DateTimeOffset.MinValue;
     private string _availableUpdateVersion = string.Empty;
     private int _externalStateRecoveryScheduled;
+    private int _externalStateRecoveryRefreshFileWidgets;
     private bool _externalActivationReady;
     private bool _externalActivationRequestedWhileBusy;
     private bool _externalActivationHandling;
@@ -3835,14 +3836,43 @@ public partial class App : Application
             do
             {
                 _externalActivationRequestedWhileBusy = false;
-                ScheduleExternalStateRecovery();
+                bool scheduledStateRecovery = ScheduleExternalStateRecovery();
 
                 bool activationHandled = DrainPendingNativeNotificationActivations();
                 string? jumpListArgument = TakePendingJumpListArgument();
                 if (!string.IsNullOrWhiteSpace(jumpListArgument))
                 {
+                    bool toggleOnly =
+                        JumpListService.IsToggleWidgetsActivation(jumpListArgument);
+                    if (toggleOnly)
+                    {
+                        if (scheduledStateRecovery)
+                        {
+                            // A pure widget toggle does not change external
+                            // file state. Refreshing every File widget 650ms
+                            // later would reload the folder the reveal just
+                            // created and hold the animation completion open.
+                            Volatile.Write(
+                                ref _externalStateRecoveryRefreshFileWidgets,
+                                0);
+                        }
+                    }
+                    else
+                    {
+                        Volatile.Write(
+                            ref _externalStateRecoveryRefreshFileWidgets,
+                            1);
+                    }
+
                     await JumpListService.HandleActivationAsync(jumpListArgument);
                     activationHandled = true;
+                }
+                else if (!activationHandled)
+                {
+                    // A bare activation is still an external-state signal.
+                    Volatile.Write(
+                        ref _externalStateRecoveryRefreshFileWidgets,
+                        1);
                 }
 
                 // Forwarded from a secondary launch that raced a living
@@ -4444,19 +4474,23 @@ public partial class App : Application
     /// restart, or a mapped-drive reconnection. Reconcile lightweight external
     /// state without rebuilding the whole application on every activation.
     /// </summary>
-    private void ScheduleExternalStateRecovery()
+    private bool ScheduleExternalStateRecovery()
     {
         if (Interlocked.Exchange(ref _externalStateRecoveryScheduled, 1) != 0)
         {
-            return;
+            return false;
         }
 
+        Volatile.Write(ref _externalStateRecoveryRefreshFileWidgets, 1);
         _ = Task.Run(async () =>
         {
             try
             {
                 await Task.Delay(650).ConfigureAwait(false);
-                UiDispatcherQueue?.TryEnqueue(() => _ = RecoverExternalStateAsync());
+                bool refreshFileWidgets =
+                    Volatile.Read(ref _externalStateRecoveryRefreshFileWidgets) != 0;
+                UiDispatcherQueue?.TryEnqueue(
+                    () => _ = RecoverExternalStateAsync(refreshFileWidgets));
             }
             catch (Exception ex)
             {
@@ -4464,15 +4498,17 @@ public partial class App : Application
                 Volatile.Write(ref _externalStateRecoveryScheduled, 0);
             }
         });
+
+        return true;
     }
 
-    private async Task RecoverExternalStateAsync()
+    private async Task RecoverExternalStateAsync(bool refreshFileWidgets)
     {
         try
         {
             RefreshQuickCaptureClipboardService(captureCurrent: true);
 
-            if (WidgetManager is not null)
+            if (WidgetManager is not null && refreshFileWidgets)
             {
                 string[] fileWidgetIds = SettingsService.Settings.Widgets
                     .Where(widget => widget.WidgetKind == WidgetKind.File &&
@@ -4495,6 +4531,7 @@ public partial class App : Application
         }
         finally
         {
+            Volatile.Write(ref _externalStateRecoveryRefreshFileWidgets, 0);
             Volatile.Write(ref _externalStateRecoveryScheduled, 0);
         }
     }
@@ -4506,7 +4543,7 @@ public partial class App : Application
     /// </summary>
     public async Task ForceExternalStateRecoveryAsync()
     {
-        await RecoverExternalStateAsync();
+        await RecoverExternalStateAsync(refreshFileWidgets: true);
         _displayAreaWatcher?.RefreshNow();
         if (_everythingSearchService is not null &&
             SettingsService.Settings.SearchEverythingEnabled)

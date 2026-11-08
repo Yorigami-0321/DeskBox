@@ -118,6 +118,12 @@ public static class JumpListService
         return null;
     }
 
+    public static bool IsToggleWidgetsActivation(string? argument) =>
+        string.Equals(
+            argument?.Trim().Trim('"'),
+            ArgToggleWidgets,
+            StringComparison.OrdinalIgnoreCase);
+
     /// <summary>
     /// Handle a Jump List activation argument by invoking the
     /// corresponding action on the current App instance.
