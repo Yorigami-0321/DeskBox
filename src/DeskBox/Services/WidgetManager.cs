@@ -857,7 +857,9 @@ public sealed partial class WidgetManager
     /// <summary>
     /// Restore every enabled widget for the new application session.
     /// </summary>
-    public async Task RestoreWidgetsAsync(bool createWindows = true)
+    public async Task RestoreWidgetsAsync(
+        bool createWindows = true,
+        bool processStartupLaunch = false)
     {
         await RecoverManagedStorageCommitAsync();
         RepairLegacyContentFeatureFileShells();
@@ -926,8 +928,6 @@ public sealed partial class WidgetManager
             return;
         }
 
-        using var perfScope = PerformanceLogger.Measure("WidgetManager.RestoreWidgets", $"count={configs.Count}");
-
         // Decide the startup hide BEFORE restoring so the windows are created
         // already hidden (prepared state). Hiding only after the whole restore
         // pass — the older shape — left every widget visibly on the desktop
@@ -942,6 +942,23 @@ public sealed partial class WidgetManager
             WidgetStartupRestorePolicy.GetStartupHideReason(
                 WidgetLayerService.UsesQuickRevealMode(),
                 _settingsService.Settings) is not null;
+
+        if (WidgetStartupRestorePolicy.ShouldDeferHiddenStartupWindows(
+                processStartupLaunch,
+                hideWidgetsAtStartup))
+        {
+            // Silent startup already stays hidden until the first reveal;
+            // creating every hidden HWND now only recreates the memory the
+            // idle-recycle lazy path exists to save.
+            _startupHiddenSessionActive = true;
+            App.Log(
+                "[WidgetManager] Lazy startup restore: widget windows stay " +
+                $"uncreated until the first reveal count={configs.Count}");
+            App.ScheduleBackgroundMemoryCleanup("lazy-startup-restore");
+            return;
+        }
+
+        using var perfScope = PerformanceLogger.Measure("WidgetManager.RestoreWidgets", $"count={configs.Count}");
 
         // Arm the session flag before the restore loop so every automatic
         // re-show pass (deferred bounds reconciliation, group restore) already

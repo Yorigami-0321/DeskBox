@@ -28,6 +28,16 @@ internal static class WidgetStartupRestorePolicy
         return settings.Core.SilentStartup ? "silent-startup" : null;
     }
 
+    /// <summary>
+    /// Silent startup already intends to keep widgets hidden until the user
+    /// reveals them. Creating the hidden HWNDs at launch only recreates the
+    /// memory the idle-recycle lazy path exists to save.
+    /// </summary>
+    public static bool ShouldDeferHiddenStartupWindows(
+        bool processStartupLaunch,
+        bool widgetsHiddenAtStartup) =>
+        processStartupLaunch && widgetsHiddenAtStartup;
+
     public static IReadOnlyList<WidgetConfig> SelectEnabledWidgets(
         AppSettings settings,
         Func<string, bool> isDeleted)

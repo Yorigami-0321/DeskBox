@@ -5,6 +5,23 @@ namespace DeskBox.Tests;
 
 public sealed class WidgetStartupRestorePolicyTests
 {
+    [Theory]
+    [InlineData(false, false, false)]
+    [InlineData(false, true, false)]
+    [InlineData(true, false, false)]
+    [InlineData(true, true, true)]
+    public void ShouldDeferHiddenStartupWindows_RequiresStartupLaunchAndHiddenWidgets(
+        bool processStartupLaunch,
+        bool widgetsHiddenAtStartup,
+        bool expected)
+    {
+        Assert.Equal(
+            expected,
+            WidgetStartupRestorePolicy.ShouldDeferHiddenStartupWindows(
+                processStartupLaunch,
+                widgetsHiddenAtStartup));
+    }
+
     [Fact]
     public void SelectEnabledWidgets_IncludesPreviouslyHiddenWidgets()
     {

@@ -1555,7 +1555,8 @@ public partial class App : Application
             try
             {
                 await widgetManager.RestoreWidgetsAsync(
-                    createWindows: !_lazyRestoreLaunch);
+                    createWindows: !_lazyRestoreLaunch,
+                    processStartupLaunch: _processStartupLaunchDetected);
             }
             catch (Exception ex)
             {

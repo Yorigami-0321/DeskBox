@@ -149,7 +149,7 @@ internal IEnumerable<WidgetItem> HydrationUniverseItems => UsesStackProjection
 - 处置：把预览成员数量收敛为一个共享常量/纯函数，并在行为测试中固定。
 - 回滚：恢复 `HydrationUniverseItems` 的单集合实现，保留新测试作为回归门禁。
 
-## 5. R4：静默启动懒建窗（待决策）
+## 5. R4：静默启动懒建窗（A 方案，已确认）
 
 ### 5.1 现状与证据
 
@@ -157,16 +157,21 @@ internal IEnumerable<WidgetItem> HydrationUniverseItems => UsesStackProjection
 - 真正的懒恢复分支在 [WidgetManager.cs:913](../src/DeskBox/Services/WidgetManager.cs#L913)，目前只用于空闲回收重启的 `--lazy-restore`。
 - 本机生产日志：三次 `OnLaunched` 为 0.34–2.0s，最慢单步均为 `tray-icon` 234–343ms；恢复段在历史测量中约 1.0–1.2s。
 
-### 5.2 设计（若采纳）
+### 5.2 设计（A：仅计划启动/无人值守懒创建）
 
-1. 对“静默启动且策略判定应隐藏”的会话复用 `--lazy-restore` 的窗口懒创建：只做配置/拓扑归一化，不创建隐藏窗口；首次显式唤出走 `PrepareWidgetForBatchShowAsync`。
-2. 可选折中：启动后空闲 N 秒再后台建窗，兼顾“首次唤出延迟”和“启动内存峰值”。
-3. 不改变正常可见启动路径；不影响 A2 的 compact 层决策。
+1. 条件：`processStartupLaunch`（`--startup` 或启动任务激活）且 `hideWidgetsAtStartup` 为真（静默启动/快速呼出层）。手动启动即使 `SilentStartup=true` 仍按原路径即时创建隐藏窗口。
+2. `RestoreWidgetsAsync(bool createWindows = true, bool processStartupLaunch = false)`；复用现有 `!createWindows` 的懒恢复分支，只做配置/拓扑归一化，不创建窗口；日志 reason=startup-silent。
+3. 首次显式唤出仍走 `PrepareWidgetForBatchShowAsync`，与空闲回收 `--lazy-restore` 同一条已验证路径；首次唤出成本沿用既有试点约 0.25–0.3s。
+4. 不新增设置项；`SilentStartup=false` 且非快速呼出层时 `hideWidgetsAtStartup=false`，启动仍即时建窗（可见）。
+5. 不做 B（主屏混合）与 C（壳预热）——前者与整批动画一致性冲突，后者需拆内容初始化。
 
-### 5.3 待确认
+### 5.3 验收
 
-- 是否接受首次唤出多一次窗口创建（既有试点约 0.25–0.3s）？
-- 若接受，选“立即懒创建”还是“空闲后预创建”？
+- `--startup` + 静默/快速呼出：`loadedWidgets=0`，日志 `Lazy startup restore`，托盘 lifeline 建立，启动成功。
+- 手动启动：窗口数不变，行为不回退。
+- `--startup` 但 `hideWidgetsAtStartup=false`：即时建窗。
+- 首次唤出：窗口创建/内容加载成功，沿用既有 lazy-recycle 路径。
+- 全量 x64 passed == total；AOT 隐藏态 Private 记录。
 
 ## 6. 候选与暂缓项
 
