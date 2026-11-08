@@ -19,6 +19,8 @@
 | R9 | 64 tile 首帧布局 | 每 tile 隐藏 ProgressRing + 占位 ControlTemplate | 首帧 194→180.6ms；剩余 64 UserControl/ToolTip | 中 | 已实现（AOT 验证） |
 | R10 | tile 视觉树内联 | 每 tile 一个带 XAML/资源/模板的 UserControl，首帧还要 LoadContent 内层模板 | 去掉 UserControl、每实例资源和 eager ToolTip；动画期帧回调 52–62→8–13ms、丢帧 20–24→0–1 | 高（UI 回归） | 已实现（AOT 验证） |
 | R12 | reveal 期间只渲染视口 | 首帧把 64 个 tile 全部布局，UI 线程忙约 150–200ms | 首帧 259–294→149–152ms；reveal 渲染窗口 64→48 | 中 | 已实现（AOT 验证） |
+| R13 | 热窗口 reveal 预算回收 | 预算单调，隐藏后仍保留 64 | 评估后否决（热唤 17.8ms，缩预算会丢热容器） | 中 | 已否决 |
+| R14 | 全量刷新排序索引 | `SortItems` 对每项 `Items.IndexOf`，大目录 O(N²) | 1200 项 3.7/2.3→1.9/0.1ms；5000 项 2.0/1.0ms | 低 | 已实现（测试绿） |
 | — | 搜索、动画、排序、图标路径、设置锁等 | 见 §6 | 中—小 | 中 | 候选/暂缓 |
 
 ## 2. R1：备份调度顺序与线程归属
@@ -345,6 +347,15 @@ internal IEnumerable<WidgetItem> HydrationUniverseItems => UsesStackProjection
 - 风险与回滚：reveal pending 若未收到完成回调，滚动缓冲会保持 0；`OnWindowVisibilityChanged(false)` 会清除 pending，动画失败路径也走 `OnWindowRevealCompleted`。回滚为删除 `OnWindowRevealStarted` 生命周期与 `_isWindowRevealPending` 分支。
 - 热窗口补充测量（R12 同一构建）：首次显示→隐藏→再次显示，第二次 reveal 首帧仅 **17.8ms**，`preparedShow`→完成 277ms。隐藏后的 64 个 tile 容器仍然预热，热窗口不存在 R12 的首帧布局问题。因此评估过“隐藏时把 render budget 缩回视口”的方案，结论是**负收益**（会丢掉热容器），未实施。
 
+### 5.13 全量刷新排序索引（R14，已实现）
+
+- 证据：`SortItems` 先 `ToList().Sort`，再对每个目标项执行 `Items.IndexOf` 和必要的 `Items.Move`。1200 项实测 `count=1200 moves=0 elapsedMs=3.7/2.3`；`IndexOf` 的线性查找随 N 增长，5000 项理论成本约为 1200 的 17 倍，而实际 `moves=0` 说明常见刷新路径的代价几乎全在查找。
+- 设计：新增 `WidgetViewModel.ApplySortedOrder`：用 `ReferenceEqualityComparer` 建一次“项→当前索引”字典，按目标顺序只移动真正错位的项；每次移动后只修复被平移区间的索引，避免重复线性查找。`SortItems` 保留排序比较器与 `NormalizeSortOrder`，排序语义不变；手动模式仍直接返回。
+- 验收：新增 `WidgetSortOrderTests` 覆盖已排序、逆序、局部乱序和后续索引正确性；1200 项实测 1.9/0.1ms；5000 项实测 2.0/1.0ms。该优化主要保护 5000+ 项目录，1200 项的绝对收益只有约 2ms。
+- 风险：依赖 `WidgetItem` 的引用身份；`Items` 不应包含同一实例两次（现有同步路径按路径去重）。若出现重复引用，字典只保留最后一个索引，排序结果仍由后续 `Move` 收敛，但移动次数可能增加。
+
+
+
 ## 6. 候选与暂缓项
 
 以下项已核实，但本轮不做；保留证据供后续轮次选择。
@@ -355,7 +366,6 @@ internal IEnumerable<WidgetItem> HydrationUniverseItems => UsesStackProjection
 | 搜索前 40 条重复 stat | `SearchPopupViewModel.cs:626`、`FileMetaService.cs:69` | Everything 已返回 size/mtime，实际只缺 CreatedAt/图标 |
 | 搜索快照每秒重读 | `SearchEngineService.cs:15`、`:518` | 每秒重读 Todo JSON + 克隆 QuickCapture；可加 dirty/mtime 缓存 |
 | 图标路径逐段 junction 解析 | `FileService.cs:984`、`FileService.PathResolution.cs:99` | 缓存命中也要付每段 `File.GetAttributes`；可缓存 resolvedPath |
-| 全量刷新排序 O(N²) | `WidgetViewModel.SortingAndWatchers.cs:250` | `Items.IndexOf` + 每项 `Move`；增量 watcher 路径已较好 |
 | 动画帧预算每帧重算 | `WidgetCompactAnimationCoordinator.cs:521`、`WidgetTrayBatchAnimationDriver.cs:267` | 每帧 MonitorFromWindow；可按动画开始缓存 |
 | 过渡关键帧 12/24/24 | `WidgetShell.xaml.cs:2215`、`:2238`、`:2260` | 可用 cubic-bezier/更少采样替代 |
 | DragOver 每事件 LINQ + 两次入队 | `ContentWidgetWindow.NativeDragDrop.cs:844` | 可按帧合并最新样本 |
@@ -400,6 +410,7 @@ internal IEnumerable<WidgetItem> HydrationUniverseItems => UsesStackProjection
 - **R10（本轮）**：删除 `FileItemSurface.xaml`/AOT provider；四个条目模板内联图标/列表视觉树（`x:DataType=WidgetItem` 的 `x:Bind`）；新增 `FileItemTileState`（指针反馈、传输/打开徽标、按需 ToolTip、按 Tag 缓存元素）与静态 `FileItemSurface` 辅助（附加 Mode/LayoutContext/UseStackChildIndent、布局度量）；布局度量改由代码在 `DataContextChanged`/`Loaded` 及 VM 布局属性变化时应用；ToolTip 改为指针进入后按需创建。AOT 同场四轮 A/B：首帧墙钟 257–288 vs 259–294ms（持平），动画 `maxCallbackMs` 52–63→8–14ms、丢帧 20–26→0–1，总耗时约 −20~35ms；全量 **5938/5938**。
 - **R11（本轮）**：`WidgetTrayBatchAnimationDriver.Start` 接受 SharedShow 锚点并输出 `[TrayAnimationPhase]`：注册、前 3 个 Rendering 回调、UI 探针、位置提交耗时。AOT 显示注册 +1–2ms、RenderWindow 64 在 +19ms、首个回调 +175ms、16ms UI 探针 +210ms，确认 UI 线程被首帧布局占用。
 - **R12（本轮）**：`IWidgetContent.OnWindowRevealStarted` 由 `BeginSharedTrayShowAnimation` 触发；`FileSurfaceContent` 在 reveal pending 期间使用 `bufferRows:0` 且暂停视口填充增长，完成后恢复 `bufferRows:2`。AOT 首帧 **149–152ms**（R9 同场 259–294）、`preparedShow`→完成 403–412ms、总 837–866ms；reveal 渲染窗口 48，动画后恢复 64。
+- **R14（本轮）**：`SortItems` 改为 `ApplySortedOrder` 索引映射，避免每项 `Items.IndexOf`；新增 4 个排序行为测试。1200 项实测 3.7/2.3→1.9/0.1ms，5000 项 2.0/1.0ms；排序语义不变，主要保护 5000+ 项目录。
 
 - 全量 x64：R1–R3 后 **5919/5919**，R5 后 **5924/5924** 通过。
 - Debug 冒烟（隔离数据根、`--startup`、`DESKBOX_PERF_LOG=1`）：`OnLaunched completed successfully`；`[Startup] Pipeline: 42 steps (5 critical), 0 degraded, 0 failed`；`[Perf] DataBackup.DueCheck elapsedMs=1.0`，无 `SourceDataScan`、未创建新快照。最慢单步 `automatic-snapshot` 688ms，但该步骤内部先 `await settingsLoadTask`，耗时主要是设置加载等待，不是备份 I/O（见 §6）。

@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.Diagnostics;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using DeskBox.Helpers;
@@ -258,17 +259,74 @@ public partial class WidgetViewModel
 
         var sortedItems = Items.ToList();
         sortedItems.Sort(CompareItems);
-        for (int targetIndex = 0; targetIndex < sortedItems.Count; targetIndex++)
+        long started = Stopwatch.GetTimestamp();
+        int moveCount = ApplySortedOrder(Items, sortedItems);
+        NormalizeSortOrder();
+        if (Items.Count >= 300)
         {
-            var item = sortedItems[targetIndex];
-            int currentIndex = Items.IndexOf(item);
-            if (currentIndex >= 0 && currentIndex != targetIndex)
-            {
-                Items.Move(currentIndex, targetIndex);
-            }
+            PerformanceLogger.Mark(
+                "WidgetViewModel.SortItems",
+                $"count={Items.Count} moves={moveCount} " +
+                $"mode={Config.SortMode} " +
+                $"elapsedMs={Stopwatch.GetElapsedTime(started).TotalMilliseconds:F1}");
+        }
+    }
+
+    /// <summary>
+    /// Reorders <paramref name="items"/> to match <paramref name="sortedItems"/>
+    /// using one index map instead of a linear IndexOf per target. Only items
+    /// that are actually out of place move; the map is repaired for the shifted
+    /// range after each move.
+    /// </summary>
+    internal static int ApplySortedOrder(
+        ObservableCollection<WidgetItem> items,
+        IReadOnlyList<WidgetItem> sortedItems)
+    {
+        if (items.Count == 0 || sortedItems.Count == 0)
+        {
+            return 0;
         }
 
-        NormalizeSortOrder();
+        var indexByItem = new Dictionary<WidgetItem, int>(
+            items.Count,
+            ReferenceEqualityComparer.Instance);
+        for (int index = 0; index < items.Count; index++)
+        {
+            indexByItem[items[index]] = index;
+        }
+
+        int moveCount = 0;
+        int targetCount = Math.Min(items.Count, sortedItems.Count);
+        for (int targetIndex = 0; targetIndex < targetCount; targetIndex++)
+        {
+            WidgetItem item = sortedItems[targetIndex];
+            if (!indexByItem.TryGetValue(item, out int currentIndex) ||
+                currentIndex == targetIndex)
+            {
+                continue;
+            }
+
+            items.Move(currentIndex, targetIndex);
+            moveCount++;
+            if (currentIndex > targetIndex)
+            {
+                for (int index = currentIndex; index > targetIndex; index--)
+                {
+                    indexByItem[items[index]] = index;
+                }
+            }
+            else
+            {
+                for (int index = currentIndex; index < targetIndex; index++)
+                {
+                    indexByItem[items[index]] = index;
+                }
+            }
+
+            indexByItem[item] = targetIndex;
+        }
+
+        return moveCount;
     }
 
     private async Task ConfigureFolderWatchersAsync(
