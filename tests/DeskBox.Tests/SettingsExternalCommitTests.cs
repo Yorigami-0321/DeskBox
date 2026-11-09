@@ -321,24 +321,22 @@ public sealed class SettingsExternalCommitTests : IDisposable
         await main.LoadAsync();
         var host = new SettingsService(SettingsRoot, new ForwardingSink());
 
-        // SearchMaxResults is a discrete 50/100/200 setting — anything else
-        // normalizes back to the default on save.
-        main.Settings.SearchMaxResults = 50;
+        main.Settings.TrayIconStyle = "Hidden";
         await main.SaveAsync();
 
         int hostChanged = 0;
         host.SettingsChanged += () => hostChanged++;
         Assert.True(await host.TryReloadFromDiskAsync());
-        Assert.Equal(50, host.Settings.SearchMaxResults);
+        Assert.Equal("Hidden", host.Settings.TrayIconStyle);
         Assert.Equal(1, hostChanged);
 
         // Corrupt file: reload refuses and keeps the current state.
         await File.WriteAllTextAsync(
             Path.Combine(SettingsRoot, "settings.json"),
             "{ broken");
-        int beforeChange = host.Settings.SearchMaxResults;
+        string beforeChange = host.Settings.TrayIconStyle;
         Assert.False(await host.TryReloadFromDiskAsync());
-        Assert.Equal(beforeChange, host.Settings.SearchMaxResults);
+        Assert.Equal(beforeChange, host.Settings.TrayIconStyle);
     }
 
     [Fact]
@@ -353,11 +351,9 @@ public sealed class SettingsExternalCommitTests : IDisposable
             TrayIconStyle = "Hidden",
             Theme = "Dark",
             Language = "en-US",
-            SearchIncludeDeskBoxContent = !before.SearchIncludeDeskBoxContent,
         };
 
         int hotkey = 0, doubleClick = 0, tray = 0, theme = 0, language = 0;
-        var searchToggleCalls = new List<bool>();
         var snapCalls = new List<(bool Enabled, double Spacing)>();
         ExternalSettingsAppliers.ApplyValueAppliers(
             before,
@@ -368,15 +364,13 @@ public sealed class SettingsExternalCommitTests : IDisposable
                 (enabled, spacing) => snapCalls.Add((enabled, spacing)),
                 () => tray++,
                 () => theme++,
-                () => language++,
-                enabled => searchToggleCalls.Add(enabled)));
+                () => language++));
 
         Assert.Equal(1, hotkey);
         Assert.Equal(0, doubleClick);
         Assert.Equal(1, tray);
         Assert.Equal(1, theme);
         Assert.Equal(1, language);
-        Assert.Equal([after.SearchIncludeDeskBoxContent], searchToggleCalls);
         var snap = Assert.Single(snapCalls);
         Assert.Equal(after.ResizeSnapEnabled, snap.Enabled);
         Assert.Equal(after.WidgetSnapSpacing, snap.Spacing);
@@ -395,8 +389,7 @@ public sealed class SettingsExternalCommitTests : IDisposable
                 (_, _) => identicalSnapCalls++,
                 () => any++,
                 () => any++,
-                () => any++,
-                _ => any++));
+                () => any++));
         Assert.Equal(0, any);
         Assert.Equal(1, identicalSnapCalls);
 
@@ -414,8 +407,7 @@ public sealed class SettingsExternalCommitTests : IDisposable
                 (_, _) => toggledSnapCalls++,
                 () => Assert.Fail("tray applier must not run"),
                 () => Assert.Fail("theme applier must not run"),
-                () => Assert.Fail("language applier must not run"),
-                _ => Assert.Fail("search applier must not run")));
+                () => Assert.Fail("language applier must not run")));
         Assert.Equal(1, doubleClickOnly);
         Assert.Equal(1, toggledSnapCalls);
     }

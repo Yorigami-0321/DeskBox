@@ -376,13 +376,11 @@ $requiredFiles = @(
     "DeskBox.ThumbnailProxy.exe",
     "DeskBox.pri",
     "deskbox_native.dll",
-    "EverythingSdk.dll",
     "Microsoft.UI.Input.dll",
     "Microsoft.ui.xaml.dll",
     "Microsoft.WindowsAppRuntime.dll",
     "Microsoft.WindowsAppRuntime.Insights.Resource.dll",
-    $installManifestName,
-    "ThirdParty/Everything/LICENSE.txt"
+    $installManifestName
 )
 foreach ($requiredFile in $requiredFiles) {
     if (-not (Test-Path -LiteralPath (Join-Path $publishDir $requiredFile) -PathType Leaf)) {
@@ -426,7 +424,6 @@ $peResults = @(
             "DeskBox.Updater.exe",
             "DeskBox.ThumbnailProxy.exe",
             "deskbox_native.dll",
-            "EverythingSdk.dll",
             "Microsoft.WindowsAppRuntime.Insights.Resource.dll")) {
         $path = Join-Path $publishDir $fileName
         $machine = Get-PeMachine -Path $path

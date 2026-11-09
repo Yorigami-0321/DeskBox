@@ -49,8 +49,6 @@ public sealed class DeskBoxDataPathIsolationTests
     [InlineData("src/DeskBox/Services/SettingsService.cs")]
     [InlineData("src/DeskBox/Services/QuickCaptureStore.cs")]
     [InlineData("src/DeskBox/Services/TodoWidgetStore.cs")]
-    [InlineData("src/DeskBox/Services/SearchHistoryService.cs")]
-    [InlineData("src/DeskBox/Services/LegacySearchIndexCleanupService.cs")]
     [InlineData("src/DeskBox/Services/DesktopOrganizationRecoveryStore.cs")]
     public void AppOwnedStorage_UsesSharedDataRoot(string relativePath)
     {

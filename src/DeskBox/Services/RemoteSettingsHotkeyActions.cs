@@ -60,7 +60,7 @@ public sealed class RemoteSettingsHotkeyActions : ISettingsHotkeyActions
             }
             catch (Exception ex)
             {
-                App.Log($"[SearchHotkey] Runtime state cache refresh failed: {ex.Message}");
+                App.Log($"[Hotkey] Runtime state cache refresh failed: {ex.Message}");
             }
         });
     }
@@ -114,50 +114,8 @@ public sealed class RemoteSettingsHotkeyActions : ISettingsHotkeyActions
             SettingsIpcPayload.EncodeBoolean(enabled),
             nameof(SetEnabled));
 
-    // IsGestureOwnedBySearchHotkey / IsGestureOwnedByMainHotkey removed
-    // with the interface members (deep review R13-3): both predicates are
-    // settings-mirror computations the settings host performs locally —
-    // the per-keystroke synchronous round trips were the R10/R11
-    // modal-loop wedge family.
-
-    public async Task<bool> IsSearchHotkeyRegisteredAsync()
-    {
-        // Deep review R13-3: async — the host's controller caches the
-        // answer off the registration push instead of blocking a caller.
-        (bool ok, string? payload, _) = await _client.RequestAsync(
-                SettingsIpcMethods.SearchHotkeyState);
-        return ok && SettingsIpcPayload.DecodeBoolean(payload);
-    }
-
-    public void SetSearchHotkeyEnabled(bool enabled) =>
-        _ = NotifyWithoutBlockingAsync(
-            SettingsIpcMethods.SearchHotkeySetEnabled,
-            SettingsIpcPayload.EncodeBoolean(enabled),
-            nameof(SetSearchHotkeyEnabled));
-
     private Task NotifyWithoutBlockingAsync(string method, string? payload, string caller) =>
         SettingsIpcShell.NotifyWithoutBlockingAsync(_client, method, payload, caller);
-
-    public bool TryApplySearchHotkeyGesture(GlobalHotkeyGesture gesture, out string? error)
-    {
-        (bool ok, _, string? applyError) = _client.RequestAsync(
-                SettingsIpcMethods.SearchHotkeyApplyGesture,
-                SettingsIpcPayload.Encode(gesture, SettingsIpcJsonContext.Default.GlobalHotkeyGesture))
-            .GetAwaiter().GetResult();
-        error = applyError;
-        return ok;
-    }
-
-    // Same fire-and-forget contract as the notifications above (batch R11
-    // audit): all three ride UI-thread call sites — the recorder lifecycle
-    // pair even runs inside the settings-window close/hide path, where a
-    // blocking roundtrip is the exact "X button stops closing the window"
-    // signature (see RemoteSettingsAppActions for the dump evidence).
-    public void RefreshSearchHotkeyRegistration() =>
-        _ = NotifyWithoutBlockingAsync(
-            SettingsIpcMethods.SearchHotkeyRefreshRegistration,
-            payload: null,
-            nameof(RefreshSearchHotkeyRegistration));
 
     public DesktopDoubleClickToggleResult TrySetDesktopDoubleClickEnabled(bool enabled)
     {

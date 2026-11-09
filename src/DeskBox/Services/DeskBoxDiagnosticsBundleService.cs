@@ -126,11 +126,7 @@ public sealed record DeskBoxHotkeyDiagnostic(
     long ToggleReservedHookTriggerCount,
     long ToggleReservedHookPostFailureCount,
     long ToggleReservedHookInputFailureCount,
-    bool ToggleRegistrationFailed,
-    bool SearchEnabled,
-    bool SearchRegistered,
-    int SearchModifiers,
-    int SearchVirtualKey);
+    bool ToggleRegistrationFailed);
 
 /// <summary>
 /// Field-wide observability for the callback-isolation invariant (drag-freeze

@@ -295,20 +295,13 @@ function Invoke-HotkeyPhase {
         [long]$result.globalReceivedDelta -ne 1 -or
         [long]$result.globalInvocationDelta -ne 1 -or
         [long]$result.globalDispatchFailureDelta -ne 0 -or
-        -not [bool]$result.searchStandardRegistered -or
-        [long]$result.searchReceivedDelta -ne 1 -or
-        [long]$result.searchInvocationDelta -ne 1 -or
-        [long]$result.searchDispatchFailureDelta -ne 0 -or
         -not [bool]$result.globalConflictRolledBack -or
         -not [bool]$result.globalConflictHolderReleased -or
-        -not [bool]$result.searchConflictRolledBack -or
-        -not [bool]$result.searchConflictHolderReleased -or
         -not [bool]$result.reservedHookUsesHook -or
         [uint32]$result.reservedHookThreadId -eq 0 -or
         [int]$result.reservedHookLastError -ne 0 -or
         -not [bool]$result.reservedHookStopped -or
-        -not [bool]$result.finalGlobalRegistered -or
-        -not [bool]$result.finalSearchRegistered) {
+        -not [bool]$result.finalGlobalRegistered) {
         throw "Hotkey phase '$Phase' did not complete the registration lifecycle matrix."
     }
 
@@ -398,9 +391,6 @@ $settings = [ordered]@{
     globalHotkeyEnabled = $false
     globalHotkeyModifiers = 6
     globalHotkeyKey = 134
-    searchHotkeyEnabled = $false
-    searchHotkeyModifiers = 3
-    searchHotkeyKey = 135
     trayIconStyle = "Colorful"
     hasCompletedOnboarding = $true
     completedOnboardingVersion = 1
@@ -410,28 +400,26 @@ $settings = [ordered]@{
         Todo = $false
         Music = $false
         Weather = $false
-        Search = $true
         Glance = $false
     }
-    searchSaveHistory = $false
-    searchShowRecommendations = $false
     widgets = @(
         [ordered]@{
-            id = "aot-5b4c2a-search"
-            name = "AOT Hotkey Fixture"
+            id = "aot-5b4c2a-file"
+            name = "AOT Hotkey File Fixture"
             isDefaultTitle = $false
             x = 100
             y = 100
             boundsCoordinateVersion = 1
             width = 320
             height = 360
-            widgetKind = "Search"
+            widgetKind = "File"
             viewMode = "Icon"
             isVisible = $true
             isDisabled = $false
             isPositionLocked = $false
             isSizeLocked = $false
             isCollapsed = $false
+            mappedFolderPath = $DataRoot
             followsDefaultStoragePath = $false
             sortMode = "Name"
             items = @()
@@ -469,12 +457,8 @@ try {
     if (-not $processIdsDistinct -or -not $executableHashesMatch -or
         [bool]$primary.result.startupGlobalEnabled -or
         [bool]$primary.result.startupGlobalRegistered -or
-        [bool]$primary.result.startupSearchEnabled -or
-        [bool]$primary.result.startupSearchRegistered -or
         -not [bool]$release.result.startupGlobalEnabled -or
-        -not [bool]$release.result.startupGlobalRegistered -or
-        -not [bool]$release.result.startupSearchEnabled -or
-        -not [bool]$release.result.startupSearchRegistered) {
+        -not [bool]$release.result.startupGlobalRegistered) {
         throw "Two-process hotkey registration release evidence is inconsistent."
     }
 
@@ -483,10 +467,7 @@ try {
         -Raw | ConvertFrom-Json
     if (-not [bool]$persistedSettings.globalHotkeyEnabled -or
         [int]$persistedSettings.globalHotkeyModifiers -ne 6 -or
-        [int]$persistedSettings.globalHotkeyKey -ne 134 -or
-        -not [bool]$persistedSettings.searchHotkeyEnabled -or
-        [int]$persistedSettings.searchHotkeyModifiers -ne 3 -or
-        [int]$persistedSettings.searchHotkeyKey -ne 135) {
+        [int]$persistedSettings.globalHotkeyKey -ne 134) {
         throw "Final hotkey settings do not match the committed standard gestures."
     }
 

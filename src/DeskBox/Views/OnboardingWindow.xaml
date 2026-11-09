@@ -418,15 +418,12 @@
                             <controls:WidgetTitleIcon IconKind="QuickCapture" Mode="Color" IconSize="24" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Border>
                         <Border Grid.Column="2" Style="{StaticResource SceneFeatureTile}">
-                            <controls:WidgetTitleIcon IconKind="Search" Mode="Color" IconSize="24" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                        </Border>
-                        <Border Grid.Row="1" Style="{StaticResource SceneFeatureTile}">
                             <controls:WidgetTitleIcon IconKind="Weather" Mode="Color" IconSize="24" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Border>
-                        <Border Grid.Row="1" Grid.Column="1" Style="{StaticResource SceneFeatureTile}">
+                        <Border Grid.Row="1" Style="{StaticResource SceneFeatureTile}">
                             <controls:WidgetTitleIcon IconKind="Music" Mode="Color" IconSize="24" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Border>
-                        <Border Grid.Row="1" Grid.Column="2" Style="{StaticResource SceneFeatureTile}">
+                        <Border Grid.Row="1" Grid.Column="1" Style="{StaticResource SceneFeatureTile}">
                             <controls:WidgetTitleIcon IconKind="Glance" Mode="Color" IconSize="24" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Border>
                     </Grid>
@@ -599,19 +596,7 @@
                                     <TextBlock Grid.Row="1" Margin="0,5,0,0" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" svc:Localized.Key="Onboarding.Feature.QuickCapture"/>
                                 </Grid>
                             </Border>
-                            <Border x:Name="Step5SearchCard" Grid.Row="1" Style="{StaticResource FeatureChoiceCard}">
-                                <Grid RowDefinitions="Auto,Auto">
-                                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="6">
-                                        <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                                            <controls:WidgetTitleIcon IconKind="Search" Mode="Color" IconSize="15"/>
-                                            <TextBlock VerticalAlignment="Center" FontSize="12.5" FontWeight="SemiBold" svc:Localized.Key="Search.Title"/>
-                                        </StackPanel>
-                                        <ToggleSwitch svc:Localized.AutomationNameKey="Search.Title" x:Name="Step5SearchToggle" Grid.Column="1" MinWidth="0" HorizontalAlignment="Right" VerticalAlignment="Center" OnContent="" OffContent="" Tag="Search" Toggled="Step5FeatureToggle_Toggled"/>
-                                    </Grid>
-                                    <TextBlock Grid.Row="1" Margin="0,5,0,0" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" svc:Localized.Key="Onboarding.Feature.Search"/>
-                                </Grid>
-                            </Border>
-                            <Border x:Name="Step5WeatherCard" Grid.Row="1" Grid.Column="1" Style="{StaticResource FeatureChoiceCard}">
+                            <Border x:Name="Step5WeatherCard" Grid.Row="1" Style="{StaticResource FeatureChoiceCard}">
                                 <Grid RowDefinitions="Auto,Auto">
                                     <Grid ColumnDefinitions="*,Auto" ColumnSpacing="6">
                                         <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
@@ -623,7 +608,7 @@
                                     <TextBlock Grid.Row="1" Margin="0,5,0,0" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" svc:Localized.Key="Onboarding.Feature.Weather"/>
                                 </Grid>
                             </Border>
-                            <Border x:Name="Step5MusicCard" Grid.Row="2" Style="{StaticResource FeatureChoiceCard}">
+                            <Border x:Name="Step5MusicCard" Grid.Row="1" Grid.Column="1" Style="{StaticResource FeatureChoiceCard}">
                                 <Grid RowDefinitions="Auto,Auto">
                                     <Grid ColumnDefinitions="*,Auto" ColumnSpacing="6">
                                         <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
@@ -635,7 +620,7 @@
                                     <TextBlock Grid.Row="1" Margin="0,5,0,0" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" svc:Localized.Key="Onboarding.Feature.Music"/>
                                 </Grid>
                             </Border>
-                            <Border x:Name="Step5GlanceCard" Grid.Row="2" Grid.Column="1" Style="{StaticResource FeatureChoiceCard}">
+                            <Border x:Name="Step5GlanceCard" Grid.Row="2" Style="{StaticResource FeatureChoiceCard}">
                                 <Grid RowDefinitions="Auto,Auto">
                                     <Grid ColumnDefinitions="*,Auto" ColumnSpacing="6">
                                         <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">

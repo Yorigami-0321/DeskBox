@@ -11,7 +11,6 @@ public sealed class WidgetManagerStorageCleanupTests : IDisposable
     private readonly string _storageRoot;
     private readonly string _desktopRoot;
     private readonly SettingsService _settingsService;
-    private readonly SearchFeatureSettingsStub _searchSettings;
     private readonly WidgetManager _widgetManager;
 
     public WidgetManagerStorageCleanupTests()
@@ -22,7 +21,6 @@ public sealed class WidgetManagerStorageCleanupTests : IDisposable
 
         _settingsService = new SettingsService(Path.Combine(_tempRoot, "settings"));
         _settingsService.Settings.DefaultManagedStorageRootPath = _storageRoot;
-        _searchSettings = new SearchFeatureSettingsStub(_settingsService);
 
         var fileService = new FileService();
         var organizerService = TestOrganizerServices.Create(_settingsService, fileService);
@@ -35,8 +33,7 @@ public sealed class WidgetManagerStorageCleanupTests : IDisposable
             new QuickCaptureService(new QuickCaptureStore(Path.Combine(_tempRoot, "quick-capture"))),
             localizationService: null,
             desktopPathProvider: () => _desktopRoot,
-            recycleManagedFolderDeletes: false,
-            searchFeatureSettings: _searchSettings);
+            recycleManagedFolderDeletes: false);
     }
 
     [Fact]
@@ -945,26 +942,4 @@ public sealed class WidgetManagerStorageCleanupTests : IDisposable
         }
     }
 
-    private sealed class SearchFeatureSettingsStub(SettingsService settings) : ISearchFeatureSettings
-    {
-        public bool Enabled => FeatureWidgetSettings.IsEnabled(settings.Settings, WidgetKind.Search);
-        public event Action? FeatureChanged { add { } remove { } }
-        public Func<bool, Task>? BeforeCommit { get; set; }
-        public int CommitCount { get; private set; }
-
-        public Task SetEnabledAsync(bool enabled, bool reveal = true,
-            CancellationToken cancellationToken = default) =>
-            CommitEnabledStateAsync(enabled, cancellationToken);
-
-        public async Task CommitEnabledStateAsync(bool enabled,
-            CancellationToken cancellationToken = default)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            if (BeforeCommit is not null) await BeforeCommit(enabled);
-            FeatureWidgetSettings.SetEnabled(settings.Settings, WidgetKind.Search, enabled);
-            CommitCount++;
-        }
-
-        public Task StopAsync() => Task.CompletedTask;
-    }
 }

@@ -660,7 +660,7 @@ public sealed partial class WidgetManager
             // TOPMOST only from each window's hide-animation completion path.
             WidgetLayerService.HoldGroupTopMostWithoutActivation(visibleHandles);
             // Auxiliary surfaces that were already open before this raise
-            // (settings, search popup, desktop organization) join the band
+            // (settings, desktop organization) join the band
             // above the widgets; after the group hold, SetWindowTopMost leaves
             // each of them above the whole widget group.
             HoldVisibleAuxiliaryWindowsAboveRaisedWidgets();

@@ -223,7 +223,7 @@ public sealed class StartupResilienceContractTests
         string handler = Slice(
             app,
             "private void OnUnhandledException",
-            "// ─── Search Services ─");
+            "    private void ToggleTheme()");
 
         Assert.Contains("e.Handled = true;", handler, StringComparison.Ordinal);
         Assert.Contains("!IsStartupLifelineEstablished", handler, StringComparison.Ordinal);

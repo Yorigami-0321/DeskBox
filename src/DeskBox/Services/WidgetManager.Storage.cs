@@ -361,7 +361,7 @@ public sealed partial class WidgetManager
 
     /// <summary>
     /// A managed-folder rename can be denied by a transient handle (antivirus
-    /// scan, search indexer) or a long-lived one (an Explorer window parked
+    /// scan) or a long-lived one (an Explorer window parked
     /// inside the folder). A short bounded retry absorbs the transient class;
     /// the persistent class surfaces as a localized, actionable message
     /// instead of the raw OS denial (feedback 240).

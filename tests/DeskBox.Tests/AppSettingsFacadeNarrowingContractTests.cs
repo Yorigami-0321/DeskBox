@@ -69,15 +69,15 @@ public sealed class AppSettingsFacadeNarrowingContractTests
         // the enabled default true).
         // +2 = idleProcessRecycleEnabled + idleProcessRecycleDelaySeconds
         // (schema v16 additive idle process recycle preference).
-        Assert.Equal(245, Passthroughs.Length);
-        Assert.Equal(13, SliceAccessors.Length);
+        Assert.Equal(228, Passthroughs.Length);
+        Assert.Equal(12, SliceAccessors.Length);
     }
 
     [Fact]
     public void EveryPassthrough_IsAFrozenSchemaMember_AndViceVersa()
     {
         // The facade IS the schema: with the WhenWritingNull member forced on,
-        // the serialized member set is exactly schemaVersion plus the 245
+        // the serialized member set is exactly schemaVersion plus the 228
         // passthrough wire names (camelCase unless a JsonPropertyName
         // overrides it). This proves there is no dead passthrough sitting
         // outside the wire, and no wire member without a passthrough owner.
@@ -87,8 +87,8 @@ public sealed class AppSettingsFacadeNarrowingContractTests
         expected.Add("schemaVersion");
         Assert.True(
             SerializedMemberNames.SetEquals(expected),
-            "Serialized member set must equal schemaVersion + the 245 passthrough wire names.");
-        Assert.Equal(246, SerializedMemberNames.Count);
+            "Serialized member set must equal schemaVersion + the 228 passthrough wire names.");
+        Assert.Equal(229, SerializedMemberNames.Count);
     }
 
     [Fact]

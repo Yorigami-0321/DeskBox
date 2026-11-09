@@ -5,7 +5,6 @@ internal readonly record struct MemoryCleanupActivitySnapshot(
     bool IsWidgetInteractionActive,
     bool IsSettingsOpen,
     bool IsOnboardingOpen,
-    bool IsSearchPopupVisible,
     bool IsDeskBoxForeground,
     bool IsPointerOverDeskBox,
     bool IsDesktopOrganizationOpen = false);
@@ -60,7 +59,6 @@ internal static class MemoryCleanupPolicy
             !snapshot.IsWidgetInteractionActive &&
             !snapshot.IsSettingsOpen &&
             !snapshot.IsOnboardingOpen &&
-            !snapshot.IsSearchPopupVisible &&
             !snapshot.IsDesktopOrganizationOpen &&
             !snapshot.IsDeskBoxForeground &&
             !snapshot.IsPointerOverDeskBox;
@@ -99,7 +97,6 @@ internal static class MemoryCleanupPolicy
         return !snapshot.IsWidgetInteractionActive &&
             !snapshot.IsSettingsOpen &&
             !snapshot.IsOnboardingOpen &&
-            !snapshot.IsSearchPopupVisible &&
             !snapshot.IsDesktopOrganizationOpen &&
             !snapshot.IsDeskBoxForeground &&
             !snapshot.IsPointerOverDeskBox;

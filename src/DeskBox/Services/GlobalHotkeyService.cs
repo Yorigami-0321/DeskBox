@@ -265,18 +265,6 @@ public sealed class GlobalHotkeyService : IDisposable, IHookHealthProbeTarget, I
             return false;
         }
 
-        if (activation.Kind == HotkeyActivationKind.Chord &&
-            IsGestureOwnedBySearchHotkey(activation.Gesture))
-        {
-            // Deep review R15 (F6 audit): the ownership check used to apply
-            // only to reserved system gestures — an asymmetric defense, since
-            // the search side checks the main hotkey for EVERY gesture. No
-            // current preset reaches this branch with an unreserved gesture
-            // (defense-in-depth), but the two services now mirror each other.
-            error = _localizationService.T("Settings.GlobalHotkey.Status.SearchHotkeyConflict");
-            return false;
-        }
-
         var settings = _settingsService.Settings;
         HotkeyActivationKind previousKind = settings.GlobalHotkeyActivationKind;
         int previousModifiers = settings.GlobalHotkeyModifiers;
@@ -495,11 +483,6 @@ public sealed class GlobalHotkeyService : IDisposable, IHookHealthProbeTarget, I
                gesture.Modifiers is
                    HotkeyModifierKeys.Windows or
                    HotkeyModifierKeys.Alt;
-    }
-
-    internal static bool IsGestureOwnedBySearchHotkey(GlobalHotkeyGesture gesture)
-    {
-        return App.Current?.SearchHotkeyService?.CurrentGesture.Equals(gesture) == true;
     }
 
     public static bool IsValidActivation(GlobalHotkeyActivation activation)

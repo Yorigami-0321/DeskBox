@@ -28,7 +28,7 @@ public sealed class SettingsSliceOwnershipContractTests
     [Fact]
     public void EverySlice_IsExposedAsGetOnlyAndJsonIgnored()
     {
-        Assert.Equal(13, SliceProperties.Length);
+        Assert.Equal(12, SliceProperties.Length);
         Assert.All(SliceProperties, p =>
         {
             Assert.False(p.CanWrite, $"{p.Name} must be get-only");
@@ -50,7 +50,7 @@ public sealed class SettingsSliceOwnershipContractTests
         // auto-download and update toasts).
         // +2 = idleProcessRecycleEnabled + idleProcessRecycleDelaySeconds
         // (schema v16 additive idle process recycle preference).
-        Assert.Equal(245, FacadeProperties.Length);
+        Assert.Equal(228, FacadeProperties.Length);
 
         foreach (PropertyInfo facade in FacadeProperties)
         {
@@ -140,7 +140,6 @@ public sealed class SettingsSliceOwnershipContractTests
         settings.QuickCapture.QuickCaptureRecentLimit = 87;
         settings.Todo.TodoDefaultReminderOffsetMinutes = 42;
         settings.Weather.WeatherCityName = "Hanoi";
-        settings.Search.SearchDefaultTab = "file";
 
         string json = JsonSerializer.Serialize(
             settings, SettingsJsonContext.Default.AppSettings);
@@ -151,7 +150,6 @@ public sealed class SettingsSliceOwnershipContractTests
         Assert.Equal(87, restored.QuickCapture.QuickCaptureRecentLimit);
         Assert.Equal(42, restored.Todo.TodoDefaultReminderOffsetMinutes);
         Assert.Equal("Hanoi", restored.Weather.WeatherCityName);
-        Assert.Equal("file", restored.Search.SearchDefaultTab);
         Assert.Equal(
             json,
             JsonSerializer.Serialize(restored, SettingsJsonContext.Default.AppSettings));
@@ -264,7 +262,6 @@ public sealed class SettingsSliceOwnershipContractTests
         ["src/DeskBox/Controls/WidgetContents/FileSurfaceContent.StackPopover.cs"] = 16,
         ["src/DeskBox/Controls/WidgetContents/FileSurfaceContent.xaml.cs"] = 5,
         ["src/DeskBox/Controls/WidgetContents/QuickCaptureSurfaceContent.xaml.cs"] = 6,
-        ["src/DeskBox/Controls/WidgetContents/SearchWidgetContent.xaml.cs"] = 6,
         ["src/DeskBox/Controls/WidgetContents/TodoWidgetContent.Menus.cs"] = 1,
         ["src/DeskBox/Controls/WidgetContents/TodoWidgetContent.xaml.cs"] = 1,
         ["src/DeskBox/Controls/WidgetShell.xaml.cs"] = 2,
@@ -292,7 +289,6 @@ public sealed class SettingsSliceOwnershipContractTests
         ["src/DeskBox/Services/DesktopOrganizationTransaction.cs"] = 9,
         ["src/DeskBox/Services/DirectStartupService.cs"] = 2,
         ["src/DeskBox/Services/DragDropPermissionService.cs"] = 3,
-        ["src/DeskBox/Services/EverythingSearchService.cs"] = 12,
         // +2: the missing-dictionary-key fallback reads the widgets list and
         // deleted ids to decide whether a feature widget is live (the list
         // IS the enabled state for never-authored keys).
@@ -308,9 +304,6 @@ public sealed class SettingsSliceOwnershipContractTests
         ["src/DeskBox/Services/ManagedStorageDesktopShortcutService.cs"] = 12,
         ["src/DeskBox/Services/PerformanceSettingsPolicy.cs"] = 86,
         ["src/DeskBox/Services/QuickCaptureClipboardService.cs"] = 6,
-        ["src/DeskBox/Services/SearchEngineService.cs"] = 7,
-        ["src/DeskBox/Services/SearchHotkeyService.cs"] = 13,
-        ["src/DeskBox/Services/SearchResultActionService.cs"] = 2,
         ["src/DeskBox/Services/SettingsMigrationService.cs"] = 55,
         ["src/DeskBox/Services/SettingsSearchCatalog.cs"] = 25,
         // +5: the appearance-preview apply preserves the runtime markers and the
@@ -349,7 +342,6 @@ public sealed class SettingsSliceOwnershipContractTests
         ["src/DeskBox/ViewModels/QuickCaptureWidgetViewModel.Operations.cs"] = 3,
         ["src/DeskBox/ViewModels/QuickCaptureWidgetViewModel.SettingsAndRefresh.cs"] = 14,
         ["src/DeskBox/ViewModels/QuickCaptureWidgetViewModel.cs"] = 17,
-        ["src/DeskBox/ViewModels/SearchPopupViewModel.cs"] = 13,
         // Batch 29 moved the appearance section writes into
         // AppearanceSettingsCoordinator; AppearanceCallbacks reached zero and
         // lost its entry. Batch 33 moved the capsule/compact section writes
@@ -430,7 +422,6 @@ public sealed class SettingsSliceOwnershipContractTests
         ["src/DeskBox/Views/QuickCaptureWidgetWindow.Menus.cs"] = 2,
         ["src/DeskBox/Views/QuickCaptureWidgetWindow.ResponsiveDetail.cs"] = 2,
         ["src/DeskBox/Views/QuickCaptureWidgetWindow.xaml.cs"] = 12,
-        ["src/DeskBox/Views/SearchPopupWindow.xaml.cs"] = 22,
         ["src/DeskBox/Views/SettingsSections/DesktopOrganizationSettingsSection.xaml.cs"] = 22,
         ["src/DeskBox/Views/SettingsWindow.HotkeyAndAppearance.cs"] = 4,
         ["src/DeskBox/Views/SettingsWindow.Maintenance.cs"] = 3,

@@ -475,7 +475,6 @@ New-Item -ItemType Directory -Path $dataDirectory -Force | Out-Null
     autoStart = $false
     autoCheckForUpdates = $false
     globalHotkeyEnabled = $false
-    searchHotkeyEnabled = $false
     todoReminderEnabled = $false
     hasCompletedOnboarding = $true
     completedOnboardingVersion = 1
@@ -485,7 +484,6 @@ New-Item -ItemType Directory -Path $dataDirectory -Force | Out-Null
         Todo = $true
         Music = $false
         Weather = $false
-        Search = $false
         Glance = $false
     }
     widgets = @()

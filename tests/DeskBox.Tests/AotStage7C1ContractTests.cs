@@ -61,31 +61,18 @@ public sealed class AotStage7C1ContractTests
     }
 
     [Fact]
-    public void ReleaseGates_RequireEverythingSdkAndLicenseInEveryPayload()
+    public void ReleaseGates_DoNotShipTheRetiredEverythingSdk()
     {
-        string retail = Read("scripts/publish-aot-retail.ps1");
-        string stage7c1 = Read("scripts/build-stage-7c1-distribution.ps1");
-        string storeAudit = Read("scripts/audit-store-native-aot-package.ps1");
-
-        foreach (string script in new[] { retail, stage7c1, storeAudit })
+        foreach (string script in new[]
+                 {
+                     Read("scripts/publish-aot-retail.ps1"),
+                     Read("scripts/build-stage-7c1-distribution.ps1"),
+                     Read("scripts/audit-store-native-aot-package.ps1")
+                 })
         {
-            Assert.Contains("EverythingSdk.dll", script, StringComparison.Ordinal);
-            Assert.Contains("ThirdParty/Everything/LICENSE.txt", script, StringComparison.Ordinal);
+            Assert.DoesNotContain("EverythingSdk.dll", script, StringComparison.Ordinal);
+            Assert.DoesNotContain("ThirdParty/Everything/LICENSE.txt", script, StringComparison.Ordinal);
         }
-
-        // The retail gate must list the SDK twice: once in required files and
-        // once in the PE architecture check.
-        Assert.True(
-            retail.Split("EverythingSdk.dll").Length - 1 >= 2,
-            "publish-aot-retail.ps1 must gate EverythingSdk.dll in requiredFiles and the PE list.");
-        Assert.Contains(
-            "$everythingSdkMachine = Get-PeMachine",
-            stage7c1,
-            StringComparison.Ordinal);
-        Assert.Contains(
-            "$everythingSdkPe = Get-PeFacts",
-            storeAudit,
-            StringComparison.Ordinal);
     }
 
     [Fact]

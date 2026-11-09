@@ -126,7 +126,6 @@ public sealed class InProcessSettingsAppActions : ISettingsAppActions
 
     public AppRuntimeHealthSnapshot? GetRuntimeHealthSnapshot() =>
         _app.DiagnosticsService?.GetRuntimeHealthSnapshot(
-            _app.EverythingSearchService,
             _app.WidgetManager?.GetFolderWatcherHealthSnapshots());
 
     public Task ForceExternalStateRecoveryAsync() =>

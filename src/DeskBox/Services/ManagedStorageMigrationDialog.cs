@@ -1,3 +1,4 @@
+using DeskBox.Helpers;
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
@@ -121,7 +122,7 @@ internal sealed class ManagedStorageMigrationDialog
                 summary = await preview(cancel.Token);
                 if (closed) return;
                 caption.Text = localization.Format("Settings.Dialog.SafeMigrationPreview", summary.WidgetCount,
-                    summary.FileCount, FileMetaService.FormatSize(summary.TotalBytes));
+                    summary.FileCount, FileSizeFormatter.FormatSize(summary.TotalBytes));
                 status.Text = summary.CopiesRemoved
                     ? localization.T("Settings.Dialog.SafeMigrationError.CopiesRemoved") : "";
                 start.Content = localization.T(summary.CopiesRemoved
@@ -264,7 +265,7 @@ internal sealed class ManagedStorageMigrationDialog
                 }), _cancel.Token, _restart));
             ShowResult(_localization.T("Settings.Dialog.MigrateCompleteTitle"),
                 _localization.Format("Settings.Dialog.SafeMigrationComplete", _result.CopiedFileCount,
-                    FileMetaService.FormatSize(_result.CopiedBytes), _result.OldRootPath), _result.TemporaryBytes);
+                    FileSizeFormatter.FormatSize(_result.CopiedBytes), _result.OldRootPath), _result.TemporaryBytes);
         }
         catch (OperationCanceledException ex)
         {
@@ -306,7 +307,7 @@ internal sealed class ManagedStorageMigrationDialog
         _resultView.Children.Add(Text(message));
         if (temporaryBytes is > 0)
             _resultView.Children.Add(Text(_localization.Format("Settings.Dialog.SafeMigrationTemporaryBytes",
-                FileMetaService.FormatSize(temporaryBytes.Value)), 13));
+                FileSizeFormatter.FormatSize(temporaryBytes.Value)), 13));
         _openSource.Visibility = _openTarget.Visibility = Visibility.Visible;
     }
 
@@ -327,8 +328,8 @@ internal sealed class ManagedStorageMigrationDialog
         ToolTipService.SetToolTip(_directory, _directory.Text);
         _activity.Text = progress.CheckingCurrentFile ? _localization.T("Settings.Dialog.SafeMigrationCheckingFile") : "";
         _detail.Text = _localization.Format("Settings.Dialog.SafeMigrationProgress",
-            progress.CompletedItems, progress.TotalItems, FileMetaService.FormatSize(progress.BytesProcessed),
-            FileMetaService.FormatSize(progress.TotalBytes));
+            progress.CompletedItems, progress.TotalItems, FileSizeFormatter.FormatSize(progress.BytesProcessed),
+            FileSizeFormatter.FormatSize(progress.TotalBytes));
     }
 
     private static ContentDialog Dialog(XamlRoot root, LocalizationService localization)

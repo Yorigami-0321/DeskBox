@@ -32,8 +32,6 @@ public sealed class AotStage5B4C2AContractTests
 
         Assert.Contains("Ctrl + Shift", app, StringComparison.Ordinal);
         Assert.Contains("VirtualKey.F23", app, StringComparison.Ordinal);
-        Assert.Contains("Ctrl + Alt", app, StringComparison.Ordinal);
-        Assert.Contains("VirtualKey.F24", app, StringComparison.Ordinal);
         Assert.Contains("TrySendTaggedKeyChord", app, StringComparison.Ordinal);
         Assert.Contains("ReceivedDelta == 1", app, StringComparison.Ordinal);
         Assert.Contains("InvocationDelta == 1", app, StringComparison.Ordinal);
@@ -50,7 +48,6 @@ public sealed class AotStage5B4C2AContractTests
         string runner = Read("scripts/run-aot-hotkey-smoke.ps1");
 
         Assert.Contains("GlobalConflictRolledBack", app, StringComparison.Ordinal);
-        Assert.Contains("SearchConflictRolledBack", app, StringComparison.Ordinal);
         Assert.Contains("final-disable-unregistered", app, StringComparison.Ordinal);
         Assert.Contains("final-reregistered", app, StringComparison.Ordinal);
         Assert.Contains("release-startup-reregistered", app, StringComparison.Ordinal);

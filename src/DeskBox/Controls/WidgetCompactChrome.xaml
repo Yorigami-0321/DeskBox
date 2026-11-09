@@ -81,7 +81,7 @@
                 </Border.Background>
             </Border>
 
-            <!-- Shimmer gradient (search capsule) -->
+            <!-- Shimmer gradient (compact capsule) -->
             <Border x:Name="CompactShimmer" x:FieldModifier="public"
                     Grid.ColumnSpan="4"
                     Margin="-8,0,-6,0"

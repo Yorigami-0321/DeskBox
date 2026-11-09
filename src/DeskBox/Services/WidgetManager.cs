@@ -138,7 +138,6 @@ public sealed partial class WidgetManager
 {
     private readonly TodoSettingsCoordinator? _todoSettings;
     private readonly IQuickCaptureSettings? _quickCaptureSettings;
-    private readonly ISearchFeatureSettings? _searchFeatureSettings;
     private const string ManagedShortcutDescriptionPrefix = "DeskBox mapped widget shortcut:";
 
     /// <summary>
@@ -495,8 +494,7 @@ public sealed partial class WidgetManager
         QuickCaptureService quickCaptureService,
         LocalizationService? localizationService = null,
         TodoSettingsCoordinator? todoSettings = null,
-        IQuickCaptureSettings? quickCaptureSettings = null,
-        ISearchFeatureSettings? searchFeatureSettings = null)
+        IQuickCaptureSettings? quickCaptureSettings = null)
         : this(
             settingsService,
             fileService,
@@ -507,8 +505,7 @@ public sealed partial class WidgetManager
             () => Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory),
             recycleManagedFolderDeletes: true,
             todoSettings,
-            quickCaptureSettings,
-            searchFeatureSettings)
+            quickCaptureSettings)
     {
     }
 
@@ -542,8 +539,7 @@ public sealed partial class WidgetManager
         Func<string> desktopPathProvider,
         bool recycleManagedFolderDeletes,
         TodoSettingsCoordinator? todoSettings = null,
-        IQuickCaptureSettings? quickCaptureSettings = null,
-        ISearchFeatureSettings? searchFeatureSettings = null)
+        IQuickCaptureSettings? quickCaptureSettings = null)
     {
         _settingsService = settingsService;
         _fileSessionRegistration = new(_fileWidgets,
@@ -552,7 +548,6 @@ public sealed partial class WidgetManager
             window => window.WindowHandle);
         _todoSettings = todoSettings;
         _quickCaptureSettings = quickCaptureSettings;
-        _searchFeatureSettings = searchFeatureSettings;
         _fileService = fileService;
         _organizerService = organizerService;
         _themeService = themeService;
@@ -703,8 +698,6 @@ public sealed partial class WidgetManager
             _lastFeatureWidgetEnabledStates[kind] = enabled;
             if (kind == WidgetKind.QuickCapture && _quickCaptureSettings is not null)
                 continue; // the coordinator handles external enablement and listener state
-            if (kind == WidgetKind.Search && _searchFeatureSettings is not null)
-                continue; // the coordinator orders widget teardown before runtime release
             ApplyFeatureWidgetEnabledState(kind, enabled);
         }
 

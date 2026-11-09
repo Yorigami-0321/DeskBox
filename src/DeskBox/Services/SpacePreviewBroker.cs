@@ -44,10 +44,10 @@ internal static class SpacePreviewArbitration
 
 /// <summary>
 /// Arbitrates the space-preview backends behind the QuickLook-era call
-/// sites (WidgetManager session machine, surface fallback, search
+/// sites (WidgetManager session machine, surface fallback, transient
 /// popup). Each broker instance owns its own stickiness: the
-/// WidgetManager broker tracks the widget preview session, the search
-/// popup broker is toggle-only, so a search-popup toggle while a widget
+/// WidgetManager broker tracks the widget preview session, the popup
+/// broker is toggle-only, so a popup toggle while a widget
 /// preview is open behaves exactly as it did with the bare QuickLook
 /// service (same backend, toggle semantics).
 /// All members are UI-thread confined, like every other preview call

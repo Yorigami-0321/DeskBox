@@ -26,16 +26,12 @@ public sealed class SettingsNoticeCardContractTests
     public void SettingsSurfaces_DoNotPlaceRichContentInsideInfoBarContent()
     {
         string window = ReadRepositoryFile("src/DeskBox/Views/SettingsWindow.xaml");
-        string search = ReadRepositoryFile(
-            "src/DeskBox/Views/SettingsSections/SearchSettingsSection.xaml");
 
         Assert.DoesNotContain("InfoBar.Content", window, StringComparison.Ordinal);
-        Assert.DoesNotContain("InfoBar.Content", search, StringComparison.Ordinal);
     }
 
     [Theory]
     [InlineData("src/DeskBox/Views/SettingsWindow.xaml", 3)]
-    [InlineData("src/DeskBox/Views/SettingsSections/SearchSettingsSection.xaml", 1)]
     public void Notices_AreNativeInfoBarsWithTitleAndMessageProperties(string path, int expectedCount)
     {
         string xaml = ReadRepositoryFile(path);
@@ -56,7 +52,6 @@ public sealed class SettingsNoticeCardContractTests
 
     [Theory]
     [InlineData("src/DeskBox/Views/SettingsWindow.xaml")]
-    [InlineData("src/DeskBox/Views/SettingsSections/SearchSettingsSection.xaml")]
     public void ElevatedNoticeInfoBars_AreSiblingsOfTheHotkeyExpander(string path)
     {
         XDocument document = XDocument.Parse(ReadRepositoryFile(path));
@@ -108,19 +103,6 @@ public sealed class SettingsNoticeCardContractTests
         // The template's default text colors already follow the theme; the
         // foreground pin (whose key never existed in the library) is gone.
         Assert.DoesNotContain("InfoBarInformationalSeverityForegroundBrush", code, StringComparison.Ordinal);
-    }
-
-    [Fact]
-    public void SearchSectionNoticeBrushes_DelegateToTheSharedPerThemePin()
-    {
-        string code = ReadRepositoryFile(
-            "src/DeskBox/Views/SettingsSections/SearchSettingsSection.xaml.cs");
-
-        Assert.Contains(
-            "SettingsWindow.ApplyInformationalSeverityBrushes(SearchHotkeyElevatedNoticeInfoBar)",
-            code,
-            StringComparison.Ordinal);
-        Assert.DoesNotContain("Application.Current.Resources", code, StringComparison.Ordinal);
     }
 
     [Fact]

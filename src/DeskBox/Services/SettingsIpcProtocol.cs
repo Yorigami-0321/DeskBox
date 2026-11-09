@@ -62,21 +62,10 @@ public static class SettingsIpcMethods
     public const string HotkeyReset = "hotkey.reset";
     public const string HotkeyRefreshRegistration = "hotkey.refresh-registration";
     public const string HotkeySetEnabled = "hotkey.set-enabled";
-    // (hotkey.gesture-owned / search-hotkey.gesture-owned-by-main removed
-    // in deep review R13-3: both predicates are settings-mirror
-    // computations the host performs locally — the per-keystroke sync
-    // round trips were the modal-loop wedge family.)
     public const string HotkeyDoubleClickSet = "hotkey.double-click-set";
     public const string HotkeySuspend = "hotkey.suspend";
     public const string HotkeyResume = "hotkey.resume";
     public const string HotkeyRegistrationChanged = "hotkey.registration-changed";
-
-    // ── Search hotkey facade (batch R9) ─────────────────────────────
-    // The search section's hotkey card rides these; see ISettingsHotkeyActions.
-    public const string SearchHotkeyState = "search-hotkey.state";
-    public const string SearchHotkeySetEnabled = "search-hotkey.set-enabled";
-    public const string SearchHotkeyApplyGesture = "search-hotkey.apply-gesture";
-    public const string SearchHotkeyRefreshRegistration = "search-hotkey.refresh-registration";
 
     // ── Data facade (batch 3c-1) ─────────────────────────────────────
     public const string DataQuickCaptureCounts = "data.qc-counts";
@@ -234,13 +223,6 @@ public static class SettingsIpcMethods
     // flips the spawn-vs-show decision back to spawn immediately.
     public const string HostFarewell = "host.farewell";
 
-    // ── Everything integration (batch 3d follow-up) ─────────────────
-    public const string SearchEverythingState = "search.everything-state";
-    public const string SearchEverythingRefresh = "search.everything-refresh";
-    public const string SearchEverythingAuto = "search.everything-auto";
-    public const string SearchEverythingSetPath = "search.everything-set-path";
-    public const string SearchEverythingLaunch = "search.everything-launch";
-
     /// <summary>
     /// Settings host → main: streaming appearance preview while a slider
     /// drags (payload = full settings JSON; the main side applies it
@@ -360,10 +342,6 @@ public sealed record SettingsIpcUpdateCheck(string? CurrentVersion);
 
 public sealed record SettingsIpcStartInstaller(string InstallerPath, bool Silent, string? AppCultureName);
 
-public sealed record SettingsIpcEverythingRefresh(bool AllowIpcProbe);
-
-public sealed record SettingsIpcEverythingPath(string Path);
-
 /// <summary>Payload encode/decode helpers over the source-generated context.</summary>
 public static class SettingsIpcPayload
 {
@@ -452,7 +430,4 @@ public static class SettingsIpcPayload
 [JsonSerializable(typeof(AppUpdateDownloadProgress))]
 [JsonSerializable(typeof(AppUpdateDownloadResult))]
 [JsonSerializable(typeof(AppUpdateInstallResult))]
-[JsonSerializable(typeof(DeskBox.Contracts.EverythingConnectionSnapshot))]
-[JsonSerializable(typeof(SettingsIpcEverythingRefresh))]
-[JsonSerializable(typeof(SettingsIpcEverythingPath))]
 internal sealed partial class SettingsIpcJsonContext : JsonSerializerContext;

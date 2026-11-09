@@ -1,6 +1,5 @@
 ﻿using DeskBox.Controls;
 using DeskBox.Features.Todo;
-using DeskBox.Features.Search;
 using DeskBox.Features.Backup;
 using DeskBox.Contracts;
 using DeskBox.Helpers;
@@ -127,7 +126,6 @@ public sealed partial class SettingsWindow : Window
         };
 
     public SettingsViewModel ViewModel { get; }
-    private readonly SearchSettingsViewModel _searchSettingsViewModel;
     private readonly BackupSettingsViewModel _backupSettingsViewModel;
     private readonly IBackupRestoreActions _backupRestoreActions;
     private readonly IBackupCommands _backupCommands;
@@ -178,11 +176,9 @@ public sealed partial class SettingsWindow : Window
     public SettingsWindow(SettingsService settingsService, ThemeService themeService, LocalizationService localizationService,
         TodoSettingsViewModel todoSettings,
         DeskBox.Features.Weather.WeatherSettingsViewModel weatherSettings,
-        SearchSettingsViewModel searchSettings,
         BackupSettingsViewModel backupSettings, IBackupRestoreActions backupRestoreActions,
             IQuickCaptureSettings quickCaptureSettings,
             DeskBox.Features.QuickCapture.QuickCaptureSettingsViewModel quickCaptureSettingsEditor,
-            ISearchFeatureSettings searchFeatureSettings,
         IBackupCommands backupCommands,
         DeskBox.Features.Appearance.AppearanceSettingsViewModel appearanceSettings,
         DeskBox.Features.Capsule.CapsuleSettingsViewModel capsuleSettings,
@@ -216,7 +212,6 @@ public sealed partial class SettingsWindow : Window
 
         _settingsService = settingsService;
         _backupCommands = backupCommands;
-        _searchSettingsViewModel = searchSettings;
         _backupSettingsViewModel = backupSettings;
         _backupRestoreActions = backupRestoreActions;
         _musicSettingsViewModel = musicSettings;
@@ -240,7 +235,7 @@ public sealed partial class SettingsWindow : Window
         _themeService = themeService;
         _localizationService = localizationService;
         ViewModel = new SettingsViewModel(settingsService, themeService, todoSettings, weatherSettings,
-            backupSettings, quickCaptureSettings, quickCaptureSettingsEditor, searchFeatureSettings, appearanceSettings,
+            backupSettings, quickCaptureSettings, quickCaptureSettingsEditor, appearanceSettings,
             capsuleSettings, interactionSettings, fileDisplaySettings, fileStackSettings,
             groupNavigationSettings, featureWidgetsSettings, musicSettings,
             managedStorageSettings, maintenanceSettings, performanceSettings, hotkeyActions,
@@ -589,7 +584,6 @@ public sealed partial class SettingsWindow : Window
         ViewModel.DetachFromUpdateService();
         global::DeskBox.Views.Dialogs.HotkeyRecorderDialog.ShutdownActiveRecorder();
         WindowsCompatibilityService.ReleaseTitleBarExtensions(this, _appWindow);
-        _searchSettingsViewModel.Dispose();
         _backupSettingsViewModel.Deactivate();
         Activated -= SettingsWindow_Activated;
         _appWindow.Closing -= SettingsWindow_AppWindowClosing;

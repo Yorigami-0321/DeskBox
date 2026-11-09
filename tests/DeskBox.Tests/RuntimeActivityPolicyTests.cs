@@ -248,7 +248,6 @@ public sealed class RuntimeActivityPolicyTests
             IsWidgetInteractionActive: false,
             IsSettingsOpen: false,
             IsOnboardingOpen: false,
-            IsSearchPopupVisible: false,
             IsDeskBoxForeground: false,
             IsPointerOverDeskBox: false);
 
@@ -269,7 +268,6 @@ public sealed class RuntimeActivityPolicyTests
             IsWidgetInteractionActive: false,
             IsSettingsOpen: false,
             IsOnboardingOpen: false,
-            IsSearchPopupVisible: false,
             IsDeskBoxForeground: false,
             IsPointerOverDeskBox: false);
 

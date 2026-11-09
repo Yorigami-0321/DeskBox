@@ -215,23 +215,6 @@ public sealed class SettingsSliceContractBaselineTests
         Assert.True(s.WeatherShowWind);
         Assert.False(s.WeatherShowPressure);
         Assert.Equal(60, s.WeatherRefreshIntervalMinutes);
-        Assert.False(s.SearchHotkeyEnabled);
-        Assert.Equal((int)HotkeyModifierKeys.Alt, s.SearchHotkeyModifiers);
-        Assert.Equal(0x44, s.SearchHotkeyKey);
-        Assert.Equal("Spotlight", s.SearchDisplayMode);
-        Assert.True(s.SearchIncludeDeskBoxContent);
-        Assert.False(s.SearchEverythingEnabled);
-        Assert.Equal(string.Empty, s.SearchEverythingExecutablePath);
-        Assert.False(s.SearchEverythingAdvancedSyntaxEnabled);
-        Assert.True(s.SearchShowRecommendations);
-        Assert.True(s.SearchSaveHistory);
-        Assert.Equal(100, s.SearchMaxResults);
-        Assert.Equal("all", s.SearchDefaultTab);
-        Assert.Equal(0, s.SearchAppIconAnimation);
-        Assert.Null(s.SearchPopupCustomX);
-        Assert.Null(s.SearchPopupCustomY);
-        Assert.Null(s.SearchPopupCustomWidth);
-        Assert.Null(s.SearchPopupCustomHeight);
         Assert.Equal("none", s.CloudBackupProvider);
         Assert.Equal("", s.CloudBackupServerUrl);
         Assert.Equal("DeskBox/backups", s.CloudBackupRemotePath);
@@ -470,23 +453,6 @@ public sealed class SettingsSliceContractBaselineTests
         "weatherShowWind",
         "weatherShowPressure",
         "weatherRefreshIntervalMinutes",
-        "searchHotkeyEnabled",
-        "searchHotkeyModifiers",
-        "searchHotkeyKey",
-        "searchDisplayMode",
-        "searchIncludeDeskBoxContent",
-        "searchEverythingEnabled",
-        "searchEverythingExecutablePath",
-        "searchEverythingAdvancedSyntaxEnabled",
-        "searchShowRecommendations",
-        "searchSaveHistory",
-        "searchMaxResults",
-        "searchDefaultTab",
-        "searchAppIconAnimation",
-        "searchPopupCustomX",
-        "searchPopupCustomY",
-        "searchPopupCustomWidth",
-        "searchPopupCustomHeight",
         "cloudBackupProvider",
         "cloudBackupServerUrl",
         "cloudBackupRemotePath",

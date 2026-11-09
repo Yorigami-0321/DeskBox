@@ -14,38 +14,30 @@ public sealed class FeatureSettingsBoundaryContractTests
         Type[] types = typeof(DeskBox.App).Assembly.GetTypes()
             .Where(type => type.Namespace?.StartsWith("DeskBox.Features.", StringComparison.Ordinal) == true ||
                 type.FullName?.StartsWith("DeskBox.Services.TodoSettingsCoordinator", StringComparison.Ordinal) == true ||
-                type.FullName?.StartsWith("DeskBox.Services.SearchSettingsCoordinator", StringComparison.Ordinal) == true ||
                 type.FullName?.StartsWith("DeskBox.Services.BackupSettingsCoordinator", StringComparison.Ordinal) == true ||
                 type.FullName?.StartsWith("DeskBox.Services.BackupRestoreActions", StringComparison.Ordinal) == true ||
                 type.FullName?.StartsWith("DeskBox.Services.QuickCaptureSettingsCoordinator", StringComparison.Ordinal) == true ||
                 type.FullName?.StartsWith("DeskBox.Services.BackupBackend", StringComparison.Ordinal) == true ||
-                type.FullName?.StartsWith("DeskBox.Services.ShutdownSequence", StringComparison.Ordinal) == true ||
-                type.FullName?.StartsWith("DeskBox.Views.SettingsSections.SearchSettingsSection", StringComparison.Ordinal) == true)
+                type.FullName?.StartsWith("DeskBox.Services.ShutdownSequence", StringComparison.Ordinal) == true)
             .ToArray();
         Assert.NotEmpty(types);
 
         var violations = new List<string>();
         foreach (Type type in types)
         {
-            bool searchView = type.FullName?.StartsWith(
-                "DeskBox.Views.SettingsSections.SearchSettingsSection", StringComparison.Ordinal) == true;
             foreach (Type reference in ReferencedTypes(type).SelectMany(ExpandType).Distinct())
             {
                 string name = reference.FullName ?? string.Empty;
                 bool globalAccess = name is "DeskBox.App" or "System.IServiceProvider" or
                     "CommunityToolkit.Mvvm.DependencyInjection.Ioc" ||
-                    (name == "Microsoft.UI.Xaml.Application" && !searchView) ||
+                    name == "Microsoft.UI.Xaml.Application" ||
                     name.StartsWith("Microsoft.Extensions.DependencyInjection.", StringComparison.Ordinal);
                 bool featureUsesAdapter = type.Namespace?.StartsWith(
                     "DeskBox.Features.", StringComparison.Ordinal) == true &&
                     (name.StartsWith("DeskBox.Services.", StringComparison.Ordinal) ||
                      name.StartsWith("DeskBox.Platform.", StringComparison.Ordinal) ||
                      name == "DeskBox.Models.AppSettings");
-                bool searchViewUsesRuntime = searchView &&
-                    name is "DeskBox.Services.SettingsService" or
-                        "DeskBox.Services.SearchHotkeyService" or
-                        "DeskBox.Services.EverythingSearchService";
-                if (globalAccess || featureUsesAdapter || searchViewUsesRuntime)
+                if (globalAccess || featureUsesAdapter)
                     violations.Add($"{type.FullName} -> {name}");
             }
         }

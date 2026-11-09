@@ -115,8 +115,7 @@
 
         <Grid x:Name="FooterBar" Grid.Row="2">
             <!-- Layer fill is the Win11 command-bar/footer material on a Mica base;
-                 large in-app acrylic reads as a washed-out hole.
-                 (Mirrors the SearchPopupWindow footer plate.) -->
+                 large in-app acrylic reads as a washed-out hole. -->
             <Border
                 x:Name="FooterAcrylicSurface"
                 Background="{ThemeResource LayerFillColorDefaultBrush}"

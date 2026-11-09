@@ -151,7 +151,7 @@ public partial class App
     private const string AotManagedUiNativeDropDirectoryName =
         "native-drop-persistence-restart";
     private const string AotManagedUiFileWidgetId = "aot-5b4a-file";
-    private const string AotManagedUiSearchWidgetId = "aot-5b4a-search";
+    private const string AotManagedUiSecondaryFileWidgetId = "aot-5b4a-file-2";
     private const string AotManagedUiQuickCaptureWidgetId =
         "aot-5b4b2b1-quick-capture";
     private const string AotManagedUiTodoWidgetId = "aot-5b4b2b2a-todo";
@@ -776,7 +776,6 @@ public partial class App
             if (scenario is AotManagedUiBasicReadOnlyScenario)
             {
                 await CaptureAotManagedUiSettingsAsync(result);
-                await CaptureAotManagedUiSearchAsync(result);
             }
             else if (scenario == AotManagedUiDeepSettingsReadOnlyScenario)
             {
@@ -992,7 +991,7 @@ public partial class App
         WidgetConfig[] seededWidgets = SettingsService.Settings.Widgets
             .Where(widget =>
                 widget.Id == ownedPrimaryWidgetId ||
-                widget.Id == AotManagedUiSearchWidgetId)
+                widget.Id == AotManagedUiSecondaryFileWidgetId)
             .OrderBy(widget => widget.Id, StringComparer.Ordinal)
             .ToArray();
         RequireAotManagedUi(
@@ -1005,8 +1004,8 @@ public partial class App
                 widget.IsVisible &&
                 !widget.IsDisabled) &&
             seededWidgets.Any(widget =>
-                widget.Id == AotManagedUiSearchWidgetId &&
-                widget.WidgetKind == WidgetKind.Search &&
+                widget.Id == AotManagedUiSecondaryFileWidgetId &&
+                widget.WidgetKind == WidgetKind.File &&
                 widget.IsVisible &&
                 !widget.IsDisabled),
             "SeededWidgetConfiguration",
@@ -1031,21 +1030,21 @@ public partial class App
                 widgetDiagnostic.Hosts.All(host =>
                     host.WidgetKind != WidgetKind.Weather) &&
                 widgetDiagnostic.Hosts.Count(host =>
-                    host.WidgetKind == WidgetKind.Search && host.Visible) == 1
+                    host.WidgetKind == WidgetKind.File && host.Visible) == 1
             : manager.LoadedSurfaceCount == 2 &&
                 widgetDiagnostic.LoadedSurfaceCount == 2 &&
                 widgetDiagnostic.VisibleSurfaceCount == 2 &&
                 widgetDiagnostic.Hosts.Count(host =>
                     host.WidgetKind == ownedPrimaryWidgetKind && host.Visible) == 1 &&
                 widgetDiagnostic.Hosts.Count(host =>
-                    host.WidgetKind == WidgetKind.Search && host.Visible) == 1;
+                    host.WidgetKind == WidgetKind.File && host.Visible) == 1;
         RequireAotManagedUi(
             result,
             expectedHostsRestored,
             "SeededWidgetsRestored",
             isWeatherSettingsPersistence
                 ? "The local-only Weather settings matrix did not suppress the Weather host."
-                : "The real owned primary and Search widget HWNDs were not both restored and visible.");
+                : "The real owned primary and secondary File widget HWNDs were not both restored and visible.");
     }
 
     private static void CaptureAotManagedUiLocales(AotManagedUiSmokeResult result)
@@ -1057,8 +1056,7 @@ public partial class App
             {
                 Locale = locale.Locale,
                 ResourceCount = locale.ResourceCount,
-                HasSettingsTitle = locale.HasSettingsTitle,
-                HasOpenSettingsAction = locale.HasOpenSettingsAction
+                HasSettingsTitle = locale.HasSettingsTitle
             })
             .ToList();
         RequireAotManagedUi(
@@ -1068,8 +1066,7 @@ public partial class App
                 StringComparer.Ordinal).Count() == 13 &&
             localeDiagnostics.All(locale =>
                 locale.ResourceCount > 0 &&
-                locale.HasSettingsTitle &&
-                locale.HasOpenSettingsAction),
+                locale.HasSettingsTitle),
             "AllLocaleResourcesLoaded",
             "One or more shipped locale dictionaries could not be loaded or lacks a required UI key.");
     }
@@ -1311,8 +1308,8 @@ public partial class App
             ViewModelTrayIconStyle = appearanceSettings.TrayIconStyle,
             FileWidget = MapAotManagedUiPersistenceWidget(
                 manager.CaptureAotPersistenceWidgetSnapshot(AotManagedUiFileWidgetId)),
-            SearchWidget = MapAotManagedUiPersistenceWidget(
-                manager.CaptureAotPersistenceWidgetSnapshot(AotManagedUiSearchWidgetId))
+            SecondaryFileWidget = MapAotManagedUiPersistenceWidget(
+                manager.CaptureAotPersistenceWidgetSnapshot(AotManagedUiSecondaryFileWidgetId))
         };
     }
 
@@ -1363,20 +1360,20 @@ public partial class App
         AotManagedUiPersistenceStateEvidence state)
     {
         AotManagedUiPersistenceWidgetEvidence file = state.FileWidget;
-        AotManagedUiPersistenceWidgetEvidence search = state.SearchWidget;
+        AotManagedUiPersistenceWidgetEvidence secondary = state.SecondaryFileWidget;
         if (!file.IsLoaded || file.WindowHandle == 0 || !file.IsHostVisible ||
             !file.HasXamlRoot || file.ActualBounds.Width <= 0 ||
             file.ActualBounds.Height <= 0 ||
-            !search.IsLoaded || search.WindowHandle == 0 ||
-            !search.IsHostVisible || !search.HasXamlRoot ||
-            search.ActualBounds.Width <= 0 || search.ActualBounds.Height <= 0 ||
+            !secondary.IsLoaded || secondary.WindowHandle == 0 ||
+            !secondary.IsHostVisible || !secondary.HasXamlRoot ||
+            secondary.ActualBounds.Width <= 0 || secondary.ActualBounds.Height <= 0 ||
             !string.Equals(file.ViewModelName, file.Name, StringComparison.Ordinal) ||
             !string.Equals(file.ViewModelViewMode, file.ViewMode, StringComparison.Ordinal) ||
             file.ViewModelPositionLocked != file.IsPositionLocked ||
             file.ViewModelSizeLocked != file.IsSizeLocked)
         {
             throw new InvalidOperationException(
-                "The fixed File/Search widget configuration is not represented by live loaded HWNDs.");
+                "The fixed File/secondary File widget configuration is not represented by live loaded HWNDs.");
         }
     }
 
@@ -1407,10 +1404,10 @@ public partial class App
                 sizeLocked: false,
                 hasBaselineMetadata: false) &&
             IsAotManagedUiPersistenceWidgetState(
-                state.SearchWidget,
-                AotManagedUiSearchWidgetId,
-                "AOT Search Fixture",
-                WidgetKind.Search,
+                state.SecondaryFileWidget,
+                AotManagedUiSecondaryFileWidgetId,
+                "AOT File Fixture 2",
+                WidgetKind.File,
                 ViewMode.Icon,
                 positionLocked: false,
                 sizeLocked: false,
@@ -1444,10 +1441,10 @@ public partial class App
                 sizeLocked: true,
                 hasBaselineMetadata: true) &&
             IsAotManagedUiPersistenceWidgetState(
-                state.SearchWidget,
-                AotManagedUiSearchWidgetId,
-                "AOT Search Fixture",
-                WidgetKind.Search,
+                state.SecondaryFileWidget,
+                AotManagedUiSecondaryFileWidgetId,
+                "AOT File Fixture 2",
+                WidgetKind.File,
                 ViewMode.Icon,
                 positionLocked: false,
                 sizeLocked: false,
@@ -1504,124 +1501,6 @@ public partial class App
 
         throw new InvalidOperationException(
             $"Settings section '{sectionTag}' did not reach its visible loaded state. " +
-            $"Last snapshot: {lastSnapshot}.");
-    }
-
-    private async Task CaptureAotManagedUiSearchAsync(AotManagedUiSmokeResult result)
-    {
-        string searchQuery = LocalizationService.T("Search.Action.OpenSettings");
-        RequireAotManagedUi(
-            result,
-            !string.IsNullOrWhiteSpace(searchQuery),
-            "LocalizedSearchQuery",
-            "The guaranteed localized settings action query is empty.");
-
-        OpenSearchPopupWithQuery(searchQuery);
-        AotSearchWindowSnapshot initialSnapshot =
-            await WaitForManagedUiSearchAsync(searchQuery);
-        SearchPopupWindow popup = _searchPopupWindow ??
-            throw new InvalidOperationException("The search popup disappeared before control routing.");
-        AotSearchControlExercise exercise = popup.ExerciseAotReadOnlyControls();
-        AotSearchWindowSnapshot finalSnapshot = popup.CaptureAotSmokeSnapshot();
-
-        string[] expectedFilterTransitions =
-        [
-            "All:All",
-            "FilesAndFolders:FilesAndFolders",
-            "Apps:Apps",
-            "Images:Images",
-            "Documents:Documents",
-            "DeskBox:DeskBox"
-        ];
-        string[] expectedSortTransitions =
-        [
-            "Name:True",
-            "Name:False",
-            "Size:False",
-            "Size:True",
-            "Date:False",
-            "Date:True",
-            "Type:True",
-            "Type:False"
-        ];
-        RequireAotManagedUi(
-            result,
-            exercise.FilterTransitions.SequenceEqual(
-                expectedFilterTransitions,
-                StringComparer.Ordinal) &&
-            exercise.SortTransitions.SequenceEqual(
-                expectedSortTransitions,
-                StringComparer.Ordinal),
-            "SearchControlRoutes",
-            "A filter or two-click sort route did not produce the required transition sequence.");
-        RequireAotManagedUi(
-            result,
-            finalSnapshot.WindowHandle != 0 &&
-            finalSnapshot.IsAppWindowVisible &&
-            finalSnapshot.IsPopupVisible &&
-            finalSnapshot.HasXamlRoot &&
-            !finalSnapshot.IsSearching &&
-            finalSnapshot.HasResults &&
-            finalSnapshot.HasOpenSettingsAction &&
-            string.Equals(finalSnapshot.ResultFilter, "All", StringComparison.Ordinal) &&
-            string.Equals(finalSnapshot.SortColumn, "Relevance", StringComparison.Ordinal) &&
-            finalSnapshot.SortAscending,
-            "SearchCompleted",
-            "The search popup did not remain in a valid read-only completed state.");
-
-        result.Search = new AotManagedUiSearchEvidence
-        {
-            Query = searchQuery,
-            WindowHandle = initialSnapshot.WindowHandle,
-            HasXamlRoot = initialSnapshot.HasXamlRoot,
-            HasResults = initialSnapshot.HasResults,
-            HasCurrentResults = initialSnapshot.HasCurrentResults,
-            CurrentResultsCount = initialSnapshot.CurrentResultsCount,
-            SelectedTabId = initialSnapshot.SelectedTabId,
-            ResultFilterBarVisible = initialSnapshot.IsResultFilterBarVisible,
-            SortHeaderRowVisible = initialSnapshot.IsSortHeaderRowVisible,
-            HasOpenSettingsAction = initialSnapshot.HasOpenSettingsAction,
-            FilterTransitions = exercise.FilterTransitions.ToList(),
-            SortTransitions = exercise.SortTransitions.ToList(),
-            FinalResultFilter = finalSnapshot.ResultFilter,
-            FinalSortColumn = finalSnapshot.SortColumn,
-            FinalSortAscending = finalSnapshot.SortAscending
-        };
-    }
-
-    private async Task<AotSearchWindowSnapshot> WaitForManagedUiSearchAsync(string searchQuery)
-    {
-        DateTimeOffset deadline = DateTimeOffset.UtcNow.AddSeconds(30);
-        AotSearchWindowSnapshot? lastSnapshot = null;
-        while (DateTimeOffset.UtcNow < deadline)
-        {
-            if (_searchPopupWindow is { } popup)
-            {
-                lastSnapshot = popup.CaptureAotSmokeSnapshot();
-                if (lastSnapshot.WindowHandle != 0 &&
-                    lastSnapshot.IsAppWindowVisible &&
-                    lastSnapshot.IsPopupVisible &&
-                    lastSnapshot.HasXamlRoot &&
-                    string.Equals(lastSnapshot.TextBoxQuery, searchQuery, StringComparison.Ordinal) &&
-                    string.Equals(lastSnapshot.ViewModelQuery, searchQuery, StringComparison.Ordinal) &&
-                    !lastSnapshot.IsSearching &&
-                    lastSnapshot.HasResults &&
-                    lastSnapshot.HasCurrentResults &&
-                    lastSnapshot.CurrentResultsCount > 0 &&
-                    string.Equals(lastSnapshot.SelectedTabId, "all", StringComparison.Ordinal) &&
-                    lastSnapshot.IsResultFilterBarVisible &&
-                    lastSnapshot.IsSortHeaderRowVisible &&
-                    lastSnapshot.HasOpenSettingsAction)
-                {
-                    return lastSnapshot;
-                }
-            }
-
-            await Task.Delay(100);
-        }
-
-        throw new InvalidOperationException(
-            $"The real search window did not complete the guaranteed action query. " +
             $"Last snapshot: {lastSnapshot}.");
     }
 
@@ -1701,7 +1580,6 @@ internal sealed class AotManagedUiSmokeResult
     public List<string> VisibleWidgetKinds { get; set; } = [];
     public List<AotManagedUiLocaleEvidence> Locales { get; set; } = [];
     public List<AotManagedUiSettingsEvidence> SettingsSections { get; set; } = [];
-    public AotManagedUiSearchEvidence? Search { get; set; }
     public AotManagedUiDeepSettingsEvidence? DeepSettings { get; set; }
     public AotManagedUiPersistenceEvidence? Persistence { get; set; }
     public AotManagedUiQuickCapturePersistenceEvidence? QuickCapturePersistence { get; set; }
@@ -1728,7 +1606,6 @@ internal sealed class AotManagedUiLocaleEvidence
     public string Locale { get; set; } = string.Empty;
     public int ResourceCount { get; set; }
     public bool HasSettingsTitle { get; set; }
-    public bool HasOpenSettingsAction { get; set; }
 }
 
 internal sealed class AotManagedUiSettingsEvidence
@@ -1743,25 +1620,6 @@ internal sealed class AotManagedUiSettingsEvidence
     public string CurrentSection { get; set; } = string.Empty;
     public string? SelectedSection { get; set; }
     public List<string> VisibleSections { get; set; } = [];
-}
-
-internal sealed class AotManagedUiSearchEvidence
-{
-    public string Query { get; set; } = string.Empty;
-    public long WindowHandle { get; set; }
-    public bool HasXamlRoot { get; set; }
-    public bool HasResults { get; set; }
-    public bool HasCurrentResults { get; set; }
-    public int CurrentResultsCount { get; set; }
-    public string? SelectedTabId { get; set; }
-    public bool ResultFilterBarVisible { get; set; }
-    public bool SortHeaderRowVisible { get; set; }
-    public bool HasOpenSettingsAction { get; set; }
-    public List<string> FilterTransitions { get; set; } = [];
-    public List<string> SortTransitions { get; set; } = [];
-    public string FinalResultFilter { get; set; } = string.Empty;
-    public string FinalSortColumn { get; set; } = string.Empty;
-    public bool FinalSortAscending { get; set; }
 }
 
 internal sealed class AotManagedUiDeepSettingsEvidence
@@ -1828,7 +1686,7 @@ internal sealed class AotManagedUiPersistenceStateEvidence
     public double ViewModelTextSize { get; set; }
     public string ViewModelTrayIconStyle { get; set; } = string.Empty;
     public AotManagedUiPersistenceWidgetEvidence FileWidget { get; set; } = new();
-    public AotManagedUiPersistenceWidgetEvidence SearchWidget { get; set; } = new();
+    public AotManagedUiPersistenceWidgetEvidence SecondaryFileWidget { get; set; } = new();
 }
 
 internal sealed class AotManagedUiPersistenceWidgetEvidence

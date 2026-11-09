@@ -46,7 +46,7 @@ public sealed class AotRetailIsolationContractTests
             .EnumerateFiles(sourceRoot, "*.cs", SearchOption.AllDirectories)
             .Where(IsSmokeHarnessSource)
             .ToArray();
-        Assert.Equal(61, harnessSources.Length);
+        Assert.Equal(60, harnessSources.Length);
         Assert.DoesNotContain(
             harnessSources,
             path => path.EndsWith(".AotBindableProperties.cs", StringComparison.Ordinal));

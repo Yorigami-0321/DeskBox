@@ -105,7 +105,6 @@ public sealed class WidgetForegroundContractTests
     [InlineData("src/DeskBox/Controls/WidgetContents/GlanceWidgetContent.xaml")]
     [InlineData("src/DeskBox/Controls/WidgetContents/MusicWidgetContent.xaml")]
     [InlineData("src/DeskBox/Controls/WidgetContents/QuickCaptureSurfaceContent.xaml")]
-    [InlineData("src/DeskBox/Controls/WidgetContents/SearchWidgetContent.xaml")]
     [InlineData("src/DeskBox/Controls/WidgetContents/TodoWidgetContent.xaml")]
     [InlineData("src/DeskBox/Controls/WidgetContents/WeatherWidgetContent.xaml")]
     public void WidgetContentRoots_InheritTheWidgetPrimaryForeground(string path)

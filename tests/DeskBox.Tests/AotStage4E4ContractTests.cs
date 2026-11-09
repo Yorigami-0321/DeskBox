@@ -109,7 +109,7 @@ public sealed class AotStage4E4ContractTests
         int bridgeClear = code.IndexOf(
             "AppearanceDetailSection.FileStack = null;",
             StringComparison.Ordinal);
-        // Match the shell property, not a child such as _searchSettingsViewModel.
+        // Match the shell property, not a child view-model field.
         var disposeCall = System.Text.RegularExpressions.Regex.Match(
             code, @"(?m)^[ \t]*ViewModel\.Dispose\(\);");
         Assert.True(disposeCall.Success);

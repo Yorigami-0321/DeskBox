@@ -349,22 +349,6 @@ public sealed class ContextMenuWin11AlignmentContractTests
     }
 
     [Fact]
-    public void SearchResultsMenu_KeepsRunAsAdministratorEntry()
-    {
-        string searchWindow = ReadRepositoryFile(
-            "src/DeskBox/Views/SearchPopupWindow.xaml.cs");
-
-        Assert.Contains(
-            "ElevatedFileLauncher.CanRunAsAdministrator(item.DetailPath",
-            searchWindow,
-            StringComparison.Ordinal);
-        Assert.Contains(
-            "Widget.RunAsAdministrator",
-            searchWindow,
-            StringComparison.Ordinal);
-    }
-
-    [Fact]
     public void Localization_NewKeysPresent_RetiredKeyGone_AllLanguages()
     {
         string stringsDir = TestPaths.FromRepository("src/DeskBox/Strings");

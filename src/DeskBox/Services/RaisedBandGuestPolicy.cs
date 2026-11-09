@@ -23,7 +23,7 @@ internal enum RaisedBandReleasePlacement
 }
 
 /// <summary>
-/// Pure decisions for quick-reveal raised-band guest windows (search popup,
+/// Pure decisions for quick-reveal raised-band guest windows (transient popups,
 /// settings, desktop organization). A raised quick-reveal group is held
 /// WS_EX_TOPMOST, so DeskBox-owned interactive surfaces opened during the
 /// session must join the topmost band above the widgets instead of pulsing

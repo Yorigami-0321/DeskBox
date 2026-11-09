@@ -12,21 +12,15 @@ using DeskBox.Models;
 public sealed class InProcessSettingsHotkeyActions : ISettingsHotkeyActions
 {
     private readonly GlobalHotkeyService? _hotkeyService;
-    private readonly SearchHotkeyService? _searchHotkeyService;
-    private readonly Func<SearchHotkeyService?>? _searchHotkeyProvider;
     private readonly DesktopDoubleClickActivationService? _doubleClickService;
     private readonly SettingsService _settingsService;
 
     public InProcessSettingsHotkeyActions(
         GlobalHotkeyService? hotkeyService,
-        SearchHotkeyService? searchHotkeyService,
         DesktopDoubleClickActivationService? doubleClickService,
-        SettingsService settingsService,
-        Func<SearchHotkeyService?>? searchHotkeyProvider = null)
+        SettingsService settingsService)
     {
         _hotkeyService = hotkeyService;
-        _searchHotkeyService = searchHotkeyService;
-        _searchHotkeyProvider = searchHotkeyProvider;
         _doubleClickService = doubleClickService;
         _settingsService = settingsService;
         // Subscribed eagerly for the facade's lifetime: the settings window
@@ -41,37 +35,6 @@ public sealed class InProcessSettingsHotkeyActions : ISettingsHotkeyActions
     public event Action? RegistrationChanged;
 
     private void OnRegistrationChanged() => RegistrationChanged?.Invoke();
-
-    /// <summary>
-    /// Live resolution (batch R10): the router is constructed at MAIN boot,
-    /// when the search feature is usually still disabled and the service
-    /// does not exist yet (it is created lazily at first enable). The
-    /// constructor snapshot was null forever in that state, and every
-    /// search-hotkey command silently no-opped — the settings page showed
-    /// "hotkey failed / combination in use" for a key nobody held.
-    /// </summary>
-    private SearchHotkeyService? SearchHotkey =>
-        _searchHotkeyProvider?.Invoke() ?? _searchHotkeyService;
-
-    public Task<bool> IsSearchHotkeyRegisteredAsync() =>
-        Task.FromResult(SearchHotkey?.IsRegistered == true);
-
-    public void SetSearchHotkeyEnabled(bool enabled) =>
-        SearchHotkey?.SetEnabled(enabled);
-
-    public bool TryApplySearchHotkeyGesture(GlobalHotkeyGesture gesture, out string? error)
-    {
-        if (SearchHotkey is not { } search)
-        {
-            error = "search hotkey service unavailable";
-            return false;
-        }
-
-        return search.TryApplyGesture(gesture, out error);
-    }
-
-    public void RefreshSearchHotkeyRegistration() =>
-        SearchHotkey?.RefreshRegistration();
 
     public GlobalHotkeyRuntimeState? GetRuntimeState()
     {
@@ -113,10 +76,6 @@ public sealed class InProcessSettingsHotkeyActions : ISettingsHotkeyActions
 
     public void SetEnabled(bool enabled) => _hotkeyService?.SetEnabled(enabled);
 
-    // IsGestureOwnedBySearchHotkey/ByMainHotkey left the interface with
-    // their round trips (deep review R13-3): both are settings-mirror
-    // computations the settings host now performs locally.
-
     public DesktopDoubleClickToggleResult TrySetDesktopDoubleClickEnabled(bool enabled)
     {
         if (_doubleClickService is not { } service)
@@ -135,12 +94,10 @@ public sealed class InProcessSettingsHotkeyActions : ISettingsHotkeyActions
     public void SuspendHotkeysForRecording()
     {
         _hotkeyService?.SuspendForRecording();
-        _searchHotkeyService?.SuspendForRecording();
     }
 
     public void ResumeHotkeysAfterRecording()
     {
-        _searchHotkeyService?.ResumeAfterRecording();
         _hotkeyService?.ResumeAfterRecording();
     }
 }

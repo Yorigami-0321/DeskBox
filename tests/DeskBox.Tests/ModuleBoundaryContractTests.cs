@@ -145,7 +145,6 @@ public sealed class ModuleBoundaryContractTests
         ["src/DeskBox/ViewModels/SettingsViewModel.QuickCaptureDiagnostics.cs"] = 2,
         ["src/DeskBox/ViewModels/SettingsViewModel.RuntimeDiagnostics.cs"] = 2,
         ["src/DeskBox/Services/DesktopDoubleClickActivationService.cs"] = 2,
-        ["src/DeskBox/Services/FileMetaService.cs"] = 1,
         ["src/DeskBox/Services/GlobalHotkeyService.cs"] = 2,
         ["src/DeskBox/Services/QuickCaptureClipboardService.cs"] = 3,
         ["src/DeskBox/Services/PerformanceLogger.cs"] = 1,
@@ -153,7 +152,6 @@ public sealed class ModuleBoundaryContractTests
         ["src/DeskBox/Services/ResizeGuideOverlayService.cs"] = 4,
         ["src/DeskBox/Services/ThemeService.cs"] = 3,
         ["src/DeskBox/Services/StoreAppUpdateService.cs"] = 1,
-        ["src/DeskBox/Services/SearchHotkeyService.cs"] = 3,
         ["src/DeskBox/Services/WeatherService.cs"] = 1,
         ["src/DeskBox/Services/JumpListService.cs"] = 1,
         ["src/DeskBox/Services/WidgetChromeMenuBuilder.cs"] = 1,
@@ -219,32 +217,27 @@ public sealed class ModuleBoundaryContractTests
         Type[] types = typeof(DeskBox.App).Assembly.GetTypes()
             .Where(type => type.Namespace?.StartsWith("DeskBox.Features.", StringComparison.Ordinal) == true ||
                 type.FullName?.StartsWith("DeskBox.Services.TodoSettingsCoordinator", StringComparison.Ordinal) == true ||
-                type.FullName?.StartsWith("DeskBox.Services.SearchSettingsCoordinator", StringComparison.Ordinal) == true ||
                 type.FullName?.StartsWith("DeskBox.Services.BackupSettingsCoordinator", StringComparison.Ordinal) == true ||
                 type.FullName?.StartsWith("DeskBox.Services.BackupRestoreActions", StringComparison.Ordinal) == true ||
                 type.FullName?.StartsWith("DeskBox.Services.QuickCaptureSettingsCoordinator", StringComparison.Ordinal) == true ||
                 type.FullName?.StartsWith("DeskBox.Services.BackupBackend", StringComparison.Ordinal) == true ||
-                type.FullName?.StartsWith("DeskBox.Services.ShutdownSequence", StringComparison.Ordinal) == true ||
-                type.FullName?.StartsWith("DeskBox.Views.SettingsSections.SearchSettingsSection", StringComparison.Ordinal) == true)
+                type.FullName?.StartsWith("DeskBox.Services.ShutdownSequence", StringComparison.Ordinal) == true)
             .ToArray();
         Assert.NotEmpty(types);
         var violations = new List<string>();
         foreach (Type type in types)
         {
-            bool isSearchView = type.FullName?.StartsWith("DeskBox.Views.SettingsSections.SearchSettingsSection", StringComparison.Ordinal) == true;
             foreach (Type reference in ReferencedTypes(type).SelectMany(ExpandType).Distinct())
             {
                 string name = reference.FullName ?? string.Empty;
                 bool globalServiceAccess = name is "DeskBox.App" or "System.IServiceProvider" or
                     "CommunityToolkit.Mvvm.DependencyInjection.Ioc" ||
-                    (name == "Microsoft.UI.Xaml.Application" && !isSearchView) ||
+                    name == "Microsoft.UI.Xaml.Application" ||
                     name.StartsWith("Microsoft.Extensions.DependencyInjection.", StringComparison.Ordinal);
                 bool featureUsesAdapter = type.Namespace?.StartsWith("DeskBox.Features.", StringComparison.Ordinal) == true &&
                     (name.StartsWith("DeskBox.Services.", StringComparison.Ordinal) ||
                      name.StartsWith("DeskBox.Platform.", StringComparison.Ordinal) || name == "DeskBox.Models.AppSettings");
-                bool searchViewUsesRuntime = isSearchView &&
-                    name is "DeskBox.Services.SettingsService" or "DeskBox.Services.SearchHotkeyService" or "DeskBox.Services.EverythingSearchService";
-                if (globalServiceAccess || featureUsesAdapter || searchViewUsesRuntime)
+                if (globalServiceAccess || featureUsesAdapter)
                     violations.Add($"{type.FullName} -> {name}");
             }
         }
@@ -314,27 +307,6 @@ public sealed class ModuleBoundaryContractTests
             ProductionSource().Single(item =>
                 item.Path == "src/DeskBox/ViewModels/SettingsViewModel.FeatureOptions.cs").Source,
             StringComparison.Ordinal);
-    }
-
-    [Fact]
-    public void SearchMasterSwitch_UsesTheCoordinatorInsteadOfWidgetManagerGlobalAccess()
-    {
-        string manager = ProductionSource().Single(item =>
-            item.Path == "src/DeskBox/Services/WidgetManager.FeatureWidgets.cs").Source;
-        string settings = ProductionSource().Single(item =>
-            item.Path == "src/DeskBox/ViewModels/SettingsViewModel.FeatureOptions.cs").Source;
-        Assert.DoesNotContain("App.Current.SetSearchFeatureEnabled", manager, StringComparison.Ordinal);
-        Assert.Contains("await _searchFeatureSettings.SetEnabledAsync(enabled, reveal)",
-            manager, StringComparison.Ordinal);
-        Assert.Contains("_searchFeatureSettings.CommitEnabledStateAsync(enabled)",
-            manager, StringComparison.Ordinal);
-        // Batch 3d follow-up: the switch rides the facade command; the main
-        // process runs the coordinator chain (delegates wired in App).
-        Assert.Contains("bool applied = await _widgetActions.SetFeatureWidgetEnabled(kind, enabled);",
-            settings, StringComparison.Ordinal);
-        string app = ProductionSource().Single(item =>
-            item.Path == "src/DeskBox/App.xaml.cs").Source;
-        Assert.Contains("applySearchEnabled: enabled =>", app, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -520,7 +492,6 @@ public sealed class ModuleBoundaryContractTests
         ["src/DeskBox/Services/FileService.cs"] = 9,
         ["src/DeskBox/Services/GlanceImageService.cs"] = 3,
         ["src/DeskBox/Services/GlanceWidgetStore.cs"] = 1,
-        ["src/DeskBox/Services/LegacySearchIndexCleanupService.cs"] = 1,
         ["src/DeskBox/Services/ManagedStorageDesktopShortcutService.cs"] = 1,
         ["src/DeskBox/Services/NativeNotificationActivationEnvelopeStore.cs"] = 6,
         ["src/DeskBox/Services/QuickCaptureService.cs"] = 8,
@@ -551,7 +522,6 @@ public sealed class ModuleBoundaryContractTests
         // Relocation, not a new violation — total unchanged, whitelist guard
         // included in the moved code.
         ["src/DeskBox/Helpers/NativeDropMaterializationWorker.cs"] = 1,
-        ["src/DeskBox/Views/SearchPopupWindow.xaml.cs"] = 2,
         ["src/DeskBox/Views/SettingsWindow.Feedback.cs"] = 1,
     };
 
@@ -564,7 +534,6 @@ public sealed class ModuleBoundaryContractTests
         // binding surfaces; they keep the WinRT bindable attribute.
         "src/DeskBox/Models/CapsuleOverrideSettingsItem.cs",
         "src/DeskBox/Models/WidgetGroupSettingsItems.cs",
-        "src/DeskBox/Models/SearchModels.cs",
         "src/DeskBox/Models/SettingsOption.cs",
         "src/DeskBox/Models/WeatherData.cs",
         "src/DeskBox/Models/WidgetItem.AotBindableProperties.cs",

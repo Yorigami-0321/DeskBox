@@ -1,3 +1,4 @@
+using DeskBox.Helpers;
 using DeskBox.Models;
 using DeskBox.Services;
 using Microsoft.UI.Xaml;
@@ -196,18 +197,18 @@ public sealed partial class FileSurfaceContent
         if (progress.TotalBytes is { } totalBytes)
         {
             parts.Add(
-                $"{FileMetaService.FormatSize(progress.BytesTransferred)} / " +
-                FileMetaService.FormatSize(totalBytes));
+                $"{FileSizeFormatter.FormatSize(progress.BytesTransferred)} / " +
+                FileSizeFormatter.FormatSize(totalBytes));
         }
         else if (progress.BytesTransferred > 0)
         {
-            parts.Add(FileMetaService.FormatSize(progress.BytesTransferred));
+            parts.Add(FileSizeFormatter.FormatSize(progress.BytesTransferred));
         }
 
         if (progress.BytesPerSecond is > 0)
         {
             parts.Add(
-                FileMetaService.FormatSize(
+                FileSizeFormatter.FormatSize(
                     (long)Math.Min(long.MaxValue, progress.BytesPerSecond.Value)) +
                 "/s");
         }

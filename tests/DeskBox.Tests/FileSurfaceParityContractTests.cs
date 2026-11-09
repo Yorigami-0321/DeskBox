@@ -1252,10 +1252,6 @@ public sealed class FileSurfaceParityContractTests
             "view.ItemsSource = null",
             stackPopover,
             StringComparison.Ordinal);
-        Assert.DoesNotContain(
-            "SearchEngineService",
-            stackPopover,
-            StringComparison.Ordinal);
         string adapter = File.ReadAllText(Path.Combine(
             root,
             "src/DeskBox/Controls/WidgetContents/FileWidgetContentAdapter.cs"));

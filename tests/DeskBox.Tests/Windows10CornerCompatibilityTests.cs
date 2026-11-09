@@ -7,7 +7,6 @@ public sealed class Windows10CornerCompatibilityTests
     {
         string widgetBounds = Read("src/DeskBox/Views/WidgetWindowBase.Bounds.cs");
         string widgetCollapse = Read("src/DeskBox/Views/WidgetWindowBase.Collapse.cs");
-        string searchPopup = Read("src/DeskBox/Views/SearchPopupWindow.xaml.cs");
         string stackPopover = Read(
             "src/DeskBox/Controls/WidgetContents/FileSurfaceContent.StackPopover.cs");
 
@@ -22,10 +21,6 @@ public sealed class Windows10CornerCompatibilityTests
         Assert.Contains(
             "ResolveEffectiveWidgetCompactMediaCornerMode",
             widgetCollapse,
-            StringComparison.Ordinal);
-        Assert.Contains(
-            "ResolveEffectiveWidgetCornerPreference",
-            searchPopup,
             StringComparison.Ordinal);
         Assert.Contains(
             "ResolveEffectiveWidgetCornerPreference",

@@ -382,7 +382,6 @@ public sealed partial class WidgetManager
             WidgetKind.Todo => "Todo.Title",
             WidgetKind.Music => "Music.Title",
             WidgetKind.Weather => "Weather.Title",
-            WidgetKind.Search => "Search.Title",
             WidgetKind.Glance => "Glance.Title",
             WidgetKind.Tags => "Tags.Title",
             WidgetKind.SystemMonitor => "SystemMonitor.Title",
@@ -431,7 +430,6 @@ public sealed partial class WidgetManager
             {
                 WidgetKind.Music => 380,
                 WidgetKind.Weather => 200,
-                WidgetKind.Search => 280,
                 WidgetKind.Glance => 360,
                 _ => Math.Max(_settingsService.Settings.DefaultWidgetWidth, 320)
             },
@@ -439,12 +437,10 @@ public sealed partial class WidgetManager
             {
                 WidgetKind.Music => 190,
                 WidgetKind.Weather => 200,
-                WidgetKind.Search => 90,
                 WidgetKind.Glance => 260,
                 _ => Math.Max(_settingsService.Settings.DefaultWidgetHeight, 360)
             }
         };
-        ApplyDefaultFeatureWidgetChromeMode(config, kind);
 
         ApplyNewWidgetPlacement(config);
         _settingsService.Settings.Widgets.Add(config);
@@ -508,7 +504,6 @@ public sealed partial class WidgetManager
                 entry => entry.Value,
                 StringComparer.Ordinal) ?? []
         };
-        ApplyDefaultFeatureWidgetChromeMode(config, WidgetKind.Glance);
 
         GlanceWidgetData data = sourceConfig is null
             ? new GlanceWidgetData()
@@ -1026,11 +1021,6 @@ public sealed partial class WidgetManager
             await _quickCaptureSettings.SetEnabledAsync(enabled, reveal);
             return;
         }
-        if (kind == WidgetKind.Search && _searchFeatureSettings is not null)
-        {
-            await _searchFeatureSettings.SetEnabledAsync(enabled, reveal);
-            return;
-        }
         if (kind == WidgetKind.Todo && _todoSettings is not null)
         {
             await _todoSettings.SetEnabledAsync(enabled);
@@ -1071,25 +1061,6 @@ public sealed partial class WidgetManager
             if (_quickCaptureSettings is not null && _quickCaptureSettings.Read().Enabled != enabled)
                 return;
             await SetQuickCaptureEnabledAsync(enabled, reveal);
-        }
-        finally { gate.Release(); }
-    }
-
-    internal async Task ApplySearchWindowStateAsync(bool enabled, bool reveal)
-    {
-        if (!HasUiThreadAccess())
-        {
-            await RunOnUiThreadAsync(() => ApplySearchWindowStateAsync(enabled, reveal));
-            return;
-        }
-
-        SemaphoreSlim gate = _featureWidgetUpdateLocks[WidgetKind.Search];
-        await gate.WaitAsync();
-        try
-        {
-            if (_searchFeatureSettings is not null && _searchFeatureSettings.Enabled != enabled)
-                return;
-            await SetSearchFeatureWidgetEnabledAsync(enabled, reveal);
         }
         finally { gate.Release(); }
     }
@@ -1252,7 +1223,6 @@ public sealed partial class WidgetManager
         config.IsSizeLocked = false;
         config.Metadata ??= [];
         config.Metadata.Clear();
-        ApplyDefaultFeatureWidgetChromeMode(config, kind);
         config.MappedFolderPath = null;
         config.FollowsDefaultStoragePath = false;
         config.ManagedFolderName = null;
@@ -1260,14 +1230,6 @@ public sealed partial class WidgetManager
         config.SortDescending = false;
         config.Items ??= [];
         config.Items.Clear();
-    }
-
-    internal static void ApplyDefaultFeatureWidgetChromeMode(WidgetConfig config, WidgetKind kind)
-    {
-        if (kind == WidgetKind.Search)
-        {
-            WidgetChromeModeNames.SetOverrideMode(config, WidgetChromeMode.Overlay);
-        }
     }
 
     private void CloseLoadedFeatureWidgetWindows(WidgetKind kind)
@@ -1361,8 +1323,7 @@ public sealed partial class WidgetManager
 
         HideAndCloseFeatureWidgetAsync(kind);
         // Close the content window while feature-owned services are still
-        // available. Search content, for example, must unsubscribe from the
-        // exact SearchHistoryService instance before that service is released.
+        // available.
         await CommitFeatureWidgetStateAsync(kind, false);
         await _settingsService.SaveAsync();
     }
@@ -1385,11 +1346,6 @@ public sealed partial class WidgetManager
     private Task SetWeatherFeatureWidgetEnabledAsync(bool enabled, bool reveal)
     {
         return SetContentFeatureWidgetEnabledAsync(WidgetKind.Weather, enabled, reveal);
-    }
-
-    private Task SetSearchFeatureWidgetEnabledAsync(bool enabled, bool reveal)
-    {
-        return SetContentFeatureWidgetEnabledAsync(WidgetKind.Search, enabled, reveal);
     }
 
     private Task SetGlanceFeatureWidgetEnabledAsync(bool enabled, bool reveal)
@@ -1441,21 +1397,14 @@ public sealed partial class WidgetManager
         return FeatureWidgetSettings.IsFeatureWidget(kind);
     }
 
-    private async Task CommitFeatureWidgetStateAsync(WidgetKind kind, bool enabled)
+    private Task CommitFeatureWidgetStateAsync(WidgetKind kind, bool enabled)
     {
-        if (kind == WidgetKind.Search && _searchFeatureSettings is not null)
-        {
-            await _searchFeatureSettings.CommitEnabledStateAsync(enabled);
-            _lastFeatureWidgetEnabledStates[kind] = GetFeatureWidgetEnabledState(kind);
-            return;
-        }
         SetFeatureWidgetEnabledState(kind, enabled);
+        return Task.CompletedTask;
     }
 
     private void SetFeatureWidgetEnabledState(WidgetKind kind, bool enabled)
     {
-        if (kind == WidgetKind.Search && _searchFeatureSettings is not null)
-            throw new InvalidOperationException("Search state commits must await their runtime boundary.");
         _lastFeatureWidgetEnabledStates[kind] = enabled;
         if (kind == WidgetKind.Todo && _todoSettings is not null)
         {

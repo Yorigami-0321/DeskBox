@@ -590,7 +590,6 @@ public sealed class SettingsAccordionAndOrderingContractTests
         {
             SettingsWindowXaml,
             "src/DeskBox/Views/SettingsSections/CapsuleModeSettingsSection.xaml",
-            "src/DeskBox/Views/SettingsSections/SearchSettingsSection.xaml",
         };
 
         foreach (string file in xamlFiles)

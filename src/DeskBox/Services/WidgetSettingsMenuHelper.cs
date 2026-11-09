@@ -26,7 +26,6 @@ internal static class WidgetSettingsMenuHelper
         WidgetKind.Music => "MusicSettings",
         WidgetKind.Weather => "WeatherSettings",
         WidgetKind.Glance => "GlanceSettings",
-        WidgetKind.Search => "SearchSettings",
         _ => null
     };
 
@@ -42,7 +41,6 @@ internal static class WidgetSettingsMenuHelper
         WidgetKind.Music => "Widget.Settings.Music",
         WidgetKind.Weather => "Widget.Settings.Weather",
         WidgetKind.Glance => "Widget.Settings.Glance",
-        WidgetKind.Search => "Widget.Settings.Search",
         _ => "Common.Configure"
     };
 

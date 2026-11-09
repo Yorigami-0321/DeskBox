@@ -60,7 +60,6 @@ public sealed partial class ContentWidgetWindow : WidgetWindowBase, IDesktopWidg
     private int _contentSleepGeneration;
     private WidgetCompactPresentation? _sleepingCompactPresentation;
     private OwnedOneShotDispatcherTimer? _compactContentSleepTimer;
-    private SearchHistoryService? _subscribedSearchHistoryService;
 
     public ContentWidgetWindow(
         WidgetConfig config,
@@ -171,7 +170,6 @@ public sealed partial class ContentWidgetWindow : WidgetWindowBase, IDesktopWidg
             QuickCaptureWidgetContentAdapter quickCapture =>
                 CreateQuickCaptureCompactPresentation(quickCapture, contentMode),
             WeatherWidgetContentAdapter weather => CreateWeatherCompactPresentation(weather, contentMode),
-            SearchWidgetContentAdapter => CreateSearchCompactPresentation(contentMode, localization),
             _ => new WidgetCompactPresentation(
                 _titleViewModel.DisplayName,
                 string.Empty,
@@ -264,46 +262,6 @@ public sealed partial class ContentWidgetWindow : WidgetWindowBase, IDesktopWidg
 
         double physicalWidth = logicalWidth * scale * GlanceImageDecodeSizeCalculator.CompactBackgroundSupersamplingFactor;
         return (int)Math.Clamp(Math.Ceiling(physicalWidth), 320, 1600);
-    }
-
-    private WidgetCompactPresentation CreateSearchCompactPresentation(
-        string contentMode,
-        LocalizationService localization)
-    {
-        // Smart mode gets a dynamic subtitle so the search capsule matches the
-        // height/style of the weather/quick-capture capsules instead of looking
-        // bare. The subtitle shows the most recent query ("最近：xxx"); when there
-        // is no history (or history is disabled / sensitive content is hidden) it
-        // falls back to a static hint so the line never appears empty.
-        bool stacked = contentMode == SettingsService.WidgetCompactContentModeSmart;
-
-        string summary = string.Empty;
-        string recentKey = string.Empty;
-        if (stacked)
-        {
-            string? recent = null;
-            if (SettingsService.Settings.SearchSaveHistory &&
-                !SettingsService.Settings.WidgetCompactHideSensitiveContent)
-            {
-                recent = App.Current.SearchHistoryService?.RecentQueries.FirstOrDefault();
-            }
-
-            summary = string.IsNullOrWhiteSpace(recent)
-                ? localization.T("Search.Compact.Hint")
-                : localization.Format("Search.Compact.Recent", recent);
-            recentKey = recent ?? string.Empty;
-        }
-
-        return new WidgetCompactPresentation(
-            _titleViewModel.DisplayName,
-            summary,
-            _descriptor.DefaultGlyph,
-            localization.T("Widget.Compact.DropHint"),
-            ShowPrimaryAction: true,
-            PrimaryActionGlyph: "\uE721",
-            UseStackedText: stacked,
-            EnableMarquee: true,
-            LiveStateKey: string.Join("|", _titleViewModel.DisplayName, recentKey));
     }
 
     private WidgetCompactPresentation CreateMusicCompactPresentation(
@@ -554,12 +512,6 @@ public sealed partial class ContentWidgetWindow : WidgetWindowBase, IDesktopWidg
     protected override async Task OnCompactPrimaryActionRequestedAsync()
     {
         await EnsureContentAwakeAsync();
-        if (CurrentContent is SearchWidgetContentAdapter)
-        {
-            App.Current.OpenSearchPopup();
-            return;
-        }
-
         if (CurrentContent is not TodoWidgetContentAdapter todo ||
             GetNextCompactTodoItem(todo) is not { } item)
         {
@@ -843,11 +795,6 @@ public sealed partial class ContentWidgetWindow : WidgetWindowBase, IDesktopWidg
             _hostContextMenuSource = null;
         }
 
-        if (_subscribedSearchHistoryService is { } historyService)
-        {
-            historyService.RecentQueriesChanged -= OnRecentQueriesChanged;
-            _subscribedSearchHistoryService = null;
-        }
     }
 
     internal Task EnsureContentAwakeAsync(CancellationToken cancellationToken = default)
@@ -1399,34 +1346,6 @@ IsHideAnimationRunning = true;
         {
             _compactPresentationSource.PropertyChanged += CompactPresentationSource_PropertyChanged;
         }
-
-        // The search capsule's dynamic subtitle ("最近：xxx") tracks the recent-query
-        // list, which has no INotifyPropertyChanged surface, so subscribe to the
-        // history service's change event to refresh the compact presentation live.
-        if (content is not SearchWidgetContentAdapter &&
-            _subscribedSearchHistoryService is { } previousHistoryService)
-        {
-            previousHistoryService.RecentQueriesChanged -= OnRecentQueriesChanged;
-            _subscribedSearchHistoryService = null;
-        }
-
-        if (content is SearchWidgetContentAdapter &&
-            App.Current.SearchHistoryService is { } historyService &&
-            !ReferenceEquals(_subscribedSearchHistoryService, historyService))
-        {
-            if (_subscribedSearchHistoryService is { } previousService)
-            {
-                previousService.RecentQueriesChanged -= OnRecentQueriesChanged;
-            }
-
-            historyService.RecentQueriesChanged += OnRecentQueriesChanged;
-            _subscribedSearchHistoryService = historyService;
-        }
-    }
-
-    private void OnRecentQueriesChanged()
-    {
-        QueueCompactPresentationRefresh();
     }
 
     private void CompactPresentationSource_PropertyChanged(object? sender, PropertyChangedEventArgs e)
@@ -1597,11 +1516,6 @@ IsHideAnimationRunning = true;
                 _compactPresentationSource.PropertyChanged -= CompactPresentationSource_PropertyChanged;
                 _compactPresentationSource = null;
             }
-            if (_subscribedSearchHistoryService is { } historyService)
-            {
-                historyService.RecentQueriesChanged -= OnRecentQueriesChanged;
-                _subscribedSearchHistoryService = null;
-            }
             try { TrayAnimation.RevealWindowForTrayShow(); } catch { }
             try { CleanupBase(); } catch (Exception ex) { App.Log($"[ContentWidget] CleanupBase failed during close: {ex.Message}"); }
             try { _contentHost.DisposeContent(); } catch (Exception ex) { App.Log($"[ContentWidget] DisposeContent failed during close: {ex.Message}"); }
@@ -1646,12 +1560,6 @@ IsHideAnimationRunning = true;
         ContentWidgetShell.ShowHoverButtons = SettingsService.Settings.ShowHoverButtons;
         _titleViewModel.RefreshMetrics();
         ApplyAppearancePreview();
-
-        // Search capsule subtitle depends on SearchSaveHistory / hide-sensitive flags.
-        if (CurrentContent is SearchWidgetContentAdapter)
-        {
-            RefreshCompactPresentation();
-        }
     }
 
     // ── Drag handlers (delegate to base) ───────────────────────
@@ -1698,7 +1606,6 @@ IsHideAnimationRunning = true;
                         WidgetKind.Tags => "Tags.Title",
                         WidgetKind.Music => "Music.Title",
                         WidgetKind.Glance => "Glance.Title",
-                        WidgetKind.Search => "Search.Title",
                         WidgetKind.SystemMonitor => "SystemMonitor.Title",
                         _ => ""
                     };

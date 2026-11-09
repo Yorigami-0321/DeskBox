@@ -514,8 +514,7 @@ $targetedWarningCounts = [ordered]@{
 }
 $stage4D1ATargetFiles = @(
     "Win32Helper.cs",
-    "MarkdownDocumentView.cs",
-    "SearchPopupWindow.xaml.cs"
+    "MarkdownDocumentView.cs"
 )
 $stage4D1AWarningMessages = @(
     $logLines |
@@ -777,93 +776,6 @@ $stage4D5WarningMessages = @(
                     $line -match "App\.Tray\.cs\(" -or
                     $line -match "DeskBox\.App\.(?:TryGetTrayIconIdentity|ApplySecondWindowTrayPresenterSettings|ConfigureOwningPopup)"
                 )
-        } |
-        ForEach-Object { $_.Trim() } |
-        Sort-Object -Unique
-)
-$stage4E0SourceFiles = @(
-    "src\DeskBox\Controls\WidgetContents\SearchWidgetContent.xaml",
-    "src\DeskBox\Controls\WidgetContents\SearchWidgetContent.xaml.cs",
-    "src\DeskBox\Models\SearchModels.cs"
-)
-$stage4E0XamlPath = Join-Path $repoRoot $stage4E0SourceFiles[0]
-$stage4E0CodeBehindPath = Join-Path $repoRoot $stage4E0SourceFiles[1]
-$stage4E0ModelPath = Join-Path $repoRoot $stage4E0SourceFiles[2]
-$stage4E0Xaml = Get-Content -LiteralPath $stage4E0XamlPath -Raw
-$stage4E0CodeBehind = Get-Content -LiteralPath $stage4E0CodeBehindPath -Raw
-$stage4E0Model = Get-Content -LiteralPath $stage4E0ModelPath -Raw
-$stage4E0LegacyOneWayPatterns = @(
-    "{x:Bind Query, Mode=OneWay}",
-    "{x:Bind DeleteLabel, Mode=OneWay}"
-)
-$stage4E0LegacyOneWaySourceMatches = @(
-    foreach ($pattern in $stage4E0LegacyOneWayPatterns) {
-        if ($stage4E0Xaml.IndexOf($pattern, [StringComparison]::Ordinal) -ge 0) {
-            "$($stage4E0SourceFiles[0])::$pattern"
-        }
-    }
-)
-$stage4E0RequiredOneTimeBindings = @(
-    [PSCustomObject]@{
-        pattern = "{x:Bind Query, Mode=OneTime}"
-        expectedCount = 4
-    },
-    [PSCustomObject]@{
-        pattern = "{x:Bind DeleteLabel, Mode=OneTime}"
-        expectedCount = 2
-    }
-)
-$stage4E0MissingOneTimeBindings = @(
-    foreach ($binding in $stage4E0RequiredOneTimeBindings) {
-        $actualCount = [regex]::Matches(
-            $stage4E0Xaml,
-            [regex]::Escape($binding.pattern)).Count
-        if ($actualCount -ne $binding.expectedCount) {
-            "$($binding.pattern) expected=$($binding.expectedCount) actual=$actualCount"
-        }
-    }
-)
-$stage4E0RequiredBehaviorPatterns = @(
-    [PSCustomObject]@{
-        sourceFile = $stage4E0SourceFiles[2]
-        source = $stage4E0Model
-        pattern = "public required string Query { get; init; }"
-    },
-    [PSCustomObject]@{
-        sourceFile = $stage4E0SourceFiles[2]
-        source = $stage4E0Model
-        pattern = "public required string DeleteLabel { get; init; }"
-    },
-    [PSCustomObject]@{
-        sourceFile = $stage4E0SourceFiles[1]
-        source = $stage4E0CodeBehind
-        pattern = "_recentQueries.Clear();"
-    },
-    [PSCustomObject]@{
-        sourceFile = $stage4E0SourceFiles[1]
-        source = $stage4E0CodeBehind
-        pattern = "_recentQueries.Add(new SearchHistoryEntry"
-    }
-)
-$stage4E0MissingBehaviorPatterns = @(
-    foreach ($contract in $stage4E0RequiredBehaviorPatterns) {
-        if ($contract.source.IndexOf($contract.pattern, [StringComparison]::Ordinal) -lt 0) {
-            "$($contract.sourceFile)::$($contract.pattern)"
-        }
-    }
-)
-$stage4E0Wmc1506WarningMessages = @(
-    $logLines |
-        Where-Object { $_ -match "\bWMC1506\b" } |
-        ForEach-Object { $_.Trim() } |
-        Sort-Object -Unique
-)
-$stage4E0SourceWarningMessages = @(
-    $logLines |
-        Where-Object {
-            $line = $_
-            $warningCodeRegex.IsMatch($line) -and
-                $line -match "SearchWidgetContent\.xaml(?:\.cs)?\("
         } |
         ForEach-Object { $_.Trim() } |
         Sort-Object -Unique
@@ -1201,10 +1113,7 @@ $stage4E2ActualWmc1510Count = @(
 $stage4E3SourceFiles = @(
     "src\DeskBox\Controls\AttachmentTileStrip.xaml",
     "src\DeskBox\Controls\AttachmentTileStrip.xaml.cs",
-    "src\DeskBox\ViewModels\TodoAttachmentViewModel.cs",
-    "src\DeskBox\Views\SearchPopupWindow.xaml",
-    "src\DeskBox\Views\SearchPopupWindow.xaml.cs",
-    "src\DeskBox\Models\SearchModels.cs"
+    "src\DeskBox\ViewModels\TodoAttachmentViewModel.cs"
 )
 $stage4E3Sources = [ordered]@{}
 foreach ($sourceFile in $stage4E3SourceFiles) {
@@ -1238,30 +1147,6 @@ $stage4E3LegacyBindingContracts = @(
     [PSCustomObject]@{
         sourceFile = $stage4E3SourceFiles[0]
         pattern = 'Text="{Binding DisplayName}"'
-    },
-    [PSCustomObject]@{
-        sourceFile = $stage4E3SourceFiles[3]
-        pattern = 'Glyph="{Binding Glyph}"'
-    },
-    [PSCustomObject]@{
-        sourceFile = $stage4E3SourceFiles[3]
-        pattern = 'Text="{Binding DisplayName}"'
-    },
-    [PSCustomObject]@{
-        sourceFile = $stage4E3SourceFiles[3]
-        pattern = 'Text="{Binding Count}"'
-    },
-    [PSCustomObject]@{
-        sourceFile = $stage4E3SourceFiles[3]
-        pattern = 'Source="{Binding Icon}"'
-    },
-    [PSCustomObject]@{
-        sourceFile = $stage4E3SourceFiles[3]
-        pattern = 'Text="{Binding AppDisplayName}"'
-    },
-    [PSCustomObject]@{
-        sourceFile = $stage4E3SourceFiles[3]
-        pattern = 'Text="{Binding Title}"'
     }
 )
 $stage4E3LegacyBindingSourceMatches = @(
@@ -1298,31 +1183,6 @@ $stage4E3RequiredCompiledBindings = @(
         sourceFile = $stage4E3SourceFiles[0]
         pattern = "{x:Bind ThumbnailVisibility, Mode=OneWay}"
         expectedCount = 1
-    },
-    [PSCustomObject]@{
-        sourceFile = $stage4E3SourceFiles[3]
-        pattern = "{x:Bind Glyph, Mode=OneTime}"
-        expectedCount = 0
-    },
-    [PSCustomObject]@{
-        sourceFile = $stage4E3SourceFiles[3]
-        pattern = "{x:Bind DisplayName, Mode=OneTime}"
-        expectedCount = 1
-    },
-    [PSCustomObject]@{
-        sourceFile = $stage4E3SourceFiles[3]
-        pattern = "{x:Bind Count, Mode=OneWay}"
-        expectedCount = 0
-    },
-    [PSCustomObject]@{
-        sourceFile = $stage4E3SourceFiles[3]
-        pattern = "{x:Bind Icon, Mode=OneTime}"
-        expectedCount = 1
-    },
-    [PSCustomObject]@{
-        sourceFile = $stage4E3SourceFiles[3]
-        pattern = "{x:Bind AppDisplayName, Mode=OneTime}"
-        expectedCount = 1
     }
 )
 $stage4E3MissingCompiledBindings = @(
@@ -1339,16 +1199,6 @@ $stage4E3RequiredDataTypes = @(
     [PSCustomObject]@{
         sourceFile = $stage4E3SourceFiles[0]
         pattern = 'x:DataType="viewModels:TodoAttachmentViewModel"'
-        expectedCount = 1
-    },
-    [PSCustomObject]@{
-        sourceFile = $stage4E3SourceFiles[3]
-        pattern = 'x:DataType="models:SearchTabItem"'
-        expectedCount = 1
-    },
-    [PSCustomObject]@{
-        sourceFile = $stage4E3SourceFiles[3]
-        pattern = 'x:DataType="models:SearchResultItem"'
         expectedCount = 1
     }
 )
@@ -1386,30 +1236,6 @@ $stage4E3RequiredBehaviorPatterns = @(
     [PSCustomObject]@{
         sourceFile = $stage4E3SourceFiles[2]
         pattern = "OnPropertyChanged(nameof(FileIconVisibility));"
-    },
-    [PSCustomObject]@{
-        sourceFile = $stage4E3SourceFiles[4]
-        pattern = "RecommendedAppsRepeater.ElementPrepared += OnRecommendedAppsElementPrepared;"
-    },
-    [PSCustomObject]@{
-        sourceFile = $stage4E3SourceFiles[4]
-        pattern = "private void RefreshRecommendedAppIcons()"
-    },
-    [PSCustomObject]@{
-        sourceFile = $stage4E3SourceFiles[4]
-        pattern = "image.Source = item.Icon;"
-    },
-    [PSCustomObject]@{
-        sourceFile = $stage4E3SourceFiles[5]
-        pattern = "public sealed class SearchTabItem : INotifyPropertyChanged"
-    },
-    [PSCustomObject]@{
-        sourceFile = $stage4E3SourceFiles[5]
-        pattern = "PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));"
-    },
-    [PSCustomObject]@{
-        sourceFile = $stage4E3SourceFiles[5]
-        pattern = "public ImageSource? Icon { get; set; }"
     }
 )
 $stage4E3MissingBehaviorPatterns = @(
@@ -1435,7 +1261,7 @@ $stage4E3SourceWarningMessages = @(
         Where-Object {
             $line = $_
             $warningCodeRegex.IsMatch($line) -and
-                $line -match "(?:AttachmentTileStrip|SearchPopupWindow)\.xaml\("
+                $line -match "(?:AttachmentTileStrip)\.xaml\("
         } |
         ForEach-Object { $_.Trim() } |
         Sort-Object -Unique
@@ -1719,344 +1545,6 @@ $stage4E4MaximumWmc1510Count = 802
 $stage4E4ActualWmc1510Count = @(
     $warningMatches | Where-Object { $_ -ieq "WMC1510" }
 ).Count
-$stage4E5SourceFiles = @(
-    "src\DeskBox\Controls\SearchResultRowControl.xaml",
-    "src\DeskBox\Controls\SearchResultRowControl.xaml.cs",
-    "src\DeskBox\Views\SearchPopupWindow.xaml",
-    "src\DeskBox\Views\SearchPopupWindow.xaml.cs",
-    "src\DeskBox\Models\SearchModels.cs",
-    "src\DeskBox\ViewModels\SearchPopupViewModel.cs",
-    "src\DeskBox\Services\FileMetaService.cs"
-)
-$stage4E5Sources = [ordered]@{}
-foreach ($sourceFile in $stage4E5SourceFiles) {
-    $stage4E5Sources[$sourceFile] = Get-Content -LiteralPath (Join-Path $repoRoot $sourceFile) -Raw
-}
-$stage4E5LegacyBindingContracts = @(
-    [PSCustomObject]@{
-        sourceFile = $stage4E5SourceFiles[0]
-        pattern = 'AutomationProperties.Name="{Binding Title}"'
-    },
-    [PSCustomObject]@{
-        sourceFile = $stage4E5SourceFiles[0]
-        pattern = 'Glyph="{Binding DisplayGlyph}"'
-    },
-    [PSCustomObject]@{
-        sourceFile = $stage4E5SourceFiles[0]
-        pattern = 'Source="{Binding Icon}"'
-    },
-    [PSCustomObject]@{
-        sourceFile = $stage4E5SourceFiles[0]
-        pattern = 'Text="{Binding Title}"'
-    },
-    [PSCustomObject]@{
-        sourceFile = $stage4E5SourceFiles[0]
-        pattern = 'Text="{Binding Subtitle}"'
-    },
-    [PSCustomObject]@{
-        sourceFile = $stage4E5SourceFiles[0]
-        pattern = 'Text="{Binding TypeDisplay}"'
-    },
-    [PSCustomObject]@{
-        sourceFile = $stage4E5SourceFiles[0]
-        pattern = 'Text="{Binding SizeDisplay}"'
-    },
-    [PSCustomObject]@{
-        sourceFile = $stage4E5SourceFiles[0]
-        pattern = 'Text="{Binding DateDisplay}"'
-    }
-)
-$stage4E5LegacyBindingSourceMatches = @(
-    foreach ($contract in $stage4E5LegacyBindingContracts) {
-        if ($stage4E5Sources[$contract.sourceFile].IndexOf(
-                $contract.pattern,
-                [StringComparison]::Ordinal) -ge 0) {
-            "$($contract.sourceFile)::$($contract.pattern)"
-        }
-    }
-)
-$stage4E5RequiredCompiledBindings = @(
-    [PSCustomObject]@{
-        sourceFile = $stage4E5SourceFiles[0]
-        pattern = "{x:Bind Item.Title, Mode=OneTime}"
-        expectedCount = 2
-    },
-    [PSCustomObject]@{
-        sourceFile = $stage4E5SourceFiles[0]
-        pattern = "{x:Bind Item.DisplayGlyph, Mode=OneTime}"
-        expectedCount = 1
-    },
-    [PSCustomObject]@{
-        sourceFile = $stage4E5SourceFiles[0]
-        pattern = "{x:Bind Item.Icon, Mode=OneTime}"
-        expectedCount = 1
-    },
-    [PSCustomObject]@{
-        sourceFile = $stage4E5SourceFiles[0]
-        pattern = "{x:Bind Item.Subtitle, Mode=OneTime}"
-        expectedCount = 1
-    },
-    [PSCustomObject]@{
-        sourceFile = $stage4E5SourceFiles[0]
-        pattern = "{x:Bind Item.TypeDisplay, Mode=OneTime}"
-        expectedCount = 1
-    },
-    [PSCustomObject]@{
-        sourceFile = $stage4E5SourceFiles[0]
-        pattern = "{x:Bind Item.SizeDisplay, Mode=OneTime}"
-        expectedCount = 1
-    },
-    [PSCustomObject]@{
-        sourceFile = $stage4E5SourceFiles[0]
-        pattern = "{x:Bind Item.DateDisplay, Mode=OneTime}"
-        expectedCount = 1
-    }
-)
-$stage4E5MissingCompiledBindings = @(
-    foreach ($binding in $stage4E5RequiredCompiledBindings) {
-        $actualCount = [regex]::Matches(
-            $stage4E5Sources[$binding.sourceFile],
-            [regex]::Escape($binding.pattern)).Count
-        if ($actualCount -ne $binding.expectedCount) {
-            "$($binding.sourceFile)::$($binding.pattern) expected=$($binding.expectedCount) actual=$actualCount"
-        }
-    }
-)
-$stage4E5RequiredItemBridgePatterns = @(
-    [PSCustomObject]@{
-        sourceFile = $stage4E5SourceFiles[2]
-        pattern = '<controls:SearchResultRowControl/>'
-    },
-    [PSCustomObject]@{
-        sourceFile = $stage4E5SourceFiles[1]
-        pattern = "internal SearchResultItem? Item { get; private set; }"
-    },
-    [PSCustomObject]@{
-        sourceFile = $stage4E5SourceFiles[1]
-        pattern = "internal void PrepareItem(SearchResultItem? item)"
-    },
-    [PSCustomObject]@{
-        sourceFile = $stage4E5SourceFiles[1]
-        pattern = "Item = item;"
-    },
-    [PSCustomObject]@{
-        sourceFile = $stage4E5SourceFiles[1]
-        pattern = "Bindings.Update();"
-    },
-    [PSCustomObject]@{
-        sourceFile = $stage4E5SourceFiles[3]
-        pattern = "? _viewModel.CurrentResults[args.Index]"
-    },
-    [PSCustomObject]@{
-        sourceFile = $stage4E5SourceFiles[3]
-        pattern = "row.PrepareItem(preparedItem);"
-    }
-)
-$stage4E5MissingItemBridgePatterns = @(
-    foreach ($contract in $stage4E5RequiredItemBridgePatterns) {
-        if ($stage4E5Sources[$contract.sourceFile].IndexOf(
-                $contract.pattern,
-                [StringComparison]::Ordinal) -lt 0) {
-            "$($contract.sourceFile)::$($contract.pattern)"
-        }
-    }
-)
-$stage4E5UnexpectedPublicItemBridgePatterns = @(
-    foreach ($pattern in @(
-            "public SearchResultItem? Item",
-            "DependencyProperty ItemProperty")) {
-        if ($stage4E5Sources[$stage4E5SourceFiles[1]].IndexOf(
-                $pattern,
-                [StringComparison]::Ordinal) -ge 0) {
-            "$($stage4E5SourceFiles[1])::$pattern"
-        }
-    }
-)
-$stage4E5PopupSource = $stage4E5Sources[$stage4E5SourceFiles[3]]
-$stage4E5PrepareIndex = $stage4E5PopupSource.IndexOf(
-    "row.PrepareItem(preparedItem);",
-    [StringComparison]::Ordinal)
-$stage4E5RefreshIndex = $stage4E5PopupSource.IndexOf(
-    "row.RefreshIconVisuals();",
-    $stage4E5PrepareIndex + 1,
-    [StringComparison]::Ordinal)
-$stage4E5ItemRefreshOrderValid =
-    $stage4E5PrepareIndex -ge 0 -and
-    $stage4E5RefreshIndex -gt $stage4E5PrepareIndex
-$stage4E5RequiredBehaviorPatterns = @(
-    [PSCustomObject]@{
-        sourceFile = $stage4E5SourceFiles[1]
-        pattern = "public void RefreshIconVisuals()"
-    },
-    [PSCustomObject]@{
-        sourceFile = $stage4E5SourceFiles[1]
-        pattern = "FileIcon.Source = item?.Icon;"
-    },
-    [PSCustomObject]@{
-        sourceFile = $stage4E5SourceFiles[1]
-        pattern = "GlyphBlock.Visibility = hasIcon"
-    },
-    [PSCustomObject]@{
-        sourceFile = $stage4E5SourceFiles[1]
-        pattern = "SizeText.Text = item?.SizeDisplay;"
-    },
-    [PSCustomObject]@{
-        sourceFile = $stage4E5SourceFiles[1]
-        pattern = "DateText.Text = item?.DateDisplay;"
-    },
-    [PSCustomObject]@{
-        sourceFile = $stage4E5SourceFiles[3]
-        pattern = "ResultsRepeater.ElementPrepared += OnResultsElementPrepared;"
-    },
-    [PSCustomObject]@{
-        sourceFile = $stage4E5SourceFiles[3]
-        pattern = "row.Item is { IconResolved: false } item"
-    },
-    [PSCustomObject]@{
-        sourceFile = $stage4E5SourceFiles[3]
-        pattern = "await _viewModel.EnsureResultMetadataAsync(item);"
-    },
-    [PSCustomObject]@{
-        sourceFile = $stage4E5SourceFiles[3]
-        pattern = "if (ReferenceEquals(row.Item, item))"
-    },
-    [PSCustomObject]@{
-        sourceFile = $stage4E5SourceFiles[3]
-        pattern = "ReferenceEquals(row.Item, selected)"
-    },
-    [PSCustomObject]@{
-        sourceFile = $stage4E5SourceFiles[3]
-        pattern = "row.IsMultiSelected = row.Item is { } rowItem"
-    },
-    [PSCustomObject]@{
-        sourceFile = $stage4E5SourceFiles[3]
-        pattern = "FindRowByDataContext(ResultsRepeater, selected)"
-    },
-    [PSCustomObject]@{
-        sourceFile = $stage4E5SourceFiles[3]
-        pattern = "ResultsRepeater.ElementPrepared -= OnResultsElementPrepared;"
-    },
-    [PSCustomObject]@{
-        sourceFile = $stage4E5SourceFiles[3]
-        pattern = "ResultsRepeater.ItemsSource = null;"
-    },
-    [PSCustomObject]@{
-        sourceFile = $stage4E5SourceFiles[5]
-        pattern = "item.TypeDisplay = GetTypeDisplay(item);"
-    },
-    [PSCustomObject]@{
-        sourceFile = $stage4E5SourceFiles[5]
-        pattern = "public Task EnsureResultMetadataAsync(SearchResultItem item)"
-    },
-    [PSCustomObject]@{
-        sourceFile = $stage4E5SourceFiles[6]
-        pattern = "item.IconResolved = true;"
-    },
-    [PSCustomObject]@{
-        sourceFile = $stage4E5SourceFiles[6]
-        pattern = "item.SizeDisplay = FormatSize(fileInfo.Length);"
-    },
-    [PSCustomObject]@{
-        sourceFile = $stage4E5SourceFiles[6]
-        pattern = "item.DateDisplay = FormatDate(fileInfo.CreationTime);"
-    }
-)
-$stage4E5MissingBehaviorPatterns = @(
-    foreach ($contract in $stage4E5RequiredBehaviorPatterns) {
-        if ($stage4E5Sources[$contract.sourceFile].IndexOf(
-                $contract.pattern,
-                [StringComparison]::Ordinal) -lt 0) {
-            "$($contract.sourceFile)::$($contract.pattern)"
-        }
-    }
-)
-$stage4E5ModelSource = $stage4E5Sources[$stage4E5SourceFiles[4]]
-$stage4E5ModelStart = $stage4E5ModelSource.IndexOf(
-    "public sealed class SearchResultItem",
-    [StringComparison]::Ordinal)
-$stage4E5ModelEnd = $stage4E5ModelSource.IndexOf(
-    "public sealed class SearchResultGroup",
-    $stage4E5ModelStart + 1,
-    [StringComparison]::Ordinal)
-$stage4E5ItemModelSource = if ($stage4E5ModelStart -ge 0 -and $stage4E5ModelEnd -gt $stage4E5ModelStart) {
-    $stage4E5ModelSource.Substring(
-        $stage4E5ModelStart,
-        $stage4E5ModelEnd - $stage4E5ModelStart)
-}
-else {
-    ""
-}
-$stage4E5MissingRequiredModelPatterns = @(
-    foreach ($pattern in @(
-            "public required SearchResultKind Kind { get; init; }",
-            "public required string Title { get; init; }",
-            "public ImageSource? Icon { get; set; }",
-            "public string? SizeDisplay { get; set; }",
-            "public string? DateDisplay { get; set; }")) {
-        if ($stage4E5ItemModelSource.IndexOf(
-                $pattern,
-                [StringComparison]::Ordinal) -lt 0) {
-            "$($stage4E5SourceFiles[4])::$pattern"
-        }
-    }
-)
-$stage4E5UnexpectedObservableModelPatterns = @(
-    foreach ($pattern in @(
-            "INotifyPropertyChanged",
-            "PropertyChangedEventHandler",
-            "OnPropertyChanged")) {
-        if ($stage4E5ItemModelSource.IndexOf(
-                $pattern,
-                [StringComparison]::Ordinal) -ge 0) {
-            "$($stage4E5SourceFiles[4])::$pattern"
-        }
-    }
-)
-$stage4E5UnexpectedDataContextOverridePatterns = @(
-    foreach ($pattern in @("ResultsRepeater.DataContext =")) {
-        if ($stage4E5PopupSource.IndexOf(
-                $pattern,
-                [StringComparison]::Ordinal) -ge 0) {
-            "$($stage4E5SourceFiles[3])::$pattern"
-        }
-    }
-)
-$stage4E5UnhookIndex = $stage4E5PopupSource.IndexOf(
-    "ResultsRepeater.ElementPrepared -= OnResultsElementPrepared;",
-    [StringComparison]::Ordinal)
-$stage4E5ClearIndex = $stage4E5PopupSource.IndexOf(
-    "ResultsRepeater.ItemsSource = null;",
-    [StringComparison]::Ordinal)
-$stage4E5DisposeIndex = $stage4E5PopupSource.IndexOf(
-    "_viewModel.Dispose();",
-    [StringComparison]::Ordinal)
-$stage4E5LifecycleOrderValid =
-    $stage4E5UnhookIndex -ge 0 -and
-    $stage4E5ClearIndex -gt $stage4E5UnhookIndex -and
-    $stage4E5DisposeIndex -gt $stage4E5ClearIndex
-$stage4E5DeferredBindingContracts = @($stage4E2DeferredBindingContracts)
-$stage4E5MissingDeferredBindings = @(
-    foreach ($contract in $stage4E5DeferredBindingContracts) {
-        $source = Get-Content -LiteralPath (Join-Path $repoRoot $contract.sourceFile) -Raw
-        if ($source.IndexOf($contract.pattern, [StringComparison]::Ordinal) -lt 0) {
-            "$($contract.sourceFile)::$($contract.pattern)"
-        }
-    }
-)
-$stage4E5SourceWarningMessages = @(
-    $logLines |
-        Where-Object {
-            $line = $_
-            $warningCodeRegex.IsMatch($line) -and
-                $line -match "(?:SearchResultRowControl\.xaml(?:\.cs)?|SearchPopupWindow\.xaml(?:\.cs)?|SearchModels\.cs|SearchPopupViewModel\.cs|FileMetaService\.cs)\("
-        } |
-        ForEach-Object { $_.Trim() } |
-        Sort-Object -Unique
-)
-$stage4E5ExpectedWmc1510Count = 802
-$stage4E5ActualWmc1510Count = @(
-    $warningMatches | Where-Object { $_ -ieq "WMC1510" }
-).Count
 $stage5ASourceFiles = @(
     "src/DeskBox/Services/DeskBoxDataPathService.cs",
     "scripts/start-aot-preview.ps1"
@@ -2133,7 +1621,7 @@ $stage5ASourceWarningMessages = @(
         ForEach-Object { $_.Trim() } |
         Sort-Object -Unique
 )
-$stage5AExpectedWmc1510Count = 802
+$stage5AExpectedWmc1510Count = 792
 $stage5AActualWmc1510Count = @(
     $warningMatches | Where-Object { $_ -ieq "WMC1510" }
 ).Count
@@ -2252,7 +1740,7 @@ $stage5B1SourceWarningMessages = @(
         ForEach-Object { $_.Trim() } |
         Sort-Object -Unique
 )
-$stage5B1ExpectedWmc1510Count = 802
+$stage5B1ExpectedWmc1510Count = 792
 $stage5B1ActualWmc1510Count = @(
     $warningMatches | Where-Object { $_ -ieq "WMC1510" }
 ).Count
@@ -2412,7 +1900,7 @@ $stage5B2ASourceWarningMessages = @(
         ForEach-Object { $_.Trim() } |
         Sort-Object -Unique
 )
-$stage5B2AExpectedWmc1510Count = 802
+$stage5B2AExpectedWmc1510Count = 792
 $stage5B2AActualWmc1510Count = @(
     $warningMatches | Where-Object { $_ -ieq "WMC1510" }
 ).Count
@@ -2575,7 +2063,7 @@ $stage5B2BSourceWarningMessages = @(
         ForEach-Object { $_.Trim() } |
         Sort-Object -Unique
 )
-$stage5B2BExpectedWmc1510Count = 802
+$stage5B2BExpectedWmc1510Count = 792
 $stage5B2BActualWmc1510Count = @(
     $warningMatches | Where-Object { $_ -ieq "WMC1510" }
 ).Count
@@ -2733,7 +2221,7 @@ $stage5B3ASourceWarningMessages = @(
         ForEach-Object { $_.Trim() } |
         Sort-Object -Unique
 )
-$stage5B3AExpectedWmc1510Count = 802
+$stage5B3AExpectedWmc1510Count = 792
 $stage5B3AActualWmc1510Count = @(
     $warningMatches | Where-Object { $_ -ieq "WMC1510" }
 ).Count
@@ -2918,7 +2406,7 @@ $stage5B3BSourceWarningMessages = @(
         ForEach-Object { $_.Trim() } |
         Sort-Object -Unique
 )
-$stage5B3BExpectedWmc1510Count = 802
+$stage5B3BExpectedWmc1510Count = 792
 $stage5B3BActualWmc1510Count = @(
     $warningMatches | Where-Object { $_ -ieq "WMC1510" }
 ).Count
@@ -3167,7 +2655,7 @@ $stage5B3CSourceWarningMessages = @(
         ForEach-Object { $_.Trim() } |
         Sort-Object -Unique
 )
-$stage5B3CExpectedWmc1510Count = 802
+$stage5B3CExpectedWmc1510Count = 792
 $stage5B3CActualWmc1510Count = @(
     $warningMatches | Where-Object { $_ -ieq "WMC1510" }
 ).Count
@@ -3175,7 +2663,7 @@ $stage5B4ASourceFiles = @(
     "src/DeskBox/App.AotManagedUiSmoke.cs",
     "src/DeskBox/App.xaml.cs",
     "src/DeskBox/Views/SettingsWindow.AotSmoke.cs",
-    "src/DeskBox/Views/SearchPopupWindow.AotSmoke.cs",
+    "src/DeskBox/App.AotHotkeySmoke.cs",
     "src/DeskBox/Services/LocalizationService.cs",
     "scripts/run-aot-managed-ui-smoke.ps1",
     "scripts/start-aot-preview.ps1",
@@ -3193,19 +2681,13 @@ $stage5B4ARequiredRunnerPatterns = @(
     'RefusedNonPreviewRoot',
     'aot-managed-ui-smoke',
     'aot-5b4a-file',
-    'aot-5b4a-search',
+    'aot-5b4a-file-2',
     '_trayIcon.TrayIcon.WindowHandle',
     'WidgetManager.CreateDiagnosticsSnapshot()',
     'WidgetKind.File',
-    'WidgetKind.Search',
     'LocalizationService.CaptureAotSmokeResourceDiagnostics()',
     'ShowSettings(sectionTag)',
     'CaptureAotSmokeSnapshot()',
-    'Search.Action.OpenSettings',
-    'OpenSearchPopupWithQuery(searchQuery)',
-    'WaitForManagedUiSearchAsync',
-    'ExerciseAotReadOnlyControls()',
-    'SearchCompleted',
     'AotManagedUiSmokeJsonContext.Default.AotManagedUiSmokeResult',
     'RuntimeFeature.IsDynamicCodeSupported'
 )
@@ -3281,41 +2763,6 @@ $stage5B4AUnsafeSettingsNavigationPatterns = @(
         }
     }
 )
-$stage5B4ARequiredSearchPatterns = @(
-    'ResultFilterComboBox.SelectedItem',
-    '"All"',
-    '"FilesAndFolders"',
-    '"Apps"',
-    '"Images"',
-    '"Documents"',
-    '"DeskBox"',
-    'ResultFilterBar.Visibility',
-    'SortHeaderRow.Visibility',
-    'ActionId == "open-settings"'
-)
-$stage5B4AMissingSearchPatterns = @(
-    foreach ($pattern in $stage5B4ARequiredSearchPatterns) {
-        if ($stage5B4ASources[$stage5B4ASourceFiles[3]].IndexOf(
-                $pattern,
-                [StringComparison]::Ordinal) -lt 0) {
-            "$($stage5B4ASourceFiles[3])::$pattern"
-        }
-    }
-)
-$stage5B4ASortHandlerCountViolations = @(
-    foreach ($handler in @(
-            'SortNameHeader_Click(',
-            'SortSizeHeader_Click(',
-            'SortDateHeader_Click(',
-            'SortTypeHeader_Click(')) {
-        $actualCount = [regex]::Matches(
-            $stage5B4ASources[$stage5B4ASourceFiles[3]],
-            [regex]::Escape($handler)).Count
-        if ($actualCount -ne 2) {
-            "$handler expected=2 actual=$actualCount"
-        }
-    }
-)
 $stage5B4ARequiredLocalePatterns = @(
     'CaptureAotSmokeResourceDiagnostics',
     '"zh-CN"',
@@ -3331,8 +2778,7 @@ $stage5B4ARequiredLocalePatterns = @(
     '"bn-BD"',
     '"ru-RU"',
     '"ko-KR"',
-    'Window.Settings.Title',
-    'Search.Action.OpenSettings'
+    'Window.Settings.Title'
 )
 $stage5B4AMissingLocalePatterns = @(
     foreach ($pattern in $stage5B4ARequiredLocalePatterns) {
@@ -3347,10 +2793,9 @@ $stage5B4ARequiredSmokeScriptPatterns = @(
     'DESKBOX_AOT_MANAGED_UI_SMOKE',
     'BasicReadOnly',
     'aot-5b4a-file',
-    'aot-5b4a-search',
+    'aot-5b4a-file-2',
     'HasCompletedOnboarding',
     'FeatureWidgetEnabledStates',
-    'SearchSaveHistory',
     'Get-DirectoryStateFingerprint',
     'productionDataFingerprintBefore',
     'Stop-ExactPreviewProcess',
@@ -3433,12 +2878,12 @@ $stage5B4ASourceWarningMessages = @(
         Where-Object {
             $line = $_
             $warningCodeRegex.IsMatch($line) -and
-                $line -match "(?:App\.AotManagedUiSmoke|SettingsWindow\.AotSmoke|SearchPopupWindow\.AotSmoke|LocalizationService|App\.xaml)\.cs\("
+                $line -match "(?:App\.AotManagedUiSmoke|SettingsWindow\.AotSmoke|LocalizationService|App\.xaml)\.cs\("
         } |
         ForEach-Object { $_.Trim() } |
         Sort-Object -Unique
 )
-$stage5B4AExpectedWmc1510Count = 802
+$stage5B4AExpectedWmc1510Count = 792
 $stage5B4AActualWmc1510Count = @(
     $warningMatches | Where-Object { $_ -ieq "WMC1510" }
 ).Count
@@ -3801,7 +3246,6 @@ $stage5B4B1RoutePatterns = @(
     '"MusicSettings"',
     '"WeatherSettings"',
     '"GlanceSettings"',
-    '"SearchSettings"',
     '"AppearanceMaterialSettings"',
     '"AppearanceDensitySettings"',
     '"AppearanceWindowSettings"',
@@ -3878,7 +3322,7 @@ $stage5B4B1SourceWarningMessages = @(
         ForEach-Object { $_.Trim() } |
         Sort-Object -Unique
 )
-$stage5B4B1ExpectedWmc1510Count = 802
+$stage5B4B1ExpectedWmc1510Count = 792
 $stage5B4B1ActualWmc1510Count = @(
     $warningMatches | Where-Object { $_ -ieq "WMC1510" }
 ).Count
@@ -4058,7 +3502,7 @@ $stage5B4B2ASourceWarningMessages = @(
         ForEach-Object { $_.Trim() } |
         Sort-Object -Unique
 )
-$stage5B4B2AExpectedWmc1510Count = 802
+$stage5B4B2AExpectedWmc1510Count = 792
 $stage5B4B2AActualWmc1510Count = @(
     $warningMatches | Where-Object { $_ -ieq "WMC1510" }
 ).Count
@@ -4249,7 +3693,7 @@ $stage5B4B2B1SourceWarningMessages = @(
         ForEach-Object { $_.Trim() } |
         Sort-Object -Unique
 )
-$stage5B4B2B1ExpectedWmc1510Count = 802
+$stage5B4B2B1ExpectedWmc1510Count = 792
 $stage5B4B2B1ActualWmc1510Count = @(
     $warningMatches | Where-Object { $_ -ieq "WMC1510" }
 ).Count
@@ -4484,7 +3928,7 @@ $stage5B4B2B2ASourceWarningMessages = @(
         ForEach-Object { $_.Trim() } |
         Sort-Object -Unique
 )
-$stage5B4B2B2AExpectedWmc1510Count = 802
+$stage5B4B2B2AExpectedWmc1510Count = 792
 $stage5B4B2B2AActualWmc1510Count = @(
     $warningMatches | Where-Object { $_ -ieq "WMC1510" }
 ).Count
@@ -4716,7 +4160,7 @@ $stage5B4B2B2B1SourceWarningMessages = @(
         ForEach-Object { $_.Trim() } |
         Sort-Object -Unique
 )
-$stage5B4B2B2B1ExpectedWmc1510Count = 802
+$stage5B4B2B2B1ExpectedWmc1510Count = 792
 $stage5B4B2B2B1ActualWmc1510Count = @(
     $warningMatches | Where-Object { $_ -ieq "WMC1510" }
 ).Count
@@ -4982,7 +4426,7 @@ $stage5B4B2B2B2SourceWarningMessages = @(
         ForEach-Object { $_.Trim() } |
         Sort-Object -Unique
 )
-$stage5B4B2B2B2ExpectedWmc1510Count = 802
+$stage5B4B2B2B2ExpectedWmc1510Count = 792
 $stage5B4B2B2B2ActualWmc1510Count = @(
     $warningMatches | Where-Object { $_ -ieq "WMC1510" }
 ).Count
@@ -5227,7 +4671,7 @@ $stage5B4B2C1SourceWarningMessages = @(
         ForEach-Object { $_.Trim() } |
         Sort-Object -Unique
 )
-$stage5B4B2C1ExpectedWmc1510Count = 802
+$stage5B4B2C1ExpectedWmc1510Count = 792
 $stage5B4B2C1ActualWmc1510Count = @(
     $warningMatches | Where-Object { $_ -ieq "WMC1510" }
 ).Count
@@ -5421,7 +4865,7 @@ $stage5B4B2C2ASourceWarningMessages = @(
         ForEach-Object { $_.Trim() } |
         Sort-Object -Unique
 )
-$stage5B4B2C2AExpectedWmc1510Count = 802
+$stage5B4B2C2AExpectedWmc1510Count = 792
 $stage5B4B2C2AActualWmc1510Count = @(
     $warningMatches | Where-Object { $_ -ieq "WMC1510" }
 ).Count
@@ -5673,7 +5117,7 @@ $stage5B4B2C2BSourceWarningMessages = @(
         ForEach-Object { $_.Trim() } |
         Sort-Object -Unique
 )
-$stage5B4B2C2BExpectedWmc1510Count = 802
+$stage5B4B2C2BExpectedWmc1510Count = 792
 $stage5B4B2C2BActualWmc1510Count = @(
     $warningMatches | Where-Object { $_ -ieq "WMC1510" }
 ).Count
@@ -5683,7 +5127,7 @@ $stage5B4C1ASourceFiles = @(
     "src/DeskBox/Services/AotLocalFileSurfaceFixture.cs",
     "src/DeskBox/Controls/WidgetContents/FileSurfaceContent.AotLocalFileSmoke.cs",
     "src/DeskBox/Services/WidgetManager.AotLocalFileSurfaceSmoke.cs",
-    "src/DeskBox/Controls/FileItemSurface.AotBindableProperties.cs",
+    "src/DeskBox/Controls/FileItemSurface.xaml.cs",
     "src/DeskBox/Models/WidgetItem.AotBindableProperties.cs",
     "src/DeskBox/ViewModels/WidgetViewModel.AotBindableProperties.cs",
     "scripts/run-aot-managed-ui-smoke.ps1"
@@ -5766,7 +5210,7 @@ $stage5B4C1ARequiredSurfacePatterns = @(
     'GetActiveItemsView',
     'ContainerFromItem',
     'FileItemSurface',
-    'ItemNameText.Text',
+    'ItemNameText?.Text',
     'DataContextMatches',
     'ProjectedItemCount',
     'itemsInExpectedOrder',
@@ -5795,22 +5239,12 @@ $stage5B4C1AMissingSurfacePatterns = @(
 )
 $stage5B4C1ABindableAttributeCount =
     [regex]::Matches(
-        $stage5B4C1ASources[$stage5B4C1ASourceFiles[5]],
-        [regex]::Escape('[WinRT.GeneratedBindableCustomProperty(')).Count +
-    [regex]::Matches(
         $stage5B4C1ASources[$stage5B4C1ASourceFiles[6]],
         [regex]::Escape('[WinRT.GeneratedBindableCustomProperty(')).Count +
     [regex]::Matches(
         $stage5B4C1ASources[$stage5B4C1ASourceFiles[7]],
         [regex]::Escape('[WinRT.GeneratedBindableCustomProperty(')).Count
 $stage5B4C1ARequiredBindablePatterns = @(
-    'public sealed partial class FileItemSurface',
-    'nameof(IconLayoutVisibility)',
-    'nameof(ListLayoutVisibility)',
-    'nameof(SurfaceHorizontalAlignment)',
-    'nameof(SurfaceMargin)',
-    'nameof(SurfaceMaxWidth)',
-    'nameof(SurfacePadding)',
     'public partial class WidgetItem',
     'nameof(FallbackIconVisibility)',
     'nameof(FullPath)',
@@ -5826,7 +5260,6 @@ $stage5B4C1ARequiredBindablePatterns = @(
     'nameof(ListViewVisibility)'
 )
 $stage5B4C1ABindableSource =
-    $stage5B4C1ASources[$stage5B4C1ASourceFiles[5]] +
     $stage5B4C1ASources[$stage5B4C1ASourceFiles[6]] +
     $stage5B4C1ASources[$stage5B4C1ASourceFiles[7]]
 $stage5B4C1AMissingBindablePatterns = @(
@@ -5923,12 +5356,12 @@ $stage5B4C1ASourceWarningMessages = @(
             $line = $_
             $warningCodeRegex.IsMatch($line) -and
                 $line -notmatch "warning WMC1510:" -and
-                $line -match "(?:App\.Aot(?:ManagedUi|LocalFilePersistence)Smoke|AotLocalFileSurfaceFixture|FileItemSurface\.AotBindableProperties|FileSurfaceContent\.AotLocalFileSmoke|WidgetItem\.AotBindableProperties|WidgetManager\.AotLocalFileSurfaceSmoke|WidgetViewModel\.AotBindableProperties)\.cs\("
+                $line -match "(?:App\.Aot(?:ManagedUi|LocalFilePersistence)Smoke|AotLocalFileSurfaceFixture|FileItemSurface\.xaml|FileSurfaceContent\.AotLocalFileSmoke|WidgetItem\.AotBindableProperties|WidgetManager\.AotLocalFileSurfaceSmoke|WidgetViewModel\.AotBindableProperties)\.cs\("
         } |
         ForEach-Object { $_.Trim() } |
         Sort-Object -Unique
 )
-$stage5B4C1AExpectedWmc1510Count = 802
+$stage5B4C1AExpectedWmc1510Count = 792
 $stage5B4C1AActualWmc1510Count = @(
     $warningMatches | Where-Object { $_ -ieq "WMC1510" }
 ).Count
@@ -6208,7 +5641,7 @@ $stage5B4C1B1SourceWarningMessages = @(
         ForEach-Object { $_.Trim() } |
         Sort-Object -Unique
 )
-$stage5B4C1B1ExpectedWmc1510Count = 802
+$stage5B4C1B1ExpectedWmc1510Count = 792
 $stage5B4C1B1ActualWmc1510Count = @(
     $warningMatches | Where-Object { $_ -ieq "WMC1510" }
 ).Count
@@ -6455,7 +5888,7 @@ $stage5B4C1B2ASourceWarningMessages = @(
         ForEach-Object { $_.Trim() } |
         Sort-Object -Unique
 )
-$stage5B4C1B2AExpectedWmc1510Count = 802
+$stage5B4C1B2AExpectedWmc1510Count = 792
 $stage5B4C1B2AActualWmc1510Count = @(
     $warningMatches | Where-Object { $_ -ieq "WMC1510" }
 ).Count
@@ -6694,7 +6127,7 @@ $stage5B4C1B2BSourceWarningMessages = @(
         ForEach-Object { $_.Trim() } |
         Sort-Object -Unique
 )
-$stage5B4C1B2BExpectedWmc1510Count = 802
+$stage5B4C1B2BExpectedWmc1510Count = 792
 $stage5B4C1B2BActualWmc1510Count = @(
     $warningMatches | Where-Object { $_ -ieq "WMC1510" }
 ).Count
@@ -6928,7 +6361,7 @@ $stage5B4C1C1SourceWarningMessages = @(
         ForEach-Object { $_.Trim() } |
         Sort-Object -Unique
 )
-$stage5B4C1C1ExpectedWmc1510Count = 802
+$stage5B4C1C1ExpectedWmc1510Count = 792
 $stage5B4C1C1ActualWmc1510Count = @(
     $warningMatches | Where-Object { $_ -ieq "WMC1510" }
 ).Count
@@ -7208,7 +6641,7 @@ $stage5B4C1C2ASourceWarningMessages = @(
         ForEach-Object { $_.Trim() } |
         Sort-Object -Unique
 )
-$stage5B4C1C2AExpectedWmc1510Count = 802
+$stage5B4C1C2AExpectedWmc1510Count = 792
 $stage5B4C1C2AActualWmc1510Count = @(
     $warningMatches | Where-Object { $_ -ieq "WMC1510" }
 ).Count
@@ -7216,7 +6649,6 @@ $stage5B4C2ASourceFiles = @(
     "src/DeskBox/App.AotHotkeySmoke.cs",
     "src/DeskBox/Platform/Win32Helper.AotHotkeySmoke.cs",
     "src/DeskBox/Services/GlobalHotkeyService.cs",
-    "src/DeskBox/Services/SearchHotkeyService.cs",
     "src/DeskBox/Services/ReservedHotkeyHookService.cs",
     "src/DeskBox/Services/WinSpaceHotkeyStateMachine.cs",
     "src/DeskBox/App.xaml.cs",
@@ -7244,7 +6676,6 @@ $stage5B4C2ARequiredScenarioPatterns = @(
     'PhysicalWinSpaceVerified = false',
     'PhysicalRecorderVerified = false',
     'GlobalConflictRolledBack',
-    'SearchConflictRolledBack',
     'ReservedHookSyntheticTriggerAttempted = false',
     'release-startup-reregistered',
     'NormalShutdownRequested = true',
@@ -7280,8 +6711,7 @@ $stage5B4C2AMissingHelperPatterns = @(
 $stage5B4C2AProductSource =
     $stage5B4C2ASources[$stage5B4C2ASourceFiles[2]] +
     $stage5B4C2ASources[$stage5B4C2ASourceFiles[3]] +
-    $stage5B4C2ASources[$stage5B4C2ASourceFiles[4]] +
-    $stage5B4C2ASources[$stage5B4C2ASourceFiles[5]]
+    $stage5B4C2ASources[$stage5B4C2ASourceFiles[4]]
 $stage5B4C2ARequiredProductPatterns = @(
     'public long ReceivedCount',
     'public long InvocationCount',
@@ -7289,9 +6719,7 @@ $stage5B4C2ARequiredProductPatterns = @(
     'Interlocked.Increment(ref _receivedSequence)',
     'Interlocked.Increment(ref _invocationSequence)',
     'Interlocked.Increment(ref _dispatchFailureSequence)',
-    'settings.SearchHotkeyModifiers = previousModifiers',
-    'settings.SearchHotkeyKey = previousVirtualKey',
-    'Rollback registration failed previousGesture=',
+    'Rollback registration failed previousActivation=',
     'LLKHF_INJECTED',
     'TrySendTaggedKeyPress(',
     '_lifecycleGeneration',
@@ -7308,8 +6736,8 @@ $stage5B4C2AMissingProductPatterns = @(
     }
 )
 $stage5B4C2ARunnerSource =
-    $stage5B4C2ASources[$stage5B4C2ASourceFiles[6]] +
-    $stage5B4C2ASources[$stage5B4C2ASourceFiles[7]]
+    $stage5B4C2ASources[$stage5B4C2ASourceFiles[5]] +
+    $stage5B4C2ASources[$stage5B4C2ASourceFiles[6]]
 $stage5B4C2ARequiredSmokeScriptPatterns = @(
     'StartAotHotkeySmokeIfRequested();',
     'profile 59 / schema 55',
@@ -7344,7 +6772,7 @@ $stage5B4C2AForbiddenScopePatterns = @(
     foreach ($sourceFile in @(
             $stage5B4C2ASourceFiles[0],
             $stage5B4C2ASourceFiles[1],
-            $stage5B4C2ASourceFiles[7])) {
+            $stage5B4C2ASourceFiles[6])) {
         foreach ($pattern in @(
                 'PhysicalStandardKeyboardVerified = true',
                 'PhysicalWinSpaceVerified = true',
@@ -7360,10 +6788,10 @@ $stage5B4C2AForbiddenScopePatterns = @(
     }
 )
 $stage5B4C2ARustAbiUnchanged =
-    $stage5B4C2ASources[$stage5B4C2ASourceFiles[8]].Contains(
+    $stage5B4C2ASources[$stage5B4C2ASourceFiles[7]].Contains(
         'assert_eq!(deskbox_native_capabilities(), 511);') -and
     [regex]::Matches(
-        $stage5B4C2ASources[$stage5B4C2ASourceFiles[8]],
+        $stage5B4C2ASources[$stage5B4C2ASourceFiles[7]],
         [regex]::Escape('#[unsafe(no_mangle)]')).Count -eq 10
 $stage5B4C2AJsonSerializeCallCount = [regex]::Matches(
     $stage5B4C2AScenarioSource,
@@ -7374,12 +6802,12 @@ $stage5B4C2ASourceWarningMessages = @(
             $line = $_
             $warningCodeRegex.IsMatch($line) -and
                 $line -notmatch "warning WMC1510:" -and
-                $line -match "(?:App\.AotHotkeySmoke|Win32Helper\.AotHotkeySmoke|GlobalHotkeyService|SearchHotkeyService|ReservedHotkeyHookService|WinSpaceHotkeyStateMachine)\.cs\("
+                $line -match "(?:App\.AotHotkeySmoke|Win32Helper\.AotHotkeySmoke|GlobalHotkeyService|ReservedHotkeyHookService|WinSpaceHotkeyStateMachine)\.cs\("
         } |
         ForEach-Object { $_.Trim() } |
         Sort-Object -Unique
 )
-$stage5B4C2AExpectedWmc1510Count = 802
+$stage5B4C2AExpectedWmc1510Count = 792
 $stage5B4C2AActualWmc1510Count = @(
     $warningMatches | Where-Object { $_ -ieq "WMC1510" }
 ).Count
@@ -7553,7 +6981,7 @@ $stage5B4C3ASourceWarningMessages = @(
         ForEach-Object { $_.Trim() } |
         Sort-Object -Unique
 )
-$stage5B4C3AExpectedWmc1510Count = 802
+$stage5B4C3AExpectedWmc1510Count = 792
 $stage5B4C3AActualWmc1510Count = @(
     $warningMatches | Where-Object { $_ -ieq "WMC1510" }
 ).Count
@@ -7733,7 +7161,7 @@ $stage5B4C3B1SourceWarningMessages = @(
         ForEach-Object { $_.Trim() } |
         Sort-Object -Unique
 )
-$stage5B4C3B1ExpectedWmc1510Count = 802
+$stage5B4C3B1ExpectedWmc1510Count = 792
 $stage5B4C3B1ActualWmc1510Count = @(
     $warningMatches | Where-Object { $_ -ieq "WMC1510" }
 ).Count
@@ -7917,7 +7345,7 @@ $stage5B4C3B2ASourceWarningMessages = @(
         ForEach-Object { $_.Trim() } |
         Sort-Object -Unique
 )
-$stage5B4C3B2AExpectedWmc1510Count = 802
+$stage5B4C3B2AExpectedWmc1510Count = 792
 $stage5B4C3B2AActualWmc1510Count = @(
     $warningMatches | Where-Object { $_ -ieq "WMC1510" }
 ).Count
@@ -8109,7 +7537,7 @@ $stage5B4C3B2B1SourceWarningMessages = @(
         ForEach-Object { $_.Trim() } |
         Sort-Object -Unique
 )
-$stage5B4C3B2B1ExpectedWmc1510Count = 802
+$stage5B4C3B2B1ExpectedWmc1510Count = 792
 $stage5B4C3B2B1ActualWmc1510Count = @(
     $warningMatches | Where-Object { $_ -ieq "WMC1510" }
 ).Count
@@ -8270,7 +7698,7 @@ $stage5B4C3B2B2ASourceWarningMessages = @(
         ForEach-Object { $_.Trim() } |
         Sort-Object -Unique
 )
-$stage5B4C3B2B2AExpectedWmc1510Count = 802
+$stage5B4C3B2B2AExpectedWmc1510Count = 792
 $stage5B4C3B2B2AActualWmc1510Count = @(
     $warningMatches | Where-Object { $_ -ieq "WMC1510" }
 ).Count
@@ -8451,7 +7879,7 @@ $stage5B4C3B2B2BSourceWarningMessages = @(
         ForEach-Object { $_.Trim() } |
         Sort-Object -Unique
 )
-$stage5B4C3B2B2BExpectedWmc1510Count = 802
+$stage5B4C3B2B2BExpectedWmc1510Count = 792
 $stage5B4C3B2B2BActualWmc1510Count = @(
     $warningMatches | Where-Object { $_ -ieq "WMC1510" }
 ).Count
@@ -8647,23 +8075,6 @@ $summary = [ordered]@{
         stage4D5RequiredPublicPatterns = $stage4D5RequiredPublicPatterns
         stage4D5MissingPublicPatterns = $stage4D5MissingPublicPatterns
         stage4D5WarningMessages = $stage4D5WarningMessages
-        stage4E0SourceFiles = $stage4E0SourceFiles
-        stage4E0LegacyOneWayPatterns = $stage4E0LegacyOneWayPatterns
-        stage4E0LegacyOneWaySourceMatches = $stage4E0LegacyOneWaySourceMatches
-        stage4E0RequiredOneTimeBindings = $stage4E0RequiredOneTimeBindings
-        stage4E0MissingOneTimeBindings = $stage4E0MissingOneTimeBindings
-        stage4E0RequiredBehaviorPatterns = @(
-            $stage4E0RequiredBehaviorPatterns |
-                ForEach-Object {
-                    [PSCustomObject]@{
-                        sourceFile = $_.sourceFile
-                        pattern = $_.pattern
-                    }
-                }
-        )
-        stage4E0MissingBehaviorPatterns = $stage4E0MissingBehaviorPatterns
-        stage4E0Wmc1506WarningMessages = $stage4E0Wmc1506WarningMessages
-        stage4E0SourceWarningMessages = $stage4E0SourceWarningMessages
         stage4E1SourceFiles = $stage4E1SourceFiles
         stage4E1LegacyBindingContracts = $stage4E1LegacyBindingContracts
         stage4E1LegacyBindingSourceMatches = $stage4E1LegacyBindingSourceMatches
@@ -8718,26 +8129,6 @@ $summary = [ordered]@{
         stage4E4SourceWarningMessages = $stage4E4SourceWarningMessages
         stage4E4MaximumWmc1510Count = $stage4E4MaximumWmc1510Count
         stage4E4ActualWmc1510Count = $stage4E4ActualWmc1510Count
-        stage4E5SourceFiles = $stage4E5SourceFiles
-        stage4E5LegacyBindingContracts = $stage4E5LegacyBindingContracts
-        stage4E5LegacyBindingSourceMatches = $stage4E5LegacyBindingSourceMatches
-        stage4E5RequiredCompiledBindings = $stage4E5RequiredCompiledBindings
-        stage4E5MissingCompiledBindings = $stage4E5MissingCompiledBindings
-        stage4E5RequiredItemBridgePatterns = $stage4E5RequiredItemBridgePatterns
-        stage4E5MissingItemBridgePatterns = $stage4E5MissingItemBridgePatterns
-        stage4E5UnexpectedPublicItemBridgePatterns = $stage4E5UnexpectedPublicItemBridgePatterns
-        stage4E5ItemRefreshOrderValid = $stage4E5ItemRefreshOrderValid
-        stage4E5RequiredBehaviorPatterns = $stage4E5RequiredBehaviorPatterns
-        stage4E5MissingBehaviorPatterns = $stage4E5MissingBehaviorPatterns
-        stage4E5MissingRequiredModelPatterns = $stage4E5MissingRequiredModelPatterns
-        stage4E5UnexpectedObservableModelPatterns = $stage4E5UnexpectedObservableModelPatterns
-        stage4E5UnexpectedDataContextOverridePatterns = $stage4E5UnexpectedDataContextOverridePatterns
-        stage4E5LifecycleOrderValid = $stage4E5LifecycleOrderValid
-        stage4E5DeferredBindingContracts = $stage4E5DeferredBindingContracts
-        stage4E5MissingDeferredBindings = $stage4E5MissingDeferredBindings
-        stage4E5SourceWarningMessages = $stage4E5SourceWarningMessages
-        stage4E5ExpectedWmc1510Count = $stage4E5ExpectedWmc1510Count
-        stage4E5ActualWmc1510Count = $stage4E5ActualWmc1510Count
         stage5ASourceFiles = $stage5ASourceFiles
         stage5ARequiredDataPathPatterns = $stage5ARequiredDataPathPatterns
         stage5AMissingDataPathPatterns = $stage5AMissingDataPathPatterns
@@ -8851,9 +8242,6 @@ $summary = [ordered]@{
         stage5B4ARequiredSettingsNavigationPatterns = $stage5B4ARequiredSettingsNavigationPatterns
         stage5B4AMissingSettingsNavigationPatterns = $stage5B4AMissingSettingsNavigationPatterns
         stage5B4AUnsafeSettingsNavigationPatterns = $stage5B4AUnsafeSettingsNavigationPatterns
-        stage5B4ARequiredSearchPatterns = $stage5B4ARequiredSearchPatterns
-        stage5B4AMissingSearchPatterns = $stage5B4AMissingSearchPatterns
-        stage5B4ASortHandlerCountViolations = $stage5B4ASortHandlerCountViolations
         stage5B4ARequiredLocalePatterns = $stage5B4ARequiredLocalePatterns
         stage5B4AMissingLocalePatterns = $stage5B4AMissingLocalePatterns
         stage5B4ARequiredSmokeScriptPatterns = $stage5B4ARequiredSmokeScriptPatterns
@@ -9401,26 +8789,6 @@ if ($stage4D5WarningMessages.Count -gt 0) {
     $auditFailures.Add("Stage 4D-5 tray sources produced AOT warnings. See '$summaryPath'.")
 }
 
-if ($stage4E0LegacyOneWaySourceMatches.Count -gt 0) {
-    $auditFailures.Add("Stage 4E-0 legacy OneWay search-history bindings remain: $($stage4E0LegacyOneWaySourceMatches -join ', '). See '$summaryPath'.")
-}
-
-if ($stage4E0MissingOneTimeBindings.Count -gt 0) {
-    $auditFailures.Add("Stage 4E-0 OneTime search-history binding counts changed: $($stage4E0MissingOneTimeBindings -join ', '). See '$summaryPath'.")
-}
-
-if ($stage4E0MissingBehaviorPatterns.Count -gt 0) {
-    $auditFailures.Add("Stage 4E-0 immutable search-history behavior contracts are missing: $($stage4E0MissingBehaviorPatterns -join ', '). See '$summaryPath'.")
-}
-
-if ($stage4E0Wmc1506WarningMessages.Count -gt 0) {
-    $auditFailures.Add("Stage 4E-0 search history bindings produced WMC1506 warnings. See '$summaryPath'.")
-}
-
-if ($stage4E0SourceWarningMessages.Count -gt 0) {
-    $auditFailures.Add("Stage 4E-0 search widget sources produced AOT warnings. See '$summaryPath'.")
-}
-
 if ($stage4E1LegacyBindingSourceMatches.Count -gt 0) {
     $auditFailures.Add("Stage 4E-1 legacy leaf bindings remain: $($stage4E1LegacyBindingSourceMatches -join ', '). See '$summaryPath'.")
 }
@@ -9531,58 +8899,6 @@ if ($stage4E4SourceWarningMessages.Count -gt 0) {
 
 if ($stage4E4ActualWmc1510Count -gt $stage4E4MaximumWmc1510Count) {
     $auditFailures.Add("Stage 4E-4 WMC1510 count regressed above its ceiling: maximum=$stage4E4MaximumWmc1510Count actual=$stage4E4ActualWmc1510Count. See '$summaryPath'.")
-}
-
-if ($stage4E5LegacyBindingSourceMatches.Count -gt 0) {
-    $auditFailures.Add("Stage 4E-5 legacy search-result row bindings remain: $($stage4E5LegacyBindingSourceMatches -join ', '). See '$summaryPath'.")
-}
-
-if ($stage4E5MissingCompiledBindings.Count -gt 0) {
-    $auditFailures.Add("Stage 4E-5 compiled search-result row binding counts changed: $($stage4E5MissingCompiledBindings -join ', '). See '$summaryPath'.")
-}
-
-if ($stage4E5MissingItemBridgePatterns.Count -gt 0) {
-    $auditFailures.Add("Stage 4E-5 internal typed Item bridge patterns are missing: $($stage4E5MissingItemBridgePatterns -join ', '). See '$summaryPath'.")
-}
-
-if ($stage4E5UnexpectedPublicItemBridgePatterns.Count -gt 0) {
-    $auditFailures.Add("Stage 4E-5 exposed SearchResultItem to the XAML activator: $($stage4E5UnexpectedPublicItemBridgePatterns -join ', '). See '$summaryPath'.")
-}
-
-if (-not $stage4E5ItemRefreshOrderValid) {
-    $auditFailures.Add("Stage 4E-5 item preparation no longer precedes the lazy metadata refresh. See '$summaryPath'.")
-}
-
-if ($stage4E5MissingBehaviorPatterns.Count -gt 0) {
-    $auditFailures.Add("Stage 4E-5 recycle, lazy metadata, selection, or lookup contracts are missing: $($stage4E5MissingBehaviorPatterns -join ', '). See '$summaryPath'.")
-}
-
-if ($stage4E5MissingRequiredModelPatterns.Count -gt 0) {
-    $auditFailures.Add("Stage 4E-5 SearchResultItem required-member or lazy-metadata contracts changed: $($stage4E5MissingRequiredModelPatterns -join ', '). See '$summaryPath'.")
-}
-
-if ($stage4E5UnexpectedObservableModelPatterns.Count -gt 0) {
-    $auditFailures.Add("Stage 4E-5 added fake observability to SearchResultItem: $($stage4E5UnexpectedObservableModelPatterns -join ', '). See '$summaryPath'.")
-}
-
-if ($stage4E5UnexpectedDataContextOverridePatterns.Count -gt 0) {
-    $auditFailures.Add("Stage 4E-5 replaced the repeater DataContext interaction boundary: $($stage4E5UnexpectedDataContextOverridePatterns -join ', '). See '$summaryPath'.")
-}
-
-if (-not $stage4E5LifecycleOrderValid) {
-    $auditFailures.Add("Stage 4E-5 repeater unhook, ItemsSource clear, or ViewModel disposal order changed. See '$summaryPath'.")
-}
-
-if ($stage4E5MissingDeferredBindings.Count -gt 0) {
-    $auditFailures.Add("Stage 4E-5 deferred runtime/style bindings changed scope: $($stage4E5MissingDeferredBindings -join ', '). See '$summaryPath'.")
-}
-
-if ($stage4E5SourceWarningMessages.Count -gt 0) {
-    $auditFailures.Add("Stage 4E-5 search-result row sources produced AOT warnings. See '$summaryPath'.")
-}
-
-if ($stage4E5ActualWmc1510Count -ne $stage4E5ExpectedWmc1510Count) {
-    $auditFailures.Add("Stage 4E-5 WMC1510 count changed: expected=$stage4E5ExpectedWmc1510Count actual=$stage4E5ActualWmc1510Count. See '$summaryPath'.")
 }
 
 if ($stage5AMissingDataPathPatterns.Count -gt 0) {
@@ -9817,11 +9133,6 @@ if ($stage5B4AMissingSettingsPatterns.Count -gt 0) {
 if ($stage5B4AMissingSettingsNavigationPatterns.Count -gt 0 -or
     $stage5B4AUnsafeSettingsNavigationPatterns.Count -gt 0) {
     $auditFailures.Add("Stage 5B-4A settings search empty-state AOT projection guard is incomplete. See '$summaryPath'.")
-}
-
-if ($stage5B4AMissingSearchPatterns.Count -gt 0 -or
-    $stage5B4ASortHandlerCountViolations.Count -gt 0) {
-    $auditFailures.Add("Stage 5B-4A search control routing contracts are incomplete. See '$summaryPath'.")
 }
 
 if ($stage5B4AMissingLocalePatterns.Count -gt 0) {
@@ -10138,7 +9449,7 @@ if ($stage5B4C1AMissingRunnerPatterns.Count -gt 0 -or
     $auditFailures.Add("Stage 5B-4C1A owned local-file fixture, real surface, operation, or generated binding contracts are incomplete. See '$summaryPath'.")
 }
 
-if ($stage5B4C1ABindableAttributeCount -ne 3) {
+if ($stage5B4C1ABindableAttributeCount -ne 2) {
     $auditFailures.Add("Stage 5B-4C1A must expose exactly three narrow generated File Widget bindable providers. See '$summaryPath'.")
 }
 

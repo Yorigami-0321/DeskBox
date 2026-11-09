@@ -24,11 +24,10 @@ public sealed class AotStage5B4AContractTests
         string source = ReadRepositoryFile("src/DeskBox/App.AotManagedUiSmoke.cs");
 
         Assert.Contains("aot-5b4a-file", source, StringComparison.Ordinal);
-        Assert.Contains("aot-5b4a-search", source, StringComparison.Ordinal);
+        Assert.Contains("aot-5b4a-file-2", source, StringComparison.Ordinal);
         Assert.Contains("_trayIcon.TrayIcon.WindowHandle", source, StringComparison.Ordinal);
         Assert.Contains("WidgetManager.CreateDiagnosticsSnapshot()", source, StringComparison.Ordinal);
         Assert.Contains("WidgetKind.File", source, StringComparison.Ordinal);
-        Assert.Contains("WidgetKind.Search", source, StringComparison.Ordinal);
         Assert.DoesNotContain("CreateWidgetOfKindAsync", source, StringComparison.Ordinal);
         Assert.DoesNotContain("CreateManagedWidgetAsync", source, StringComparison.Ordinal);
         Assert.DoesNotContain("SettingsService.Save", source, StringComparison.Ordinal);
@@ -77,55 +76,6 @@ public sealed class AotStage5B4AContractTests
     }
 
     [Fact]
-    public void ManagedUiSmoke_OpensSearchWithLocalizedGuaranteedActionAndWaitsForResults()
-    {
-        string source = ReadRepositoryFile("src/DeskBox/App.AotManagedUiSmoke.cs");
-
-        Assert.Contains("Search.Action.OpenSettings", source, StringComparison.Ordinal);
-        Assert.Contains("OpenSearchPopupWithQuery(searchQuery)", source, StringComparison.Ordinal);
-        Assert.Contains("WaitForManagedUiSearchAsync", source, StringComparison.Ordinal);
-        Assert.Contains("HasOpenSettingsAction", source, StringComparison.Ordinal);
-        Assert.Contains("SearchCompleted", source, StringComparison.Ordinal);
-        Assert.DoesNotContain("RecordQuery", source, StringComparison.Ordinal);
-        Assert.DoesNotContain("OpenSelected", source, StringComparison.Ordinal);
-    }
-
-    [Fact]
-    public void SearchWindowDiagnostic_ExercisesEveryFilterAndDoubleClicksEverySortColumn()
-    {
-        string source = ReadRepositoryFile("src/DeskBox/Views/SearchPopupWindow.AotSmoke.cs");
-
-        foreach (string filter in new[]
-                 {
-                     "All",
-                     "FilesAndFolders",
-                     "Apps",
-                     "Images",
-                     "Documents",
-                     "DeskBox"
-                 })
-        {
-            Assert.Contains($"\"{filter}\"", source, StringComparison.Ordinal);
-        }
-
-        foreach (string handler in new[]
-                 {
-                     "SortNameHeader_Click",
-                     "SortSizeHeader_Click",
-                     "SortDateHeader_Click",
-                     "SortTypeHeader_Click"
-                 })
-        {
-            Assert.Equal(2, CountOccurrences(source, handler + "("));
-        }
-
-        Assert.Contains("ResultFilterComboBox.SelectedItem", source, StringComparison.Ordinal);
-        Assert.Contains("ResultFilterBar.Visibility", source, StringComparison.Ordinal);
-        Assert.Contains("SortHeaderRow.Visibility", source, StringComparison.Ordinal);
-        Assert.Contains("ActionId == \"open-settings\"", source, StringComparison.Ordinal);
-    }
-
-    [Fact]
     public void LocaleDiagnostic_LoadsEveryShippedDictionaryWithoutChangingLanguage()
     {
         string source = ReadRepositoryFile("src/DeskBox/Services/LocalizationService.cs");
@@ -142,7 +92,6 @@ public sealed class AotStage5B4AContractTests
         }
 
         Assert.Contains("Settings.WindowTitle", source, StringComparison.Ordinal);
-        Assert.Contains("Search.Action.OpenSettings", source, StringComparison.Ordinal);
         string diagnostic = source[
             source.IndexOf("CaptureAotSmokeResourceDiagnostics", StringComparison.Ordinal)..];
         Assert.DoesNotContain("SetLanguage(", diagnostic, StringComparison.Ordinal);
@@ -185,10 +134,9 @@ public sealed class AotStage5B4AContractTests
         Assert.Contains("DESKBOX_AOT_MANAGED_UI_SMOKE", script, StringComparison.Ordinal);
         Assert.Contains("BasicReadOnly", script, StringComparison.Ordinal);
         Assert.Contains("aot-5b4a-file", script, StringComparison.Ordinal);
-        Assert.Contains("aot-5b4a-search", script, StringComparison.Ordinal);
+        Assert.Contains("aot-5b4a-file-2", script, StringComparison.Ordinal);
         Assert.Contains("HasCompletedOnboarding", script, StringComparison.Ordinal);
         Assert.Contains("FeatureWidgetEnabledStates", script, StringComparison.Ordinal);
-        Assert.Contains("SearchSaveHistory", script, StringComparison.Ordinal);
         Assert.Contains("Get-DirectoryStateFingerprint", script, StringComparison.Ordinal);
         Assert.Contains("Stop-ExactPreviewProcess", script, StringComparison.Ordinal);
         Assert.Contains("productionDataFingerprintBefore", script, StringComparison.Ordinal);

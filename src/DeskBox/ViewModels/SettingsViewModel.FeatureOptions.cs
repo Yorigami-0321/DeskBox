@@ -128,7 +128,6 @@ public partial class SettingsViewModel
         // The Todo switch's state (incl. its pending async transition) is
         // the section editor's projection (batch 47).
         if (kind == WidgetKind.Todo) return _todoSettings.Enabled;
-        if (kind == WidgetKind.Search) return _searchFeatureSettings.Enabled;
         return _widgetActions.IsFeatureWidgetEnabled(kind);
     }
 
@@ -136,7 +135,7 @@ public partial class SettingsViewModel
     {
         // Every feature switch rides the one facade command: the main
         // process runs the kind's full chain (coordinator side effects for
-        // QuickCapture/Todo/Search, dictionary + manager apply for the
+        // QuickCapture/Todo, dictionary + manager apply for the
         // rest). The local memory mirror flips the switch UI immediately;
         // the command response reconciles it with the authoritative value —
         // the reload push alone can lag seconds behind the widget

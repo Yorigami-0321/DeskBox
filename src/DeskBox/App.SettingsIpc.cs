@@ -27,15 +27,8 @@ public partial class App
             SettingsService,
             new InProcessSettingsHotkeyActions(
                 GlobalHotkeyService,
-                SearchHotkeyService,
                 DesktopDoubleClickActivationService,
-                SettingsService,
-                // Live resolution (batch R10): the search hotkey service is
-                // created lazily when the feature is first enabled — long
-                // after this router construction — so the constructor
-                // snapshot was null and every search-hotkey command
-                // silently no-opped.
-                searchHotkeyProvider: () => _searchHotkeyService),
+                SettingsService),
             new InProcessSettingsDataActions(
                 QuickCaptureService ?? throw new InvalidOperationException("Quick Capture service is not initialized."),
                 LocalizationService),
@@ -53,10 +46,7 @@ public partial class App
                         "Quick Capture is not initialized.")).SetEnabledAsync(enabled, reveal: enabled),
                 applyTodoEnabled: enabled =>
                     (_todoSettings ?? throw new InvalidOperationException(
-                        "Todo settings are not initialized.")).SetEnabledAsync(enabled),
-                applySearchEnabled: enabled =>
-                    (_searchSettings ?? throw new InvalidOperationException(
-                        "Search settings are not initialized.")).SetEnabledAsync(enabled, reveal: enabled)),
+                        "Todo settings are not initialized.")).SetEnabledAsync(enabled)),
             new InProcessSettingsAppActions(this, LocalizationService),
             pushEvent: (method, payload) =>
                 _settingsIpcServer?.SendEventAsync(method, payload) ?? Task.CompletedTask,
@@ -64,7 +54,6 @@ public partial class App
             backupRestore: _backupRestoreActions,
             backupSettings: _backupSettings,
             appUpdate: AppUpdateService,
-            everythingClient: _everythingSearchService,
             // Batch R11: the coordinator flips its spawn-vs-show decision
             // the moment the host announces its exit, not when the process
             // handle finally reports death (~2s later, mid-flush). The

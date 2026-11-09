@@ -317,12 +317,8 @@ $settings = [ordered]@{
         Todo = $false
         Music = $false
         Weather = $false
-        Search = $true
         Glance = $false
     }
-    searchSaveHistory = $false
-    searchDefaultTab = "all"
-    searchShowRecommendations = $false
     widgets = @(
         [ordered]@{
             id = "aot-5b4c1b2b-file"
@@ -351,21 +347,22 @@ $settings = [ordered]@{
             fileAddedAtTrackingInitialized = $true
         },
         [ordered]@{
-            id = "aot-5b4a-search"
-            name = "AOT Search Fixture"
+            id = "aot-5b4a-file-2"
+            name = "AOT File Fixture 2"
             isDefaultTitle = $false
             x = 500
             y = 80
             boundsCoordinateVersion = 1
             width = 300
             height = 360
-            widgetKind = "Search"
+            widgetKind = "File"
             viewMode = "Icon"
             isVisible = $true
             isDisabled = $false
             isPositionLocked = $false
             isSizeLocked = $false
             isCollapsed = $false
+            mappedFolderPath = $fixtureDirectory
             followsDefaultStoragePath = $false
             sortMode = "Name"
             items = @()
@@ -511,11 +508,11 @@ try {
     }
     Assert-StringSequence `
         -Actual @($smokeResult.seededWidgetIds) `
-        -Expected @("aot-5b4a-search", "aot-5b4c1b2b-file") `
+        -Expected @("aot-5b4a-file-2", "aot-5b4c1b2b-file") `
         -Name "seededWidgetIds"
     Assert-StringSequence `
         -Actual @($smokeResult.visibleWidgetKinds) `
-        -Expected @("File", "Search") `
+        -Expected @("File", "File") `
         -Name "visibleWidgetKinds"
     if ([int]$smokeResult.loadedSurfaceCount -ne 2 -or
         [int]$smokeResult.visibleSurfaceCount -ne 2 -or

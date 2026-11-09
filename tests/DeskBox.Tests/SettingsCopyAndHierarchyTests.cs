@@ -206,7 +206,6 @@ public sealed class SettingsCopyAndHierarchyTests
             ["Settings.Capsule.Overrides.FollowGlobal"] = "恢复默认",
             ["Widget.OpenStorageFolder"] = "打开格子文件夹",
             ["Widget.ShowInExplorer"] = "打开文件所在的位置",
-            ["Search.Menu.AttachToTodo"] = "添加到待办",
             ["QuickCapture.SaveToRecords"] = "保存为随记",
             ["QuickCapture.PinToRecords"] = "固定这条随记",
             ["Widget.Stack.FollowDefaults"] = "跟随默认设置",
@@ -229,7 +228,6 @@ public sealed class SettingsCopyAndHierarchyTests
             ["Settings.WidgetGroups.FollowDefaultWithValue"] = "跟随默认({0})",
             ["Widget.Group.Join"] = "组合格子…",
             ["Widget.DeleteFolderToRecycleBin"] = "同时移入回收站",
-            ["Search.Delete.Action"] = "移入回收站",
             ["Settings.QuickCapture.Format.Title"] = "编辑格式",
             ["Settings.QuickCapture.Format.Description"] = "影响编辑器语法与显示样式",
             ["Settings.Accent.Source.Title"] = "主题色来源",
@@ -520,29 +518,6 @@ public sealed class SettingsCopyAndHierarchyTests
         Assert.Contains("Settings.Weather.Group.Display.Title", weather, StringComparison.Ordinal);
         Assert.Contains("IsOn=\"{Binding ShowForecast", weather, StringComparison.Ordinal);
         Assert.Contains("IsOn=\"{Binding ShowPressure", weather, StringComparison.Ordinal);
-    }
-
-    [Fact]
-    public void SearchHotkey_IsOwnedBySearchSettingsWithoutDuplicateTopHeading()
-    {
-        string root = FindRepositoryRoot();
-        string windowXaml = File.ReadAllText(Path.Combine(
-            root,
-            "src/DeskBox/Views/SettingsWindow.xaml"));
-        string searchXaml = File.ReadAllText(Path.Combine(
-            root,
-            "src/DeskBox/Views/SettingsSections/SearchSettingsSection.xaml"));
-        string searchCodeBehind = File.ReadAllText(Path.Combine(
-            root,
-            "src/DeskBox/Views/SettingsSections/SearchSettingsSection.xaml.cs"));
-
-        Assert.DoesNotContain("SearchHotkeyToggle2", windowXaml, StringComparison.Ordinal);
-        Assert.DoesNotContain("Settings.Search.Hotkey.Title", windowXaml, StringComparison.Ordinal);
-        Assert.Contains("x:Name=\"SearchHotkeyExpander\"", searchXaml, StringComparison.Ordinal);
-        Assert.Contains("x:Name=\"SearchHotkeyToggle\"", searchXaml, StringComparison.Ordinal);
-        Assert.Contains("Settings.Search.Hotkey.Title", searchXaml, StringComparison.Ordinal);
-        Assert.DoesNotContain("Settings.Search.Scope.Title", searchXaml, StringComparison.Ordinal);
-        Assert.Contains("_viewModel.State.FeatureEnabled", searchCodeBehind, StringComparison.Ordinal);
     }
 
     [Fact]

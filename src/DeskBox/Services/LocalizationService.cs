@@ -563,9 +563,7 @@ public sealed class LocalizationService
             // consolidation (bc8fd2eb retired "Window.Settings.Title"); the
             // smoke keeps requiring the live key, "Settings.WindowTitle".
             resources.TryGetValue("Settings.WindowTitle", out string? settingsTitle) &&
-                !string.IsNullOrWhiteSpace(settingsTitle),
-            resources.TryGetValue("Search.Action.OpenSettings", out string? openSettings) &&
-                !string.IsNullOrWhiteSpace(openSettings));
+                !string.IsNullOrWhiteSpace(settingsTitle));
     }
 #endif
 }
@@ -574,8 +572,7 @@ public sealed class LocalizationService
 internal sealed record AotLocaleResourceDiagnostic(
     string Locale,
     int ResourceCount,
-    bool HasSettingsTitle,
-    bool HasOpenSettingsAction);
+    bool HasSettingsTitle);
 #endif
 
 [JsonSourceGenerationOptions(GenerationMode = JsonSourceGenerationMode.Metadata)]

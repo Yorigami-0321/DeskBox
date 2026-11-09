@@ -107,12 +107,10 @@ public class IconHelperTests
     }
 
     [Fact]
-    public void InternetShortcutIconPolicy_IsShellFirstOverlayAwareAndUsedBySearch()
+    public void InternetShortcutIconPolicy_IsShellFirstAndOverlayAware()
     {
         string iconHelper = File.ReadAllText(TestPaths.FromRepository(
             "src/DeskBox/Helpers/IconHelper.cs"));
-        string fileMetaService = File.ReadAllText(TestPaths.FromRepository(
-            "src/DeskBox/Services/FileMetaService.cs"));
 
         Assert.Contains(
             "CreateInternetShortcutIconSource(",
@@ -129,10 +127,6 @@ public class IconHelperTests
         Assert.Contains(
             "ResolveInternetShortcutFallbackSourceAsync(",
             iconHelper,
-            StringComparison.Ordinal);
-        Assert.Contains(
-            "ShortcutHelper.IsShortcutPath(item.DetailPath)",
-            fileMetaService,
             StringComparison.Ordinal);
     }
 

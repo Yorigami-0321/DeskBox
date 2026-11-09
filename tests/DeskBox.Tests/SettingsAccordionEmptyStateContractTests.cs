@@ -10,20 +10,13 @@ namespace DeskBox.Tests;
 ///    reads as a grayed row instead of an expandable shell that opens
 ///    empty. The expander-level preset gating (whole expander hidden when
 ///    its preset entry is unavailable) stays in place.
-/// 2. The search hotkey expander is never disabled as a whole: only its
-///    content controls gray out when the hotkey is unavailable, so the
-///    expander can always be opened to read the status notice.
-/// 3. The merged drag-and-drop behavior expander header carries a
+/// 2. The merged drag-and-drop behavior expander header carries a
 ///    description, matching the other group expanders.
 /// </summary>
 public sealed class SettingsAccordionEmptyStateContractTests
 {
     private const string CapsuleSectionXaml =
         "src/DeskBox/Views/SettingsSections/CapsuleModeSettingsSection.xaml";
-    private const string SearchSectionXaml =
-        "src/DeskBox/Views/SettingsSections/SearchSettingsSection.xaml";
-    private const string SearchSectionCode =
-        "src/DeskBox/Views/SettingsSections/SearchSettingsSection.xaml.cs";
     private const string SettingsWindowXaml = "src/DeskBox/Views/SettingsWindow.xaml";
 
     [Fact]
@@ -51,33 +44,6 @@ public sealed class SettingsAccordionEmptyStateContractTests
         // duration sub-card in the animation expander.
         Assert.Equal(2, CountOccurrences(xaml, "IsEnabled=\"{Binding ShowHoverResponseCustom}\""));
         Assert.Equal(1, CountOccurrences(xaml, "IsEnabled=\"{Binding ShowAnimationCustom}\""));
-    }
-
-    [Fact]
-    public void SearchHotkey_ExpanderIsNeverGatedAsAWhole()
-    {
-        string code = ReadRepositoryFile(SearchSectionCode);
-
-        Assert.DoesNotContain("SearchHotkeyExpander.IsEnabled", code, StringComparison.Ordinal);
-
-        // Content-level gating instead: toggle, capture and reset controls
-        // gray out when the hotkey is unavailable. The preset picker moved
-        // into the recorder dialog, so it no longer needs section-level
-        // gating.
-        Assert.Contains("SearchHotkeyToggle.IsEnabled", code, StringComparison.Ordinal);
-        Assert.Contains("SearchHotkeyCaptureButton.IsEnabled", code, StringComparison.Ordinal);
-        Assert.Contains("ResetSearchHotkeyButton.IsEnabled", code, StringComparison.Ordinal);
-    }
-
-    [Fact]
-    public void SearchHotkey_ExpanderStaysPlainInXaml()
-    {
-        string xaml = ReadRepositoryFile(SearchSectionXaml);
-
-        Match? expander = FindOpeningTag(
-            xaml, "toolkit:SettingsExpander", "HeaderKey=\"Settings.Search.Hotkey.Title\"");
-        Assert.NotNull(expander);
-        Assert.DoesNotContain("IsEnabled", expander.Value, StringComparison.Ordinal);
     }
 
     [Fact]

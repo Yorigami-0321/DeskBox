@@ -233,23 +233,6 @@ public sealed class FileServiceOpenItemTests
             StringComparison.Ordinal);
     }
 
-    /// <summary>
-    /// Pins the #339 boundary: the search popup's hard-coded explorer.exe
-    /// dispatch for folders is a separate issue and must not move in #459's
-    /// wake.
-    /// </summary>
-    [Fact]
-    public void SearchPopupFolderOpen_StillUsesExplorerForNow()
-    {
-        string search = File.ReadAllText(TestPaths.FromRepository(
-            "src/DeskBox/ViewModels/SearchPopupViewModel.cs"));
-
-        Assert.Contains(
-            """System.Diagnostics.Process.Start("explorer.exe", $"\"{path}\"");""",
-            search,
-            StringComparison.Ordinal);
-    }
-
     private static string Slice(string source, string startMarker, string endMarker)
     {
         int start = source.IndexOf(startMarker, StringComparison.Ordinal);

@@ -91,11 +91,6 @@ public partial class SettingsViewModel
             _appActions.SetSnapEnabled(_interactionSettings.SnapEnabled);
 
             _hotkeyActions.RefreshRegistration();
-            // The reset flipped SearchHotkeyEnabled back to its default in
-            // settings.json; re-run the live registration or the old
-            // gesture kept triggering search until the next restart
-            // (batch R9).
-            _hotkeyActions.RefreshSearchHotkeyRegistration();
             _appActions.UpdateTrayIcon();
             RefreshGlobalHotkeyState();
             _themeService.RefreshAppearance();

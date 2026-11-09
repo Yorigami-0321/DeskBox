@@ -22,7 +22,6 @@ public sealed class SettingsIpcMethodRouter
     private readonly ISettingsWidgetActions? _widget;
     private readonly ISettingsAppActions? _appActions;
     private readonly IBackupCommands? _backupCommands;
-    private readonly DeskBox.Contracts.ISearchConnectionClient? _everythingClient;
     private readonly IBackupRestoreActions? _backupRestore;
     private readonly IBackupSettings? _backupSettings;
     private readonly IAppUpdateService? _appUpdate;
@@ -51,7 +50,6 @@ public sealed class SettingsIpcMethodRouter
         IBackupRestoreActions? backupRestore = null,
         IBackupSettings? backupSettings = null,
         IAppUpdateService? appUpdate = null,
-        DeskBox.Contracts.ISearchConnectionClient? everythingClient = null,
         Action<string?>? onHostFarewell = null,
         Action? onHostBootReady = null)
     {
@@ -62,7 +60,6 @@ public sealed class SettingsIpcMethodRouter
         _widget = widget;
         _appActions = appActions;
         _backupCommands = backupCommands;
-        _everythingClient = everythingClient;
         _backupRestore = backupRestore;
         _backupSettings = backupSettings;
         _appUpdate = appUpdate;
@@ -190,49 +187,6 @@ public sealed class SettingsIpcMethodRouter
             case SettingsIpcMethods.HotkeySetEnabled:
                 if (_hotkey is null) return unavailable(method);
                 _hotkey.SetEnabled(SettingsIpcPayload.DecodeBoolean(payload));
-                return (true, null, null);
-
-            case SettingsIpcMethods.SearchHotkeyState:
-                if (_hotkey is null) return unavailable(method);
-                return (true, SettingsIpcPayload.EncodeBoolean(
-                    await _hotkey.IsSearchHotkeyRegisteredAsync()), null);
-
-            case SettingsIpcMethods.SearchHotkeySetEnabled:
-                if (_hotkey is null) return unavailable(method);
-                // UI thread (batch R10): first enable installs the tray
-                // window subclass, and SetWindowSubclass must run on the
-                // window-owning thread — a pool-thread install silently
-                // fails.
-                await DeskBox.Platform.UiDispatch.RunAsync(() =>
-                {
-                    _hotkey.SetSearchHotkeyEnabled(SettingsIpcPayload.DecodeBoolean(payload));
-                    return Task.CompletedTask;
-                });
-                return (true, null, null);
-
-            case SettingsIpcMethods.SearchHotkeyApplyGesture:
-                if (_hotkey is null) return unavailable(method);
-                if (SettingsIpcPayload.DecodeStruct(payload, SettingsIpcJsonContext.Default.GlobalHotkeyGesture)
-                    is not { } searchGesture)
-                {
-                    return (false, null, "missing gesture payload");
-                }
-
-                (bool searchApplied, string? searchError) = await DeskBox.Platform.UiDispatch.RunAsync(() =>
-                {
-                    bool ok = _hotkey.TryApplySearchHotkeyGesture(searchGesture, out string? err);
-                    return Task.FromResult((ok, err));
-                }).ConfigureAwait(false);
-                return (searchApplied, null, searchError);
-
-            case SettingsIpcMethods.SearchHotkeyRefreshRegistration:
-                if (_hotkey is null) return unavailable(method);
-                // UI thread, same subclass-install reason as set-enabled.
-                await DeskBox.Platform.UiDispatch.RunAsync(() =>
-                {
-                    _hotkey.RefreshSearchHotkeyRegistration();
-                    return Task.CompletedTask;
-                });
                 return (true, null, null);
 
             case SettingsIpcMethods.HotkeyDoubleClickSet:
@@ -1071,54 +1025,6 @@ public sealed class SettingsIpcMethodRouter
                 return (true, SettingsIpcPayload.Encode(
                     installResult,
                     SettingsIpcJsonContext.Default.AppUpdateInstallResult), null);
-
-            // ── Everything integration (batch 3d follow-up) ──────────
-
-            case SettingsIpcMethods.SearchEverythingState:
-                if (_everythingClient is null) return unavailable(method);
-                return (true, SettingsIpcPayload.Encode(
-                    _everythingClient.CurrentSnapshot,
-                    SettingsIpcJsonContext.Default.EverythingConnectionSnapshot), null);
-
-            case SettingsIpcMethods.SearchEverythingRefresh:
-                if (_everythingClient is null) return unavailable(method);
-                bool allowProbe = SettingsIpcPayload.Decode(
-                    payload, SettingsIpcJsonContext.Default.SettingsIpcEverythingRefresh)
-                    ?.AllowIpcProbe ?? true;
-                // The refresh touches the Everything process and file system;
-                // run it marshalled like every other settings-side chain.
-                DeskBox.Contracts.EverythingConnectionSnapshot refreshed =
-                    await DeskBox.Platform.UiDispatch.RunAsync(() =>
-                        _everythingClient.RefreshConnectionAsync(allowProbe, cancellationToken));
-                return (true, SettingsIpcPayload.Encode(
-                    refreshed,
-                    SettingsIpcJsonContext.Default.EverythingConnectionSnapshot), null);
-
-            case SettingsIpcMethods.SearchEverythingAuto:
-                if (_everythingClient is null) return unavailable(method);
-                await DeskBox.Platform.UiDispatch.RunAsync(
-                    () => _everythingClient.UseAutomaticDetectionAsync(cancellationToken));
-                return (true, SettingsIpcPayload.Encode(
-                    _everythingClient.CurrentSnapshot,
-                    SettingsIpcJsonContext.Default.EverythingConnectionSnapshot), null);
-
-            case SettingsIpcMethods.SearchEverythingSetPath:
-                if (_everythingClient is null) return unavailable(method);
-                if (SettingsIpcPayload.Decode(payload, SettingsIpcJsonContext.Default.SettingsIpcEverythingPath)
-                    is not { } everythingPath)
-                {
-                    return (false, null, "missing payload");
-                }
-
-                bool pathApplied = await DeskBox.Platform.UiDispatch.RunAsync(() =>
-                    _everythingClient.SetExecutablePathAsync(everythingPath.Path, cancellationToken));
-                return (pathApplied, null, pathApplied ? null : "path rejected");
-
-            case SettingsIpcMethods.SearchEverythingLaunch:
-                if (_everythingClient is null) return unavailable(method);
-                bool launched = await DeskBox.Platform.UiDispatch.RunAsync(() =>
-                    _everythingClient.LaunchEverythingAsync(cancellationToken));
-                return (launched, null, launched ? null : "launch failed");
 
             default:
                 return (false, null, $"unknown method {method}");

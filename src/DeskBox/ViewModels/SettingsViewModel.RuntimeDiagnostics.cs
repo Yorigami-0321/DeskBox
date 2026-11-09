@@ -23,55 +23,21 @@ public partial class SettingsViewModel
             return;
         }
 
-        bool everythingEnabled = _settingsService.Settings.SearchEverythingEnabled;
-        bool everythingChecking = everythingEnabled &&
-            snapshot.EverythingState == EverythingConnectionState.Checking;
-        bool everythingNeedsAttention = everythingEnabled &&
-            snapshot.EverythingState != EverythingConnectionState.Connected &&
-            !everythingChecking;
-
-        string summaryText = everythingChecking
-            ? _localizationService.T("Settings.RuntimeHealth.Summary.Scanning")
-            : everythingNeedsAttention ||
-              snapshot.OfflineFolderCount > 0 ||
-              snapshot.DegradedFolderCount > 0 ||
-              snapshot.AccessDeniedFolderCount > 0
+        string summaryText =
+            snapshot.OfflineFolderCount > 0 ||
+            snapshot.DegradedFolderCount > 0 ||
+            snapshot.AccessDeniedFolderCount > 0
                 ? _localizationService.T("Settings.RuntimeHealth.Summary.Degraded")
                 : _localizationService.T("Settings.RuntimeHealth.Summary.Healthy");
 
         string lastLifecycle = snapshot.LastLifecycleEventAt is { } lifecycleAt
             ? lifecycleAt.ToLocalTime().ToString("g")
             : _localizationService.T("Settings.RuntimeHealth.Never");
-        string everythingStatus = !everythingEnabled
-            ? _localizationService.T("Settings.Search.Everything.Status.NotConfirmed")
-            : snapshot.EverythingState switch
-            {
-                EverythingConnectionState.Checking =>
-                    _localizationService.T("Settings.Search.Everything.Status.Checking"),
-                EverythingConnectionState.NotInstalled =>
-                    _localizationService.T("Settings.Search.Everything.Status.NotInstalled"),
-                EverythingConnectionState.NotRunning =>
-                    _localizationService.T("Settings.Search.Everything.Status.NotRunning"),
-                EverythingConnectionState.PermissionMismatch =>
-                    _localizationService.T("Settings.Search.Everything.Status.PermissionMismatch"),
-                EverythingConnectionState.IpcUnavailable =>
-                    _localizationService.T("Settings.Search.Everything.Status.IpcUnavailable"),
-                EverythingConnectionState.SdkUnavailable =>
-                    _localizationService.T("Settings.Search.Everything.Status.SdkUnavailable"),
-                EverythingConnectionState.Connected => _localizationService.Format(
-                    "Settings.Search.Everything.Status.Connected",
-                    snapshot.EverythingVersion ??
-                    _localizationService.T("Settings.Search.Everything.VersionUnknown")),
-                EverythingConnectionState.Error =>
-                    _localizationService.T("Settings.Search.Everything.Status.Error"),
-                _ => _localizationService.T("Settings.Search.Everything.Status.Unknown")
-            };
 
         string detailText = _localizationService.Format(
             "Settings.RuntimeHealth.Detail",
             snapshot.LifecycleEventCount,
             lastLifecycle,
-            everythingStatus,
             snapshot.OfflineFolderCount,
             snapshot.DegradedFolderCount,
             snapshot.AccessDeniedFolderCount,

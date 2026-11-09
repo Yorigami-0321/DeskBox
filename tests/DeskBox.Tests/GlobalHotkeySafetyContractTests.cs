@@ -27,7 +27,6 @@ public sealed class GlobalHotkeySafetyContractTests
         Assert.Contains("Settings.GlobalHotkey.Preset.WinSpace", hotkeyCode, StringComparison.Ordinal);
         Assert.Contains("Settings.GlobalHotkey.Preset.WindowsTap", hotkeyCode, StringComparison.Ordinal);
         Assert.Contains("Settings.GlobalHotkey.Preset.CopilotKey", hotkeyCode, StringComparison.Ordinal);
-        Assert.Contains("HotkeyRecorderDialog.Scope.Global", hotkeyCode, StringComparison.Ordinal);
         Assert.Contains("Settings.GlobalHotkey.PresetsTitle", dialogCode, StringComparison.Ordinal);
         Assert.DoesNotContain("Settings.GlobalHotkey.PresetsDescription", xaml, StringComparison.Ordinal);
         Assert.DoesNotContain("Settings.GlobalHotkey.RecommendedTitle", xaml, StringComparison.Ordinal);
@@ -44,49 +43,6 @@ public sealed class GlobalHotkeySafetyContractTests
         Assert.Contains("ResumeAfterRecording", facadeCode, StringComparison.Ordinal);
         Assert.Contains("x:Name=\"ErrorInfoBar\"", dialogXaml, StringComparison.Ordinal);
         Assert.DoesNotContain("UseWinSpaceHotkeyButton_Click", hotkeyCode, StringComparison.Ordinal);
-    }
-
-    [Fact]
-    public void SearchAltSpacePreset_RidesTheReservedHookAndCannotDuplicateTheMainHotkey()
-    {
-        string search = Read("src/DeskBox/Services/SearchHotkeyService.cs");
-        string global = Read("src/DeskBox/Services/GlobalHotkeyService.cs");
-        string settingsService = Read("src/DeskBox/Services/SettingsService.cs");
-        string sectionCode = Read("src/DeskBox/Views/SettingsSections/SearchSettingsSection.xaml.cs");
-
-        // The Alt+Space search preset must reuse the opt-in reserved hook, not
-        // the RegisterHotKey path that Windows reserves for the system menu.
-        Assert.Contains("ReservedHotkeyMode.AltSpace", search, StringComparison.Ordinal);
-        Assert.Contains("WmReservedSearchHotkey", search, StringComparison.Ordinal);
-
-        // Ownership is exclusive between the main and search hotkeys, enforced
-        // in both directions.
-        Assert.Contains("IsGestureOwnedByMainHotkey", search, StringComparison.Ordinal);
-        Assert.Contains(
-            "Settings.Search.Hotkey.Status.GlobalHotkeyConflict",
-            search,
-            StringComparison.Ordinal);
-        Assert.Contains("IsGestureOwnedBySearchHotkey", global, StringComparison.Ordinal);
-        Assert.Contains(
-            "Settings.GlobalHotkey.Status.SearchHotkeyConflict",
-            global,
-            StringComparison.Ordinal);
-
-        // Settings normalization only resets a saved Alt+Space search gesture
-        // when the main hotkey owns the chord, instead of unconditionally.
-        string normalize = Slice(
-            settingsService,
-            "private static bool NormalizeHotkeySettings",
-            "private static bool NormalizeSearchSettings");
-        Assert.Contains("GlobalHotkeyActivationKind", normalize, StringComparison.Ordinal);
-
-        // The Alt+Space preset is offered inside the shared recorder dialog
-        // for the search scope, and the dialog surfaces the same system-menu
-        // override warning the legacy confirmation carried.
-        string dialogCode = Read("src/DeskBox/Views/Dialogs/HotkeyRecorderDialog.xaml.cs");
-        Assert.Contains("SearchSettingsViewModel.AltSpaceGesture", sectionCode, StringComparison.Ordinal);
-        Assert.Contains("HotkeyRecorderDialog.Scope.Search", sectionCode, StringComparison.Ordinal);
-        Assert.Contains("Settings.GlobalHotkey.AltSpaceWarning", dialogCode, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -153,39 +109,16 @@ public sealed class GlobalHotkeySafetyContractTests
     }
 
     [Fact]
-    public void SearchGestureChange_UsesTheRealRegistrationAsCommitPointAndRestoresPreviousGesture()
-    {
-        string source = Read("src/DeskBox/Services/SearchHotkeyService.cs");
-        string apply = Slice(
-            source,
-            "public bool TryApplyGesture",
-            "public void SetEnabled");
-
-        Assert.Contains("int previousModifiers", apply, StringComparison.Ordinal);
-        Assert.Contains("int previousVirtualKey", apply, StringComparison.Ordinal);
-        Assert.Contains("bool shouldBeActive", apply, StringComparison.Ordinal);
-        Assert.Contains("RefreshRegistration();", apply, StringComparison.Ordinal);
-        Assert.Contains("settings.SearchHotkeyModifiers = previousModifiers", apply, StringComparison.Ordinal);
-        Assert.Contains("settings.SearchHotkeyKey = previousVirtualKey", apply, StringComparison.Ordinal);
-        Assert.Contains("if (IsRegistered)", apply, StringComparison.Ordinal);
-        Assert.Contains("return false;", apply, StringComparison.Ordinal);
-    }
-
-    [Fact]
     public void HotkeyServices_ExposeReceiveInvokeAndDispatchFailureCounters()
     {
         string global = Read("src/DeskBox/Services/GlobalHotkeyService.cs");
-        string search = Read("src/DeskBox/Services/SearchHotkeyService.cs");
 
-        foreach (string source in new[] { global, search })
-        {
-            Assert.Contains("public long ReceivedCount", source, StringComparison.Ordinal);
-            Assert.Contains("public long InvocationCount", source, StringComparison.Ordinal);
-            Assert.Contains("public long DispatchFailureCount", source, StringComparison.Ordinal);
-            Assert.Contains("Interlocked.Increment(ref _receivedSequence)", source, StringComparison.Ordinal);
-            Assert.Contains("Interlocked.Increment(ref _invocationSequence)", source, StringComparison.Ordinal);
-            Assert.Contains("Interlocked.Increment(ref _dispatchFailureSequence)", source, StringComparison.Ordinal);
-        }
+        Assert.Contains("public long ReceivedCount", global, StringComparison.Ordinal);
+        Assert.Contains("public long InvocationCount", global, StringComparison.Ordinal);
+        Assert.Contains("public long DispatchFailureCount", global, StringComparison.Ordinal);
+        Assert.Contains("Interlocked.Increment(ref _receivedSequence)", global, StringComparison.Ordinal);
+        Assert.Contains("Interlocked.Increment(ref _invocationSequence)", global, StringComparison.Ordinal);
+        Assert.Contains("Interlocked.Increment(ref _dispatchFailureSequence)", global, StringComparison.Ordinal);
     }
 
     [Fact]

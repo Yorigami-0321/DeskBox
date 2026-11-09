@@ -271,25 +271,6 @@ public sealed class CallbackDeferralContractTests : IDisposable
     }
 
     [Fact]
-    public void SearchExecution_DefersShellWorkOutOfInputCallbacks()
-    {
-        string source = File.ReadAllText(TestPaths.FromRepository(
-            "src/DeskBox/ViewModels/SearchPopupViewModel.cs"));
-        string execute = SliceMethod(
-            source,
-            "public bool ExecuteItem(SearchResultItem item)",
-            "public bool OpenSelectedLocation()");
-        Assert.Contains("UiDispatch.PostAfterCallback", execute, StringComparison.Ordinal);
-
-        string location = SliceMethod(
-            source,
-            "public bool OpenSelectedLocation()",
-            "private void CommitExecution(");
-        Assert.Contains("UiDispatch.PostAfterCallback", location, StringComparison.Ordinal);
-        Assert.Contains("explorer.exe", location, StringComparison.Ordinal);
-    }
-
-    [Fact]
     public void Radar_TracksWindowMutationsThroughWrappedPInvokes()
     {
         string win32 = File.ReadAllText(TestPaths.FromRepository(

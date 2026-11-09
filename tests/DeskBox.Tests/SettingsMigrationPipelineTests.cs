@@ -81,27 +81,6 @@ public sealed class SettingsMigrationPipelineTests
         Assert.True(settings.HasResolvedInitialFileWidgetSetup);
     }
 
-    [Theory]
-    [InlineData(50, 200)]
-    [InlineData(100, 100)]
-    [InlineData(200, 200)]
-    public void VersionFive_MigratesOnlyLegacySearchResultDefault(
-        int storedLimit,
-        int expectedLimit)
-    {
-        var settings = new AppSettings
-        {
-            SchemaVersion = 4,
-            SearchMaxResults = storedLimit
-        };
-
-        var (migratedSettings, migrationsApplied) = new SettingsMigrationPipeline().RunMigrationsOnCopy(settings);
-        Assert.True(migrationsApplied);
-        settings = migratedSettings;
-        Assert.Equal(SettingsMigrationPipeline.CurrentSchemaVersion, settings.SchemaVersion);
-        Assert.Equal(expectedLimit, settings.SearchMaxResults);
-    }
-
     [Fact]
     public void VersionSix_PreservesLegacyGeometryForFirstTopologyCapture()
     {
@@ -130,27 +109,6 @@ public sealed class SettingsMigrationPipelineTests
         Assert.Equal(260, widget.Y);
         Assert.Equal(640, widget.Width);
         Assert.Equal(520, widget.Height);
-    }
-
-    [Fact]
-    public void VersionSeven_RequiresFreshEverythingConsent()
-    {
-        var settings = new AppSettings
-        {
-            SchemaVersion = 6,
-            SearchEverythingEnabled = true,
-            SearchEverythingExecutablePath = @"C:\Portable\Everything.exe",
-            SearchEverythingAdvancedSyntaxEnabled = true
-        };
-
-        var (migratedSettings, migrationsApplied) = new SettingsMigrationPipeline().RunMigrationsOnCopy(settings);
-        Assert.True(migrationsApplied);
-        settings = migratedSettings;
-
-        Assert.Equal(SettingsMigrationPipeline.CurrentSchemaVersion, settings.SchemaVersion);
-        Assert.False(settings.SearchEverythingEnabled);
-        Assert.Equal(string.Empty, settings.SearchEverythingExecutablePath);
-        Assert.False(settings.SearchEverythingAdvancedSyntaxEnabled);
     }
 
     [Theory]
@@ -266,7 +224,6 @@ public sealed class SettingsMigrationPipelineTests
                 }
             ],
             Language = SettingsService.LanguageEnglish,
-            SearchMaxResults = 100,
             WidgetOpacity = 0.8
         };
 
@@ -284,7 +241,6 @@ public sealed class SettingsMigrationPipelineTests
         Assert.Equal([".png", ".mp4"], rule.Extensions);
         // Unrelated fields ride along untouched.
         Assert.Equal(SettingsService.LanguageEnglish, settings.Language);
-        Assert.Equal(100, settings.SearchMaxResults);
         Assert.Equal(0.8, settings.WidgetOpacity);
     }
 

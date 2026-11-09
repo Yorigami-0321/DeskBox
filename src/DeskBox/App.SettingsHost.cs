@@ -117,7 +117,6 @@ public partial class App
     private int _settingsHostMainProcessId;
     private bool _settingsHostExitStarted;
     private Views.SettingsWindow? _settingsHostWindow;
-    private RemoteSearchConnectionClient? _settingsHostEverythingConnection;
 
     // Spawn-to-shown trace for the measurement script and crash diagnosis,
     // in the temp directory so it never touches the data root.
@@ -446,14 +445,6 @@ public partial class App
             window.QueueUpdateInstallResultDialog(launchInstallResult);
         }
 
-        // Warm the Everything connection cache off the startup path: a busy
-        // main process must not add a synchronous round trip before the
-        // first frame (batch R3).
-        if (_settingsHostEverythingConnection is { } everythingWarmup)
-        {
-            _ = Task.Run(everythingWarmup.Prime);
-        }
-
         // Deep review R13 (D5): a host from a PREVIOUS era that crashed
         // mid-hotkey-recording never sent the resume, and the coordinator's
         // exit guard now skips stale eras (generation check) — clear any
@@ -506,8 +497,8 @@ public partial class App
         // authoritative chain (dictionary write, widget apply, reminder
         // reconcile). The comment that used to sit here claimed SettingsChanged
         // re-application covers the side effects; that only holds for
-        // settings.json slices (Search), never for the dictionary kinds
-        // (Todo/QuickCapture) — batch R8, same family as the R7 Search fix.
+        // value-shaped settings slices, never for the dictionary kinds
+        // (Todo/QuickCapture) — batch R8.
         var todo = new TodoSettingsCoordinator(
             settings,
             setWidgetEnabled: async enabled =>
@@ -523,40 +514,7 @@ public partial class App
                 }
             });
         var featureWidgets = new FeatureWidgetsSettingsCoordinator(settings);
-        var everythingConnection = new RemoteSearchConnectionClient(client);
-        _settingsHostEverythingConnection = everythingConnection;
-        // The search section's hotkey card rides the search-hotkey IPC
-        // commands (batch R9): the live registration state lives only in
-        // the MAIN process, and a null getHotkey here used to render the
-        // card permanently unavailable — toggle/capture/reset could never
-        // reach the service. CurrentGesture reads the local settings
-        // mirror exactly like the real service does.
         var hotkey = new RemoteSettingsHotkeyActions(client);
-        var searchHotkey = new RemoteSearchHotkeyController(
-            hotkey,
-            () => GlobalHotkeyService.NormalizeGesture(
-                settings.Settings.Search.SearchHotkeyModifiers,
-                settings.Settings.Search.SearchHotkeyKey),
-            // Deep review R13-3: the "owned by main hotkey" predicate is
-            // computed locally from the mirror, with the same normalization
-            // GlobalHotkeyService.CurrentActivation applies — no round trip.
-            () => GlobalHotkeyService.NormalizeActivation(
-                settings.Settings.GlobalHotkeyActivationKind,
-                settings.Settings.GlobalHotkeyModifiers,
-                settings.Settings.GlobalHotkeyKey));
-        var search = new SearchSettingsCoordinator(
-            settings,
-            localization,
-            getConnection: () => everythingConnection,
-            ensureConnection: () => everythingConnection,
-            getHotkey: () => searchHotkey,
-            setContentSearchEnabled: _ => { },
-            // Explicit no-op (null falls back to a full settings save — a
-            // write amplifier on every external enable change, batch R7).
-            applyWidget: (_, _) => Task.CompletedTask,
-            setRuntimeEnabled: null,
-            tryEnqueue: action => UiDispatcherQueue.TryEnqueue(() => action()),
-            reportError: ex => Log($"[SearchSettings] Operation failed: {ex}"));
         var quickCaptureClipboard = new QuickCaptureClipboardRuntime(
             shouldListen: () => false,
             create: () => throw new InvalidOperationException(
@@ -590,7 +548,6 @@ public partial class App
             settings, theme, localization,
             todo,
             featureWidgets,
-            search,
             new RemoteBackupSettings(client),
             new RemoteBackupRestoreActions(client),
             quickCapture,

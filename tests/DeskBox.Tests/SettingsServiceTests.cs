@@ -50,7 +50,7 @@ public sealed class SettingsServiceTests : IDisposable
         // path it replaced: save, reload in a fresh service, same values.
         var service = new SettingsService(_settingsRoot);
         await service.LoadAsync();
-        service.Settings.SearchMaxResults = 100;
+        service.Settings.ShowFileExtensions = true;
 
         await service.SaveAsync();
 
@@ -59,7 +59,7 @@ public sealed class SettingsServiceTests : IDisposable
         Assert.Equal(
             SettingsLoadRecoveryState.Primary,
             reloaded.LastLoadRecoveryState);
-        Assert.Equal(100, reloaded.Settings.SearchMaxResults);
+        Assert.True(reloaded.Settings.ShowFileExtensions);
     }
 
     [Fact]
@@ -67,7 +67,7 @@ public sealed class SettingsServiceTests : IDisposable
     {
         var service = new SettingsService(_settingsRoot);
         await service.LoadAsync();
-        service.Settings.SearchMaxResults = 100;
+        service.Settings.ShowFileExtensions = true;
         await service.SaveAsync();
 
         // Sabotage: replace the settings directory with a file so the next
@@ -91,25 +91,7 @@ public sealed class SettingsServiceTests : IDisposable
         Assert.Equal(
             SettingsLoadRecoveryState.Primary,
             recovered.LastLoadRecoveryState);
-        Assert.Equal(100, recovered.Settings.SearchMaxResults);
-    }
-
-    [Theory]
-    [InlineData(50)]
-    [InlineData(100)]
-    [InlineData(200)]
-    public async Task SaveAsync_PreservesSupportedSearchResultLimits(int limit)
-    {
-        var service = new SettingsService(_settingsRoot);
-        await service.LoadAsync();
-        service.Settings.SearchMaxResults = limit;
-
-        await service.SaveAsync();
-
-        Assert.Equal(limit, service.Settings.SearchMaxResults);
-        var reloaded = new SettingsService(_settingsRoot);
-        await reloaded.LoadAsync();
-        Assert.Equal(limit, reloaded.Settings.SearchMaxResults);
+        Assert.True(recovered.Settings.ShowFileExtensions);
     }
 
     [Fact]
@@ -234,12 +216,6 @@ public sealed class SettingsServiceTests : IDisposable
         Assert.Empty(service.Settings.WidgetTopologyLayouts);
         Assert.Null(service.Settings.ActiveWidgetTopologyKey);
 
-        // 6→7: the retired local filename index needs fresh consent, so all
-        // three Everything settings reset regardless of the stored values.
-        Assert.False(service.Settings.SearchEverythingEnabled);
-        Assert.Equal(string.Empty, service.Settings.SearchEverythingExecutablePath);
-        Assert.False(service.Settings.SearchEverythingAdvancedSyntaxEnabled);
-
         // 7→8: the all-or-nothing decorative switch fans out to the
         // individual effects; glance rotation becomes independent and on.
         Assert.True(service.Settings.EnableTextMarqueeAnimations);
@@ -257,7 +233,6 @@ public sealed class SettingsServiceTests : IDisposable
         Assert.Equal("stack-rule-media", rule.Id);
         Assert.Equal([".png", ".mp4"], rule.Extensions);
         Assert.Equal(SettingsService.LanguageEnglish, service.Settings.Language);
-        Assert.Equal(100, service.Settings.SearchMaxResults);
 
         // The migrated profile is persisted back at the current schema.
         using JsonDocument persisted = JsonDocument.Parse(
@@ -649,23 +624,6 @@ public sealed class SettingsServiceTests : IDisposable
 
         Assert.False(service.Settings.QuickCaptureClipboardEnabled);
         Assert.False(service.Settings.QuickCaptureImageClipboardEnabled);
-    }
-
-    [Theory]
-    [InlineData("file", "file")]
-    [InlineData(" APP ", "app")]
-    [InlineData("not-a-tab", "all")]
-    public async Task LoadAsync_NormalizesSearchDefaultTab(string storedValue, string expected)
-    {
-        var settings = new AppSettings { SearchDefaultTab = storedValue };
-        await File.WriteAllTextAsync(
-            Path.Combine(_settingsRoot, "settings.json"),
-            JsonSerializer.Serialize(settings, s_jsonOptions));
-
-        var service = new SettingsService(_settingsRoot);
-        await service.LoadAsync();
-
-        Assert.Equal(expected, service.Settings.SearchDefaultTab);
     }
 
     [Fact]
@@ -1379,8 +1337,6 @@ public sealed class SettingsServiceTests : IDisposable
         Assert.Null(newUserDefaults.LegacyWidgetCapsuleModeEnabled);
         Assert.Null(restoredDefaults.LegacyWidgetCapsuleModeEnabled);
         Assert.True(newUserDefaults.WidgetGroupsEnabled);
-        Assert.False(newUserDefaults.SearchHotkeyEnabled);
-        Assert.Equal(newUserDefaults.SearchHotkeyEnabled, restoredDefaults.SearchHotkeyEnabled);
         Assert.Equal(SettingsService.WidgetCompactWidthModeAligned, newUserDefaults.WidgetCompactWidthMode);
         Assert.Equal(newUserDefaults.WidgetCompactWidthMode, restoredDefaults.WidgetCompactWidthMode);
         Assert.Equal(
@@ -1459,8 +1415,6 @@ public sealed class SettingsServiceTests : IDisposable
         Assert.Equal(newUserDefaults.WidgetHoverButtonActions, restoredDefaults.WidgetHoverButtonActions);
         Assert.Equal(SettingsService.WeatherSkinStandard, newUserDefaults.WeatherSkin);
         Assert.Equal(newUserDefaults.WeatherSkin, restoredDefaults.WeatherSkin);
-        Assert.Equal(SettingsService.DefaultSearchMaxResults, newUserDefaults.SearchMaxResults);
-        Assert.Equal(newUserDefaults.SearchMaxResults, restoredDefaults.SearchMaxResults);
     }
 
     [Fact]

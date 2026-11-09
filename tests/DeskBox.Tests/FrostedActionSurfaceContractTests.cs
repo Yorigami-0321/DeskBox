@@ -12,9 +12,8 @@ public sealed class FrostedActionSurfaceContractTests
 
         AssertAcrylicLayer(quickCaptureSurface, "x:Name=\"DetailHeaderAcrylicSurface\"", "Opacity=\"0.42\"");
         AssertAcrylicLayer(todo, "x:Name=\"DetailHeaderAcrylicSurface\"", "Opacity=\"0.42\"");
-        // The ReleaseNotes footer follows the SearchPopupWindow footer plate
-        // convention (Layer fill on a Mica base) since the 2026-10 UI audit;
-        // large in-app acrylic there read as a washed-out hole.
+        // The ReleaseNotes footer uses a Layer fill on a Mica base since the
+        // 2026-10 UI audit; large in-app acrylic there read as a washed-out hole.
         Assert.Contains("x:Name=\"FooterAcrylicSurface\"", releaseNotes, StringComparison.Ordinal);
         Assert.Contains(
             "Background=\"{ThemeResource LayerFillColorDefaultBrush}\"",

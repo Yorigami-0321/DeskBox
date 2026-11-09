@@ -21,12 +21,6 @@ namespace DeskBox.Views.Dialogs;
 /// </summary>
 public sealed partial class HotkeyRecorderDialog : ContentDialog
 {
-    public enum Scope
-    {
-        Global,
-        Search
-    }
-
     public sealed record Preset(
         string Label,
         GlobalHotkeyActivation Activation,
@@ -40,7 +34,6 @@ public sealed partial class HotkeyRecorderDialog : ContentDialog
 
     private readonly LocalizationService _localization;
     private readonly ISettingsHotkeyActions _hotkeyActions;
-    private readonly Scope _scope;
     private readonly GlobalHotkeyActivation _initialActivation;
     private readonly IReadOnlyList<Preset> _presets;
     private readonly Func<GlobalHotkeyActivation, Task<string?>> _applyAsync;
@@ -66,7 +59,6 @@ public sealed partial class HotkeyRecorderDialog : ContentDialog
         XamlRoot xamlRoot,
         LocalizationService localization,
         ISettingsHotkeyActions hotkeyActions,
-        Scope scope,
         GlobalHotkeyActivation initialActivation,
         IReadOnlyList<Preset> presets,
         Func<GlobalHotkeyActivation, Task<string?>> applyAsync,
@@ -84,7 +76,6 @@ public sealed partial class HotkeyRecorderDialog : ContentDialog
         LostFocus += (_, e) => AdjustButtonPassthrough(e.OriginalSource, -1);
         _localization = localization;
         _hotkeyActions = hotkeyActions;
-        _scope = scope;
         _initialActivation = initialActivation;
         _presets = presets;
         _applyAsync = applyAsync;
@@ -459,13 +450,6 @@ public sealed partial class HotkeyRecorderDialog : ContentDialog
                 {
                     error = _localization.T("Settings.HotkeyRecorder.InvalidGesture");
                 }
-                else if (_scope == Scope.Search &&
-                         gesture.Modifiers.HasFlag(HotkeyModifierKeys.Windows))
-                {
-                    // SearchHotkeyService registers through RegisterHotKey
-                    // without MOD_WIN; the Win chords stay unavailable there.
-                    error = _localization.T("Settings.HotkeyRecorder.WindowsUnsupported");
-                }
                 else if (_conflictChecker(gesture) is { } conflict)
                 {
                     error = conflict;
@@ -478,7 +462,7 @@ public sealed partial class HotkeyRecorderDialog : ContentDialog
             }
             else
             {
-                canSave = _scope == Scope.Global;
+                canSave = true;
                 if (!canSave)
                 {
                     error = _localization.T("Settings.HotkeyRecorder.InvalidGesture");

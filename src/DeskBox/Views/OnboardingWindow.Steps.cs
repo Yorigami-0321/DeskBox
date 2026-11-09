@@ -170,7 +170,6 @@ public sealed partial class OnboardingWindow
     {
         Step5TodoToggle.IsEnabled = enabled;
         Step5QuickCaptureToggle.IsEnabled = enabled;
-        Step5SearchToggle.IsEnabled = enabled;
         Step5WeatherToggle.IsEnabled = enabled;
         Step5MusicToggle.IsEnabled = enabled;
         Step5GlanceToggle.IsEnabled = enabled;
@@ -247,9 +246,6 @@ public sealed partial class OnboardingWindow
             Step5QuickCaptureToggle.IsOn = FeatureWidgetSettings.IsEnabled(
                 _settingsService.Settings,
                 WidgetKind.QuickCapture);
-            Step5SearchToggle.IsOn = FeatureWidgetSettings.IsEnabled(
-                _settingsService.Settings,
-                WidgetKind.Search);
             Step5WeatherToggle.IsOn = FeatureWidgetSettings.IsEnabled(
                 _settingsService.Settings,
                 WidgetKind.Weather);

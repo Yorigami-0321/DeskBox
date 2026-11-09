@@ -65,71 +65,6 @@ public sealed class AotStage4E3ContractTests
     }
 
     [Fact]
-    public void SearchPopup_DeclaresFourTypedDataTemplates()
-    {
-        string xaml = ReadRepositoryFile("src/DeskBox/Views/SearchPopupWindow.xaml");
-
-        Assert.Contains("xmlns:models=\"using:DeskBox.Models\"", xaml, StringComparison.Ordinal);
-        Assert.Equal(1, CountOccurrences(xaml, "x:DataType=\"models:SearchTabItem\""));
-        Assert.Equal(1, CountOccurrences(xaml, "x:DataType=\"models:SearchResultItem\""));
-        // The favorites/recent recommendation panel was dead UI (created and
-        // immediately collapsed since 07-22, no Visible writer in its entire
-        // history) and has been removed; its typed templates must not return.
-        Assert.Equal(0, CountOccurrences(xaml, "x:DataType=\"models:SearchRecommendationItem\""));
-        Assert.DoesNotContain("x:Name=\"FavoritesRepeater\"", xaml, StringComparison.Ordinal);
-        Assert.DoesNotContain("x:Name=\"RecentSearchesRepeater\"", xaml, StringComparison.Ordinal);
-
-        int recommendedApps = xaml.IndexOf("x:Name=\"RecommendedAppsRepeater\"", StringComparison.Ordinal);
-        int resultTemplate = xaml.IndexOf("x:DataType=\"models:SearchResultItem\"", StringComparison.Ordinal);
-        Assert.True(recommendedApps >= 0 && resultTemplate > recommendedApps);
-    }
-
-    [Fact]
-    public void SearchPopup_UsesStaticTabContentWithoutAPagedResultCount()
-    {
-        string xaml = ReadRepositoryFile("src/DeskBox/Views/SearchPopupWindow.xaml");
-
-        Assert.Equal(0, CountOccurrences(xaml, "{x:Bind Glyph, Mode=OneTime}"));
-        Assert.Equal(1, CountOccurrences(xaml, "{x:Bind DisplayName, Mode=OneTime}"));
-        Assert.Equal(0, CountOccurrences(xaml, "{x:Bind Count, Mode=OneWay}"));
-        Assert.Equal(1, CountOccurrences(xaml, "{x:Bind Icon, Mode=OneTime}"));
-        Assert.Equal(1, CountOccurrences(xaml, "{x:Bind AppDisplayName, Mode=OneTime}"));
-        // The dead favorites/recent panel (and its four Title OneTime binds)
-        // is gone; no new Title binds may return without a live host panel.
-        Assert.Equal(0, CountOccurrences(xaml, "{x:Bind Title, Mode=OneTime}"));
-        Assert.DoesNotContain("{Binding ", xaml, StringComparison.Ordinal);
-    }
-
-    [Fact]
-    public void SearchTemplateModels_MatchTheirNotificationLifetimes()
-    {
-        string models = ReadRepositoryFile("src/DeskBox/Models/SearchModels.cs");
-
-        Assert.Contains("public sealed class SearchTabItem : INotifyPropertyChanged", models, StringComparison.Ordinal);
-        Assert.Contains("PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));", models, StringComparison.Ordinal);
-        Assert.Contains("public required string DisplayName { get; init; }", models, StringComparison.Ordinal);
-        Assert.Contains("public ImageSource? Icon { get; set; }", models, StringComparison.Ordinal);
-        Assert.Contains("public string AppDisplayName =>", models, StringComparison.Ordinal);
-        Assert.Contains("public sealed class SearchRecommendationItem", models, StringComparison.Ordinal);
-        Assert.Contains("public required string Title { get; init; }", models, StringComparison.Ordinal);
-    }
-
-    [Fact]
-    public void RecommendedAppIcons_RetainTheirExplicitLazyRefreshChain()
-    {
-        string code = ReadRepositoryFile("src/DeskBox/Views/SearchPopupWindow.xaml.cs");
-
-        Assert.Contains(
-            "RecommendedAppsRepeater.ElementPrepared += OnRecommendedAppsElementPrepared;",
-            code,
-            StringComparison.Ordinal);
-        Assert.Contains("private void OnRecommendedAppsElementPrepared", code, StringComparison.Ordinal);
-        Assert.Contains("private void RefreshRecommendedAppIcons()", code, StringComparison.Ordinal);
-        Assert.Equal(2, CountOccurrences(code, "image.Source = item.Icon;"));
-        Assert.Contains("RefreshRecommendedAppIcons();", code, StringComparison.Ordinal);
-    }
-
-    [Fact]
     public void RuntimeDataContextAndStyleBindings_RemainExplicitlyDeferred()
     {
         string app = ReadRepositoryFile("src/DeskBox/App.xaml");
@@ -162,7 +97,7 @@ public sealed class AotStage4E3ContractTests
         Assert.Contains("$stage4E3MaximumWmc1510Count = 802", audit, StringComparison.Ordinal);
         Assert.Contains("Stage 4E-3 WMC1510 count regressed above its ceiling", audit, StringComparison.Ordinal);
         Assert.Contains("Native AOT stage 5B-4C3B2B1", project, StringComparison.Ordinal);
-        Assert.Contains("fourteen typed DataTemplate bindings", project, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("typed DataTemplate bindings", project, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("DeskBoxRustNative=true", project, StringComparison.Ordinal);
     }
 

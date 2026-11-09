@@ -62,7 +62,6 @@ public partial class App
             IsTransientUiOpen:
                 activity.IsSettingsOpen ||
                 activity.IsOnboardingOpen ||
-                activity.IsSearchPopupVisible ||
                 activity.IsDesktopOrganizationOpen,
             IsDeskBoxForeground: activity.IsDeskBoxForeground,
             IsPointerOverDeskBox: activity.IsPointerOverDeskBox,

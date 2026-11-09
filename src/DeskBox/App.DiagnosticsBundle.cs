@@ -16,7 +16,6 @@ public partial class App
     public DeskBoxDiagnosticSnapshot CreateDiagnosticSnapshot()
     {
         AppRuntimeHealthSnapshot? runtimeHealth = DiagnosticsService?.GetRuntimeHealthSnapshot(
-            EverythingSearchService,
             WidgetManager?.GetFolderWatcherHealthSnapshots());
         DeskBoxWidgetManagerDiagnostic widgetManager =
             WidgetManager?.CreateDiagnosticsSnapshot() ?? DeskBoxWidgetManagerDiagnostic.Empty;
@@ -26,10 +25,6 @@ public partial class App
             GlobalHotkeyService.NormalizeGesture(
                 SettingsService.Settings.GlobalHotkeyModifiers,
                 SettingsService.Settings.GlobalHotkeyKey);
-        GlobalHotkeyGesture searchGesture = SearchHotkeyService?.CurrentGesture ??
-            GlobalHotkeyService.NormalizeGesture(
-                SettingsService.Settings.SearchHotkeyModifiers,
-                SettingsService.Settings.SearchHotkeyKey);
         ShortcutNativeDiagnosticState shortcutNative =
             ShortcutNativeBackend.CaptureDiagnosticState();
         var startupLedger = new DeskBoxStartupLedgerDiagnostic(
@@ -51,7 +46,7 @@ public partial class App
             _lastRecoveryOfferOutcome.ToString());
 
         return new DeskBoxDiagnosticSnapshot(
-            SchemaVersion: 9,
+            SchemaVersion: 10,
             GeneratedAtUtc: DateTimeOffset.UtcNow,
             AppVersion: GetDiagnosticVersion(),
             DistributionChannel: DistributionService.ChannelName,
@@ -73,11 +68,7 @@ public partial class App
                 GlobalHotkeyService?.ReservedHookTriggerCount ?? 0,
                 GlobalHotkeyService?.ReservedHookPostFailureCount ?? 0,
                 GlobalHotkeyService?.ReservedHookInputFailureCount ?? 0,
-                !string.IsNullOrWhiteSpace(GlobalHotkeyService?.LastError),
-                SettingsService.Settings.SearchHotkeyEnabled,
-                SearchHotkeyService?.IsRegistered == true,
-                (int)searchGesture.Modifiers,
-                searchGesture.VirtualKey),
+                !string.IsNullOrWhiteSpace(GlobalHotkeyService?.LastError)),
             Settings: new DeskBoxSettingsDiagnostic(
                 SettingsService.LastLoadRecoveryState,
                 SettingsService.HasPendingSave,

@@ -280,9 +280,7 @@ internal sealed class Migration_3_To_4 : ISettingsMigration
 }
 
 /// <summary>
-/// Migrates the legacy search result limit that was previously treated as an
-/// application default. Future 50, 100, and 200 selections are user choices
-/// and are preserved by normal settings validation.
+/// Reserved schema step; its Search-era payload was retired with the feature.
 /// </summary>
 internal sealed class Migration_4_To_5 : ISettingsMigration
 {
@@ -290,10 +288,6 @@ internal sealed class Migration_4_To_5 : ISettingsMigration
 
     public void Migrate(AppSettings settings)
     {
-        if (settings.SearchMaxResults == 50)
-        {
-            settings.SearchMaxResults = 200;
-        }
     }
 }
 
@@ -313,8 +307,7 @@ internal sealed class Migration_5_To_6 : ISettingsMigration
 }
 
 /// <summary>
-/// Retires DeskBox's local filename index. Existing users must explicitly opt in
-/// before DeskBox sends queries to an installed Everything process.
+/// Reserved schema step; the retired Everything integration no longer owns settings.
 /// </summary>
 internal sealed class Migration_6_To_7 : ISettingsMigration
 {
@@ -322,9 +315,6 @@ internal sealed class Migration_6_To_7 : ISettingsMigration
 
     public void Migrate(AppSettings settings)
     {
-        settings.SearchEverythingEnabled = false;
-        settings.SearchEverythingExecutablePath = string.Empty;
-        settings.SearchEverythingAdvancedSyntaxEnabled = false;
     }
 }
 

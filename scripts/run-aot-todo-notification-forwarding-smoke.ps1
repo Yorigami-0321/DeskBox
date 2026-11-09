@@ -483,7 +483,6 @@ $settings = [ordered]@{
     autoStart = $false
     autoCheckForUpdates = $false
     globalHotkeyEnabled = $false
-    searchHotkeyEnabled = $false
     todoReminderEnabled = $false
     trayIconStyle = "Colorful"
     hasCompletedOnboarding = $true
@@ -494,7 +493,6 @@ $settings = [ordered]@{
         Todo = $false
         Music = $false
         Weather = $false
-        Search = $false
         Glance = $false
     }
     widgets = @()

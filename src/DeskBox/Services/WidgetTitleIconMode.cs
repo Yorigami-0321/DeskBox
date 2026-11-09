@@ -56,7 +56,6 @@ public enum WidgetTitleIconKind
     Weather,
     Glance,
     Tags,
-    Search,
     SystemMonitor
 }
 
@@ -71,7 +70,6 @@ public static class WidgetTitleIconKindNames
     public const string Weather = nameof(WidgetTitleIconKind.Weather);
     public const string Glance = nameof(WidgetTitleIconKind.Glance);
     public const string Tags = nameof(WidgetTitleIconKind.Tags);
-    public const string Search = nameof(WidgetTitleIconKind.Search);
     public const string SystemMonitor = nameof(WidgetTitleIconKind.SystemMonitor);
 
     public static WidgetTitleIconKind NormalizeKind(string? value)
@@ -93,7 +91,6 @@ public static class WidgetTitleIconKindNames
             WidgetTitleIconKind.Weather => Weather,
             WidgetTitleIconKind.Glance => Glance,
             WidgetTitleIconKind.Tags => Tags,
-            WidgetTitleIconKind.Search => Search,
             WidgetTitleIconKind.SystemMonitor => SystemMonitor,
             _ => Default
         };
@@ -115,7 +112,6 @@ public static class WidgetTitleIconKindNames
             WidgetKind.Weather => Weather,
             WidgetKind.Glance => Glance,
             WidgetKind.Tags => Tags,
-            WidgetKind.Search => Search,
             WidgetKind.SystemMonitor => SystemMonitor,
             _ => Default
         };
@@ -132,7 +128,6 @@ public static class WidgetTitleIconKindNames
             "\uEC4F" => Music,
             "\uE706" => Weather,
             "\uE8EC" => Tags,
-            "\uE721" => Search,
             "\uE9D9" => SystemMonitor,
             _ => Default
         };
@@ -150,8 +145,7 @@ public static class WidgetTitleIconKindNames
             WidgetTitleIconKind.Weather => "WidgetTitleIcon.Label.Weather",
             WidgetTitleIconKind.Glance => "Glance.Title",
             WidgetTitleIconKind.Tags => "WidgetTitleIcon.Label.Tags",
-            WidgetTitleIconKind.Search => "WidgetTitleIcon.Label.Search",
-            WidgetTitleIconKind.SystemMonitor => "WidgetTitleIcon.Label.SystemMonitor",
+                        WidgetTitleIconKind.SystemMonitor => "WidgetTitleIcon.Label.SystemMonitor",
             _ => "WidgetTitleIcon.Label.Default"
         };
     }
@@ -168,8 +162,7 @@ public static class WidgetTitleIconKindNames
             WidgetTitleIconKind.Weather => "weather",
             WidgetTitleIconKind.Glance => "glance",
             WidgetTitleIconKind.Tags => "tags",
-            WidgetTitleIconKind.Search => "search",
-            WidgetTitleIconKind.SystemMonitor => "system-monitor",
+                        WidgetTitleIconKind.SystemMonitor => "system-monitor",
             _ => "default"
         };
     }

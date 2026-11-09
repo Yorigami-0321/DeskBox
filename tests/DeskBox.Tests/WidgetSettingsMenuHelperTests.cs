@@ -14,7 +14,6 @@ public sealed class WidgetSettingsMenuHelperTests
     [InlineData(WidgetKind.Music, "MusicSettings")]
     [InlineData(WidgetKind.Weather, "WeatherSettings")]
     [InlineData(WidgetKind.Glance, "GlanceSettings")]
-    [InlineData(WidgetKind.Search, "SearchSettings")]
     public void GetSettingsSectionTag_Returns_Expected_Tag(WidgetKind kind, string expectedTag)
     {
         Assert.Equal(expectedTag, WidgetSettingsMenuHelper.GetSettingsSectionTag(kind));
@@ -23,6 +22,7 @@ public sealed class WidgetSettingsMenuHelperTests
     [Theory]
     [InlineData(WidgetKind.Tags)]
     [InlineData(WidgetKind.SystemMonitor)]
+    [InlineData(WidgetKind.Search)]
     [InlineData(WidgetKind.Productivity)]
     public void GetSettingsSectionTag_Returns_Null_For_Unmapped_Kinds(WidgetKind kind)
     {
@@ -38,7 +38,6 @@ public sealed class WidgetSettingsMenuHelperTests
         Assert.Equal("Widget.Settings.Music", WidgetSettingsMenuHelper.GetLocalizationKey(WidgetKind.Music));
         Assert.Equal("Widget.Settings.Weather", WidgetSettingsMenuHelper.GetLocalizationKey(WidgetKind.Weather));
         Assert.Equal("Widget.Settings.Glance", WidgetSettingsMenuHelper.GetLocalizationKey(WidgetKind.Glance));
-        Assert.Equal("Widget.Settings.Search", WidgetSettingsMenuHelper.GetLocalizationKey(WidgetKind.Search));
     }
 
     [Fact]
@@ -46,5 +45,6 @@ public sealed class WidgetSettingsMenuHelperTests
     {
         Assert.Equal("Common.Configure", WidgetSettingsMenuHelper.GetLocalizationKey(WidgetKind.Tags));
         Assert.Equal("Common.Configure", WidgetSettingsMenuHelper.GetLocalizationKey(WidgetKind.SystemMonitor));
+        Assert.Equal("Common.Configure", WidgetSettingsMenuHelper.GetLocalizationKey(WidgetKind.Search));
     }
 }

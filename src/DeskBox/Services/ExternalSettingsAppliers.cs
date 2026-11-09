@@ -19,8 +19,7 @@ internal static class ExternalSettingsAppliers
         Action<bool, double> ApplySnapOptions,
         Action RefreshTrayIcon,
         Action RefreshThemeAppearance,
-        Action ReplayLanguageChange,
-        Action<bool> ApplySearchContentToggle);
+        Action ReplayLanguageChange);
 
     internal static void ApplyValueAppliers(
         AppSettings before,
@@ -67,11 +66,6 @@ internal static class ExternalSettingsAppliers
         if (!string.Equals(before.Language, after.Language, StringComparison.Ordinal))
         {
             delegates.ReplayLanguageChange();
-        }
-
-        if (before.SearchIncludeDeskBoxContent != after.SearchIncludeDeskBoxContent)
-        {
-            delegates.ApplySearchContentToggle(after.SearchIncludeDeskBoxContent);
         }
     }
 }

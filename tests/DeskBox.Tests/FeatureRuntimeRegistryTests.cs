@@ -16,10 +16,10 @@ public sealed class FeatureRuntimeRegistryTests
     public async Task Register_ReturnsTheRuntime_ForWiring_AndTryGetResolvesIt()
     {
         FeatureRuntimeRegistry registry = new();
-        RecordingRuntime first = registry.Register("search", new RecordingRuntime());
+        RecordingRuntime first = registry.Register("alpha", new RecordingRuntime());
         RecordingRuntime second = registry.Register("quick-capture", new RecordingRuntime());
 
-        IFeatureRuntime? resolved = registry.TryGet("search");
+        IFeatureRuntime? resolved = registry.TryGet("alpha");
         Assert.NotNull(resolved);
         Assert.Same(first, resolved);
         await resolved.StartAsync();
@@ -27,26 +27,26 @@ public sealed class FeatureRuntimeRegistryTests
 
         Assert.Same(second, registry.TryGet("quick-capture"));
         Assert.Null(registry.TryGet("todo-reminders"));
-        Assert.Equal(new[] { "search", "quick-capture" }, registry.RegisteredFeatures);
+        Assert.Equal(new[] { "alpha", "quick-capture" }, registry.RegisteredFeatures);
 
-        Assert.Throws<ArgumentException>(() => registry.Register("search", new RecordingRuntime()));
+        Assert.Throws<ArgumentException>(() => registry.Register("alpha", new RecordingRuntime()));
     }
 
     [Fact]
     public async Task DisposeAsync_ByFeatureId_DisposesOnlyThatRuntime()
     {
         FeatureRuntimeRegistry registry = new();
-        RecordingRuntime search = registry.Register("search", new RecordingRuntime());
+        RecordingRuntime alpha = registry.Register("alpha", new RecordingRuntime());
         RecordingRuntime quickCapture = registry.Register("quick-capture", new RecordingRuntime());
 
-        await registry.DisposeAsync("search");
-        Assert.Equal(1, search.Disposals);
+        await registry.DisposeAsync("alpha");
+        Assert.Equal(1, alpha.Disposals);
         Assert.Equal(0, quickCapture.Disposals);
 
         // The registry does not deduplicate: repeat disposal of the same id
         // relies on the runtime's own idempotent disposal contract.
-        await registry.DisposeAsync("search");
-        Assert.Equal(2, search.Disposals);
+        await registry.DisposeAsync("alpha");
+        Assert.Equal(2, alpha.Disposals);
     }
 
     [Fact]

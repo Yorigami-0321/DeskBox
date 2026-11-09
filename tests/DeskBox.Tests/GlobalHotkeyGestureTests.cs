@@ -88,17 +88,6 @@ public sealed class GlobalHotkeyGestureTests
     }
 
     [Fact]
-    public void SearchAltSpaceGesture_IsAValidReservedSystemGesture()
-    {
-        Assert.Equal(
-            HotkeyModifierKeys.Alt,
-            SearchHotkeyService.AltSpaceGesture.Modifiers);
-        Assert.Equal((int)VirtualKey.Space, SearchHotkeyService.AltSpaceGesture.VirtualKey);
-        Assert.True(GlobalHotkeyService.IsValidGesture(SearchHotkeyService.AltSpaceGesture));
-        Assert.True(GlobalHotkeyService.IsReservedSystemGesture(SearchHotkeyService.AltSpaceGesture));
-    }
-
-    [Fact]
     public void UsesRegisterHotKeyChord_PlainChordsRideHeartbeatReservedModesDoNot()
     {
         // RegisterHotKey chords deliver WM_HOTKEY, have no callback and no
@@ -133,18 +122,5 @@ public sealed class GlobalHotkeyGestureTests
         Assert.False(GlobalHotkeyService.UsesRegisterHotKeyChord(
             GlobalHotkeyActivation.FromChord(new GlobalHotkeyGesture(
                 HotkeyModifierKeys.Control, 0))));
-    }
-
-    [Fact]
-    public void SearchUsesRegisterHotKeyChord_ExcludesAltSpaceAndUnregistrableGestures()
-    {
-        Assert.True(SearchHotkeyService.UsesRegisterHotKeyChord(new GlobalHotkeyGesture(
-            HotkeyModifierKeys.Control, (int)VirtualKey.K)));
-        Assert.False(SearchHotkeyService.UsesRegisterHotKeyChord(
-            SearchHotkeyService.AltSpaceGesture));
-        Assert.False(SearchHotkeyService.UsesRegisterHotKeyChord(new GlobalHotkeyGesture(
-            HotkeyModifierKeys.Windows, (int)VirtualKey.K)));
-        Assert.False(SearchHotkeyService.UsesRegisterHotKeyChord(new GlobalHotkeyGesture(
-            HotkeyModifierKeys.None, 0)));
     }
 }

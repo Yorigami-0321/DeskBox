@@ -327,7 +327,7 @@ public sealed class WidgetVisualActivityContractTests
     }
 
     [Fact]
-    public void LongHiddenMaintenance_PreservesViewsWatchersAndSearchMaterial()
+    public void LongHiddenMaintenance_PreservesViewsAndWatchers()
     {
         string app = Read("src/DeskBox/App.xaml.cs");
         string contentSwitching = Read(
@@ -335,7 +335,6 @@ public sealed class WidgetVisualActivityContractTests
         string fileSurface = Read(
             "src/DeskBox/Controls/WidgetContents/FileSurfaceContent.xaml.cs");
         string fileViewModel = Read("src/DeskBox/ViewModels/WidgetViewModel.cs");
-        string searchPopup = Read("src/DeskBox/Views/SearchPopupWindow.xaml.cs");
         string settings = Read("src/DeskBox/Views/SettingsWindow.xaml");
         string iconHelper = Read("src/DeskBox/Helpers/IconHelper.cs");
 
@@ -357,15 +356,6 @@ public sealed class WidgetVisualActivityContractTests
         Assert.DoesNotContain("OnWindowLongHidden()", fileSurface, StringComparison.Ordinal);
         Assert.DoesNotContain("ReleaseBackgroundActivityForLongHide", fileViewModel, StringComparison.Ordinal);
         Assert.DoesNotContain("ResumeBackgroundActivityAsync", fileViewModel, StringComparison.Ordinal);
-
-        string searchHide = ExtractSection(
-            searchPopup,
-            "private void OnPopupHideCompleted(",
-            "public void TogglePopup()");
-        Assert.Contains("_appWindow?.Hide();", searchHide, StringComparison.Ordinal);
-        Assert.DoesNotContain("DisposeAcrylicController", searchHide, StringComparison.Ordinal);
-        Assert.DoesNotContain("DisposeMicaController", searchHide, StringComparison.Ordinal);
-        Assert.DoesNotContain("DisableAccentPolicy", searchHide, StringComparison.Ordinal);
 
         Assert.DoesNotContain("ScheduleTransientWindowRelease", app, StringComparison.Ordinal);
         Assert.DoesNotContain("SelectedTransientWindowReleaseDelaySeconds", settings, StringComparison.Ordinal);
@@ -391,7 +381,6 @@ public sealed class WidgetVisualActivityContractTests
     {
         string iconHelper = Read("src/DeskBox/Helpers/IconHelper.cs");
         string shortcutHelper = Read("src/DeskBox/Helpers/ShortcutHelper.cs");
-        string fileMeta = Read("src/DeskBox/Services/FileMetaService.cs");
 
         string idleCacheTrim = ExtractSection(
             iconHelper,
@@ -420,11 +409,6 @@ public sealed class WidgetVisualActivityContractTests
             shortcutHelper,
             StringComparison.Ordinal);
         Assert.Contains("s_storedMetadataCache.Clear()", shortcutHelper, StringComparison.Ordinal);
-
-        Assert.Contains("_iconCacheLru", fileMeta, StringComparison.Ordinal);
-        Assert.Contains("task.IsCompleted", fileMeta, StringComparison.Ordinal);
-        Assert.DoesNotContain("_iconCache.Keys.Take", fileMeta, StringComparison.Ordinal);
-        Assert.Contains("ReleaseHiddenCaches", fileMeta, StringComparison.Ordinal);
     }
 
     [Fact]

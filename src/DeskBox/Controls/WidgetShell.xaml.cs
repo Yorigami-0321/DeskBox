@@ -3688,7 +3688,7 @@ public sealed partial class WidgetShell : UserControl
             out _bottomGlowAnimation);
     }
 
-    // ── Breathing border (search) ──────────────────────────────
+    // ── Breathing border (compact) ─────────────────────────────
 
     private ScalarKeyFrameAnimation? _breathBorderAnimation;
 

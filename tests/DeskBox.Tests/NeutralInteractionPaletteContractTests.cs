@@ -18,20 +18,11 @@ public sealed class NeutralInteractionPaletteContractTests
         string visuals = Read("src/DeskBox/Controls/WidgetContents/FileSurfaceContent.ItemVisuals.cs");
         string todo = Read("src/DeskBox/Controls/WidgetContents/TodoWidgetContent.EditingAndUndo.cs");
         string quickCapture = Read("src/DeskBox/Controls/WidgetContents/QuickCaptureSurfaceContent.xaml.cs");
-        string search = Read("src/DeskBox/Views/SearchPopupWindow.xaml");
 
         Assert.Contains("NeutralInteractionBrush.Fill(", visuals, StringComparison.Ordinal);
         Assert.Contains("NeutralInteractionBrush.Line(", visuals, StringComparison.Ordinal);
         Assert.Contains("NeutralInteractionBrush.Fill(", todo, StringComparison.Ordinal);
         Assert.Contains("NeutralInteractionBrush.Fill(", quickCapture, StringComparison.Ordinal);
-        Assert.Contains(
-            "SubtleFillColorSecondaryBrush",
-            ElementDeclaration(search, "RubberBandRect"),
-            StringComparison.Ordinal);
-        Assert.DoesNotContain(
-            "AccentFillColorDefaultBrush",
-            ElementDeclaration(search, "RubberBandRect"),
-            StringComparison.Ordinal);
     }
 
     [Fact]
@@ -163,19 +154,6 @@ public sealed class NeutralInteractionPaletteContractTests
             "UpdateCompactGroupPositionRail(_groupPresentation)",
             shell,
             StringComparison.Ordinal);
-    }
-
-    [Fact]
-    public void InputSurfaces_FollowTheInlineRenamePrecedent()
-    {
-        // The search field, the search popup's focus ring and the query-match
-        // highlight are input chrome: neutral like the inline rename box, with
-        // no accent wash when the input is active.
-        string searchPopup = Read("src/DeskBox/Views/SearchPopupWindow.xaml.cs");
-
-        string gotFocus = MethodBody(searchPopup, "void SearchTextBox_GotFocus(");
-        Assert.Contains("NeutralInteractionBrush.Line(", gotFocus, StringComparison.Ordinal);
-        Assert.DoesNotContain("GetEffectiveAccentColor", gotFocus, StringComparison.Ordinal);
     }
 
     [Fact]

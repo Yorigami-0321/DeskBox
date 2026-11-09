@@ -169,12 +169,10 @@ $directRequiredFiles = @(
     "DeskBox.Updater.exe",
     "DeskBox.ThumbnailProxy.exe",
     "deskbox_native.dll",
-    "EverythingSdk.dll",
     "Microsoft.UI.Input.dll",
     "Microsoft.ui.xaml.dll",
     "Microsoft.WindowsAppRuntime.dll",
     "Microsoft.WindowsAppRuntime.Insights.Resource.dll",
-    "ThirdParty/Everything/LICENSE.txt",
     "DeskBox.pri",
     "DeskBox.InstallManifest.txt"
 )
@@ -211,14 +209,11 @@ $deskBoxMachine = Get-PeMachine -Path (Join-Path $directPublishDirectory "DeskBo
 $updaterMachine = Get-PeMachine -Path (Join-Path $directPublishDirectory "DeskBox.Updater.exe")
 $thumbnailProxyMachine = Get-PeMachine -Path (
     Join-Path $directPublishDirectory "DeskBox.ThumbnailProxy.exe")
-$everythingSdkMachine = Get-PeMachine -Path (
-    Join-Path $directPublishDirectory "EverythingSdk.dll")
 $windowsAppRuntimeInsightsMachine = Get-PeMachine -Path (
     Join-Path $directPublishDirectory "Microsoft.WindowsAppRuntime.Insights.Resource.dll")
 if ($deskBoxMachine -ne $expectedMachine -or
     $updaterMachine -ne $expectedMachine -or
     $thumbnailProxyMachine -ne $expectedMachine -or
-    $everythingSdkMachine -ne $expectedMachine -or
     $windowsAppRuntimeInsightsMachine -ne $expectedMachine) {
     throw "The Direct AOT executable architecture does not match $Platform."
 }

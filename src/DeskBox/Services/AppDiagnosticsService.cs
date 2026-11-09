@@ -47,33 +47,16 @@ public sealed class AppDiagnosticsService : IDisposable
     public string LastLifecycleReason => _lastLifecycleReason;
 
     public AppRuntimeHealthSnapshot GetRuntimeHealthSnapshot(
-        EverythingSearchService? everythingSearch,
         IEnumerable<FolderWatcherHealthSnapshot>? folderWatchers = null)
     {
         var folderHealth = folderWatchers?.ToList() ?? [];
-        EverythingConnectionSnapshot? everything = everythingSearch?.CurrentSnapshot;
         return new AppRuntimeHealthSnapshot(
             LifecycleEventCount,
             LastLifecycleEventAt,
             LastLifecycleReason,
-            SearchWatcherCount: 0,
-            SearchWatcherRecoveryCount: 0,
-            LastSearchWatcherRecoveryTime: null,
-            IndexedEntryCount: 0,
-            IsSearchScanning: everything?.State == EverythingConnectionState.Checking,
-            LastSearchScanTime: null,
-            FailedSearchWatcherCount: 0,
-            OfflineSearchRootCount: 0,
-            PartialSearchRootCount: 0,
-            SearchScanCapacityLimited: false,
-            IsUsnIndexAvailable: false,
-            IsUsnIndexScanning: false,
-            IsUsnIndexIncrementalSyncing: false,
             OfflineFolderCount: folderHealth.Count(item => item.Status == FolderWatcherHealth.Unavailable),
             DegradedFolderCount: folderHealth.Count(item => item.Status == FolderWatcherHealth.Degraded),
-            AccessDeniedFolderCount: folderHealth.Count(item => item.Status == FolderWatcherHealth.AccessDenied),
-            EverythingState: everything?.State,
-            EverythingVersion: everything?.Version);
+            AccessDeniedFolderCount: folderHealth.Count(item => item.Status == FolderWatcherHealth.AccessDenied));
     }
 
     /// <summary>
@@ -197,21 +180,6 @@ public sealed record AppRuntimeHealthSnapshot(
     int LifecycleEventCount,
     DateTimeOffset? LastLifecycleEventAt,
     string LastLifecycleReason,
-    int SearchWatcherCount,
-    int SearchWatcherRecoveryCount,
-    DateTime? LastSearchWatcherRecoveryTime,
-    int IndexedEntryCount,
-    bool IsSearchScanning,
-    DateTime? LastSearchScanTime,
-    int FailedSearchWatcherCount = 0,
-    int OfflineSearchRootCount = 0,
-    int PartialSearchRootCount = 0,
-    bool SearchScanCapacityLimited = false,
-    bool IsUsnIndexAvailable = false,
-    bool IsUsnIndexScanning = false,
-    bool IsUsnIndexIncrementalSyncing = false,
     int OfflineFolderCount = 0,
     int DegradedFolderCount = 0,
-    int AccessDeniedFolderCount = 0,
-    EverythingConnectionState? EverythingState = null,
-    string? EverythingVersion = null);
+    int AccessDeniedFolderCount = 0);

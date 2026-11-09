@@ -68,9 +68,6 @@ public class AppSettings
     [JsonIgnore]
     public WeatherSettingsSlice Weather { get; } = new();
 
-    [JsonIgnore]
-    public SearchSettingsSlice Search { get; } = new();
-
     // ─── Serialization facade (wire contract, order-significant) ──
 
     /// <inheritdoc cref="CoreSettingsSlice.Theme"/>
@@ -734,58 +731,6 @@ public class AppSettings
 
     /// <inheritdoc cref="WeatherSettingsSlice.WeatherRefreshIntervalMinutes"/>
     public int WeatherRefreshIntervalMinutes { get => Weather.WeatherRefreshIntervalMinutes; set => Weather.WeatherRefreshIntervalMinutes = value; }
-
-    // ─── Search Settings ───────────────────────────────────────────────
-    /// <inheritdoc cref="SearchSettingsSlice.SearchHotkeyEnabled"/>
-    public bool SearchHotkeyEnabled { get => Search.SearchHotkeyEnabled; set => Search.SearchHotkeyEnabled = value; }
-
-    /// <inheritdoc cref="SearchSettingsSlice.SearchHotkeyModifiers"/>
-    public int SearchHotkeyModifiers { get => Search.SearchHotkeyModifiers; set => Search.SearchHotkeyModifiers = value; }
-
-    /// <inheritdoc cref="SearchSettingsSlice.SearchHotkeyKey"/>
-    public int SearchHotkeyKey { get => Search.SearchHotkeyKey; set => Search.SearchHotkeyKey = value; }
-
-    /// <inheritdoc cref="SearchSettingsSlice.SearchDisplayMode"/>
-    public string SearchDisplayMode { get => Search.SearchDisplayMode; set => Search.SearchDisplayMode = value; }
-
-    /// <inheritdoc cref="SearchSettingsSlice.SearchIncludeDeskBoxContent"/>
-    public bool SearchIncludeDeskBoxContent { get => Search.SearchIncludeDeskBoxContent; set => Search.SearchIncludeDeskBoxContent = value; }
-
-    /// <inheritdoc cref="SearchSettingsSlice.SearchEverythingEnabled"/>
-    public bool SearchEverythingEnabled { get => Search.SearchEverythingEnabled; set => Search.SearchEverythingEnabled = value; }
-
-    /// <inheritdoc cref="SearchSettingsSlice.SearchEverythingExecutablePath"/>
-    public string SearchEverythingExecutablePath { get => Search.SearchEverythingExecutablePath; set => Search.SearchEverythingExecutablePath = value; }
-
-    /// <inheritdoc cref="SearchSettingsSlice.SearchEverythingAdvancedSyntaxEnabled"/>
-    public bool SearchEverythingAdvancedSyntaxEnabled { get => Search.SearchEverythingAdvancedSyntaxEnabled; set => Search.SearchEverythingAdvancedSyntaxEnabled = value; }
-
-    /// <inheritdoc cref="SearchSettingsSlice.SearchShowRecommendations"/>
-    public bool SearchShowRecommendations { get => Search.SearchShowRecommendations; set => Search.SearchShowRecommendations = value; }
-
-    /// <inheritdoc cref="SearchSettingsSlice.SearchSaveHistory"/>
-    public bool SearchSaveHistory { get => Search.SearchSaveHistory; set => Search.SearchSaveHistory = value; }
-
-    /// <inheritdoc cref="SearchSettingsSlice.SearchMaxResults"/>
-    public int SearchMaxResults { get => Search.SearchMaxResults; set => Search.SearchMaxResults = value; }
-
-    /// <inheritdoc cref="SearchSettingsSlice.SearchDefaultTab"/>
-    public string SearchDefaultTab { get => Search.SearchDefaultTab; set => Search.SearchDefaultTab = value; }
-
-    /// <inheritdoc cref="SearchSettingsSlice.SearchAppIconAnimation"/>
-    public int SearchAppIconAnimation { get => Search.SearchAppIconAnimation; set => Search.SearchAppIconAnimation = value; }
-
-    /// <inheritdoc cref="SearchSettingsSlice.SearchPopupCustomX"/>
-    public int? SearchPopupCustomX { get => Search.SearchPopupCustomX; set => Search.SearchPopupCustomX = value; }
-
-    /// <inheritdoc cref="SearchSettingsSlice.SearchPopupCustomY"/>
-    public int? SearchPopupCustomY { get => Search.SearchPopupCustomY; set => Search.SearchPopupCustomY = value; }
-
-    /// <inheritdoc cref="SearchSettingsSlice.SearchPopupCustomWidth"/>
-    public int? SearchPopupCustomWidth { get => Search.SearchPopupCustomWidth; set => Search.SearchPopupCustomWidth = value; }
-
-    /// <inheritdoc cref="SearchSettingsSlice.SearchPopupCustomHeight"/>
-    public int? SearchPopupCustomHeight { get => Search.SearchPopupCustomHeight; set => Search.SearchPopupCustomHeight = value; }
 
     // ─── Cloud Backup (roadmap §10 — non-secret provider config only) ───
 

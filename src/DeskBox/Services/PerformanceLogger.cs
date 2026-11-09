@@ -329,11 +329,6 @@ public static partial class PerformanceLogger
                 CaptureCachePerformanceSnapshot();
 
             var app = App.Current;
-            string everythingState = app.EverythingSearchService?.CurrentSnapshot.State.ToString()
-                ?? "uninitialized";
-            bool searchEnabled = FeatureWidgetSettings.IsEnabled(
-                app.SettingsService.Settings,
-                DeskBox.Models.WidgetKind.Search);
             int loadedWidgetCount = app.WidgetManager?.LoadedWidgetCount ?? 0;
             int visibleWidgetCount = app.WidgetManager?.VisibleWidgetCount ?? 0;
             int surfaceSwitchGateCount =
@@ -428,12 +423,6 @@ public static partial class PerformanceLogger
                  $"cachedGroupContents={cachedGroupContentCount} " +
                  $"materializedContentByKind={materializedContentByKind} " +
                  $"cachedContentByKind={cachedContentByKind} " +
-                  $"searchEnabled={searchEnabled} " +
-                 $"everythingState={everythingState} " +
-                 $"everythingConnected={app.IsEverythingSearchConnected} " +
-                 $"searchPopupCreated={app.IsSearchPopupCreated} " +
-                $"searchPopupVisible={app.IsSearchPopupVisible} " +
-                $"searchMetaCache={app.SearchMetaCacheCount}" +
                 (string.IsNullOrWhiteSpace(reason) ? string.Empty : $" reason={reason}"));
         }
         catch

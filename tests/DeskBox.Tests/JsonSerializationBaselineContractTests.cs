@@ -52,7 +52,6 @@ public sealed class JsonSerializationBaselineContractTests : IDisposable
             ["src/DeskBox/Services/QuickCaptureStore.cs"] = 2,
             // 2: the wipe-recovery offer marker (read deserialize, atomic save serialize).
             ["src/DeskBox/Services/RecoveryOfferStore.cs"] = 2,
-            ["src/DeskBox/Services/SearchHistoryService.cs"] = 2,
             // Settings-host IPC pipe (batch 3b): envelope encode/decode on
             // the client and server. The remote sink itself serializes via
             // SettingsService.SerializeCurrentSettings under the service
@@ -99,8 +98,8 @@ public sealed class JsonSerializationBaselineContractTests : IDisposable
             Assert.Equal(expectedCount, actual[path]);
         }
 
-        Assert.Equal(44, actual.Count);
-        Assert.Equal(111, actual.Values.Sum());
+        Assert.Equal(43, actual.Count);
+        Assert.Equal(109, actual.Values.Sum());
 
         string[] expectedContextOwners =
         [
@@ -129,7 +128,6 @@ public sealed class JsonSerializationBaselineContractTests : IDisposable
             "src/DeskBox/Services/NativeNotificationActivationEnvelopeStore.cs",
             "src/DeskBox/Services/QuickCaptureStore.cs",
             "src/DeskBox/Services/RecoveryOfferStore.cs",
-            "src/DeskBox/Services/SearchHistoryService.cs",
             "src/DeskBox/Services/SettingsIpcProtocol.cs",
             "src/DeskBox/Services/SettingsService.cs",
             "src/DeskBox/Services/StartupSessionLedger.cs",
@@ -151,7 +149,7 @@ public sealed class JsonSerializationBaselineContractTests : IDisposable
             .Order()
             .ToArray();
 
-        Assert.Equal(38, actualContextOwners.Length);
+        Assert.Equal(37, actualContextOwners.Length);
         Assert.Equal(expectedContextOwners, actualContextOwners);
     }
 
@@ -306,49 +304,27 @@ public sealed class JsonSerializationBaselineContractTests : IDisposable
     }
 
     [Fact]
-    public void PhaseThreeASearchAndRecoveryCalls_UseSourceGeneratedTypeInfoAndPreserveOptionProfiles()
+    public void PhaseThreeARecoveryCalls_UseSourceGeneratedTypeInfoAndPreserveOptionProfiles()
     {
-        string searchHistory = ReadSource("src/DeskBox/Services/SearchHistoryService.cs");
         string desktopRecovery = ReadSource(
             "src/DeskBox/Services/DesktopOrganizationRecoveryStore.cs");
-        string allPhaseThreeASources = string.Join(
-            Environment.NewLine,
-            searchHistory,
-            desktopRecovery);
 
-        var expectedTypeInfoReferences = new Dictionary<string, int>(StringComparer.Ordinal)
-        {
-            ["SearchHistoryJsonContext.Default.PersistedData"] = 2,
-            ["DesktopRecoveryJsonContext.Default.RecoveryJournal"] = 2
-        };
-        foreach ((string reference, int expectedCount) in expectedTypeInfoReferences)
-        {
-            Assert.Equal(
-                expectedCount,
-                Regex.Matches(
-                    allPhaseThreeASources,
-                    Regex.Escape(reference) + @"\b").Count);
-        }
-
-        Assert.Equal(4, expectedTypeInfoReferences.Values.Sum());
-        Assert.DoesNotContain("JsonSerializerOptions", allPhaseThreeASources, StringComparison.Ordinal);
-        Assert.DoesNotContain("JsonStringEnumConverter", allPhaseThreeASources, StringComparison.Ordinal);
-
-        foreach (string camelCaseSource in new[] { searchHistory, desktopRecovery })
-        {
-            Assert.Contains(
-                "PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase",
-                camelCaseSource,
-                StringComparison.Ordinal);
-            Assert.Contains(
-                "GenerationMode = JsonSourceGenerationMode.Metadata",
-                camelCaseSource,
-                StringComparison.Ordinal);
-        }
-
-        Assert.Contains("WriteIndented = true", searchHistory, StringComparison.Ordinal);
+        Assert.Equal(
+            2,
+            Regex.Matches(
+                desktopRecovery,
+                Regex.Escape("DesktopRecoveryJsonContext.Default.RecoveryJournal") + @"\b").Count);
+        Assert.DoesNotContain("JsonSerializerOptions", desktopRecovery, StringComparison.Ordinal);
+        Assert.DoesNotContain("JsonStringEnumConverter", desktopRecovery, StringComparison.Ordinal);
+        Assert.Contains(
+            "PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase",
+            desktopRecovery,
+            StringComparison.Ordinal);
+        Assert.Contains(
+            "GenerationMode = JsonSourceGenerationMode.Metadata",
+            desktopRecovery,
+            StringComparison.Ordinal);
         Assert.Contains("WriteIndented = true", desktopRecovery, StringComparison.Ordinal);
-        Assert.DoesNotContain("UseStringEnumConverter", searchHistory, StringComparison.Ordinal);
         Assert.DoesNotContain("UseStringEnumConverter", desktopRecovery, StringComparison.Ordinal);
     }
 
@@ -516,52 +492,6 @@ public sealed class JsonSerializationBaselineContractTests : IDisposable
         Assert.Contains("var marker = new PendingRestoreMarker(", backup, StringComparison.Ordinal);
         Assert.DoesNotContain("WriteJsonAtomicallyAsync", backup, StringComparison.Ordinal);
         Assert.DoesNotContain("WritePendingRestoreMarkerAtomicallyAsync<T>", backup, StringComparison.Ordinal);
-    }
-
-    [Fact]
-    public void SearchHistoryGolden_KeepsCamelCaseNumericEnumAndForwardCompatibility()
-    {
-        Directory.CreateDirectory(_tempRoot);
-        string storePath = Path.Combine(_tempRoot, "search-history.json");
-        var history = new SearchHistoryService(storePath);
-        history.RecordResult(new SearchResultItem
-        {
-            Kind = SearchResultKind.Folder,
-            Title = "Saved folder",
-            DetailPath = @"C:\Saved"
-        });
-
-        using (JsonDocument saved = JsonDocument.Parse(File.ReadAllText(storePath)))
-        {
-            Assert.True(saved.RootElement.TryGetProperty("recentResults", out JsonElement results));
-            Assert.False(saved.RootElement.TryGetProperty("RecentResults", out _));
-            JsonElement result = Assert.Single(results.EnumerateArray());
-            Assert.Equal(JsonValueKind.Number, result.GetProperty("kind").ValueKind);
-            Assert.Equal((int)SearchResultKind.Folder, result.GetProperty("kind").GetInt32());
-        }
-
-        File.WriteAllText(
-            storePath,
-            """
-            {
-              "recentResults": [
-                {
-                  "identity": "folder|C:\\Saved",
-                  "kind": 4,
-                  "title": "Legacy folder",
-                  "futureResultField": "ignored"
-                }
-              ],
-              "futureRootField": { "enabled": true }
-            }
-            """);
-
-        var reloaded = new SearchHistoryService(storePath);
-        SearchRecommendationItem recent = Assert.Single(reloaded.RecentResults);
-        Assert.Equal(SearchResultKind.Folder, recent.Kind);
-        Assert.Equal("Legacy folder", recent.Title);
-        Assert.Empty(reloaded.RecentQueries);
-        Assert.Empty(reloaded.FavoriteQueries);
     }
 
     [Fact]

@@ -21,8 +21,7 @@ public sealed class SettingsHostLaunchIntentTests
         // null/no-op callback shapes once silently dropped them (the host
         // committed a snapshot whose dictionary the main process strips;
         // batch R8). QuickCapture's wiring is pinned by its (enabled, _)
-        // shape; Search's (_, _) no-op is deliberate and stays (its enable
-        // state is a settings.json slice, so the snapshot IS the channel).
+        // shape.
         // Deep review R13-2: QuickCapture's wiring grew the same optimistic
         // mirror + applied rollback the Todo switch always had (the bare
         // (enabled, _) lambda discarded the applied value).
@@ -50,32 +49,10 @@ public sealed class SettingsHostLaunchIntentTests
         // process (sole writer + live Changed listeners).
         Assert.Contains("GlanceWidgetStore.SaveRelay =", host, StringComparison.Ordinal);
 
-        // Batch R9: the search section's hotkey card rides the search-hotkey
-        // commands (a null getHotkey rendered it permanently dead), and the
-        // autostart toggle executes in this process so the real backend must
-        // be configured (Store StartupTask vs Run key).
-        Assert.Contains("new RemoteSearchHotkeyController(", host, StringComparison.Ordinal);
-        Assert.DoesNotContain("getHotkey: () => null", host, StringComparison.Ordinal);
         Assert.Contains(
             "StartupService.Configure(StartupServiceFactory.Create(DistributionService, settings))",
             host,
             StringComparison.Ordinal);
-    }
-
-    [Fact]
-    public void RestoreDefaults_RidesTheLayoutCommandAndRefreshesTheSearchHotkey()
-    {
-        string source = File.ReadAllText(TestPaths.FromRepository(
-            "src/DeskBox/ViewModels/SettingsViewModel.PreferenceCommands.cs"));
-
-        // The group-level defaults live in the layout domain, which a
-        // snapshot commit strips: without the command the restore silently
-        // kept the user's custom group presentation (batch R9).
-        Assert.Contains("ApplyGroupNavigationDefaults(new GroupNavigationDefaultsChange(", source, StringComparison.Ordinal);
-        Assert.Contains("GroupsEnabled: true", source, StringComparison.Ordinal);
-        // The reset also re-runs the live search hotkey registration, or the
-        // old gesture kept triggering search until restart.
-        Assert.Contains("RefreshSearchHotkeyRegistration", source, StringComparison.Ordinal);
     }
 
     [Fact]

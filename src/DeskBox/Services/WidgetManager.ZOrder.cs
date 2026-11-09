@@ -84,7 +84,7 @@ public sealed partial class WidgetManager
 
     // ── Quick-reveal raised-band guests ─────────────────────
     // A quick-reveal raised session holds the widget group WS_EX_TOPMOST
-    // (system-flyout semantics). DeskBox-owned interactive surfaces (search
+    // (system-flyout semantics). DeskBox-owned interactive surfaces (transient
     // popup, settings, desktop organization) join that band above the widgets
     // while the session lives, then return to normal Z-order rules.
     // Registration is the authority for whether a window was made topmost
@@ -96,7 +96,7 @@ public sealed partial class WidgetManager
     private readonly Dictionary<IntPtr, RaisedBandGuestRecord> _raisedBandGuests = new();
 
     /// <summary>
-    /// App-level provider of candidate auxiliary window handles (search popup,
+    /// App-level provider of candidate auxiliary window handles (settings,
     /// settings, desktop organization). Consulted when a quick-reveal raise
     /// completes so surfaces that were already open before the raise are
     /// promoted above the widget group too.

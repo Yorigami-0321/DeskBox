@@ -34,7 +34,7 @@ public sealed class PerformanceSettingsSlice
     /// </summary>
     public bool QuiescenceWorkingSetTrimEnabled { get; set; } = true;
 
-    /// <summary>Finite delay before closing a hidden transient window such as Search.</summary>
+    /// <summary>Finite delay before closing a hidden transient window.</summary>
     public int TransientWindowReleaseDelaySeconds { get; set; } = 2 * 60;
 
     /// <summary>Budget for recreatable icon, thumbnail, and decoded-image caches. Valid values: <c>Small</c>, <c>Balanced</c>, <c>Large</c>.</summary>

@@ -10,10 +10,6 @@ public sealed class WidgetDragHandleThemeContractTests
             "src/DeskBox/Controls/WidgetShell.xaml"));
         string widgetShellCode = File.ReadAllText(TestPaths.FromRepository(
             "src/DeskBox/Controls/WidgetShell.xaml.cs"));
-        string searchXaml = File.ReadAllText(TestPaths.FromRepository(
-            "src/DeskBox/Views/SearchPopupWindow.xaml"));
-        string searchCode = File.ReadAllText(TestPaths.FromRepository(
-            "src/DeskBox/Views/SearchPopupWindow.xaml.cs"));
 
         // Light/Dark/Default/HighContrast: RequestedTheme is ignored under
         // high contrast, so the handle brush must exist in all four theme
@@ -36,12 +32,6 @@ public sealed class WidgetDragHandleThemeContractTests
         Assert.Contains("CornerRadius=\"0,1.5,1.5,0\"", widgetShellXaml, StringComparison.Ordinal);
         Assert.Contains("Canvas.ZIndex=\"1\"", widgetShellXaml, StringComparison.Ordinal);
         Assert.Contains("const double gripOpacity = 1", widgetShellCode, StringComparison.Ordinal);
-        Assert.Contains(
-            "Background=\"{ThemeResource WidgetDragHandleBrush}\"",
-            searchXaml,
-            StringComparison.Ordinal);
-        Assert.Contains("TopDragHandle.Opacity = 1;", searchCode, StringComparison.Ordinal);
-        Assert.DoesNotContain("TopDragHandle.Opacity = 0.72", searchCode, StringComparison.Ordinal);
     }
 
     [Fact]

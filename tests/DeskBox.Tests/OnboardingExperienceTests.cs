@@ -39,7 +39,6 @@ public sealed class OnboardingExperienceTests
         "Onboarding.Step5.OptionalBody",
         "Onboarding.Feature.Todo",
         "Onboarding.Feature.QuickCapture",
-        "Onboarding.Feature.Search",
         "Onboarding.Feature.Weather",
         "Onboarding.Feature.Music",
         "Onboarding.Scene.MoveBadge",
@@ -77,7 +76,7 @@ public sealed class OnboardingExperienceTests
 
         Assert.Contains("Click=\"Step3Try_Click\"", xaml, StringComparison.Ordinal);
         Assert.Contains("Click=\"Step4OpenMenu_Click\"", xaml, StringComparison.Ordinal);
-        foreach (string kind in new[] { "Todo", "QuickCapture", "Search", "Weather", "Music", "Glance" })
+        foreach (string kind in new[] { "Todo", "QuickCapture", "Weather", "Music", "Glance" })
         {
             Assert.Contains(
                 $"Tag=\"{kind}\" Toggled=\"Step5FeatureToggle_Toggled\"",

@@ -1,6 +1,5 @@
 using DeskBox.Contracts;
 using DeskBox.Features.QuickCapture;
-using DeskBox.Features.Search;
 using DeskBox.Features.Todo;
 using DeskBox.Models;
 using DeskBox.Services;
@@ -24,20 +23,18 @@ public sealed class FeatureRuntimeContractTests
 {
     public static TheoryData<string> Cases => new()
     {
-        FakeName, TodoName, QuickCaptureName, SearchName
+        FakeName, TodoName, QuickCaptureName
     };
 
     private const string FakeName = "fake";
     private const string TodoName = "todo-reminders";
     private const string QuickCaptureName = "quick-capture";
-    private const string SearchName = "search";
 
     private static ILeaseCase CreateCase(string name) => name switch
     {
         FakeName => new FakeCase(),
         TodoName => new TodoCase(),
         QuickCaptureName => new QuickCaptureCase(),
-        SearchName => new SearchCase(),
         _ => throw new ArgumentException($"Unknown case '{name}'.", nameof(name)),
     };
 
@@ -131,20 +128,6 @@ public sealed class FeatureRuntimeContractTests
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() => start);
         await dispose;
         Assert.Equal(new[] { "start:begin", "dispose:begin", "dispose:end" }, lease.Transitions);
-    }
-
-    [Fact]
-    public async Task SearchRuntime_SupportsTheEnableDisableCycle_AfterRelease()
-    {
-        // Search's lease is a cycle, not terminal like the shutdown disposal
-        // of the Todo/QuickCapture runtimes: the settings coordinator
-        // re-enables through StartAsync after a disable disposal.
-        using SearchCase lease = new();
-        await lease.Runtime.StartAsync();
-        await lease.Runtime.DisposeAsync();
-        await lease.Runtime.StartAsync();
-        Assert.True(lease.LeaseHeld);
-        Assert.Equal(2, lease.Acquisitions);
     }
 
     private static async Task UntilAsync(Func<bool> condition)
@@ -400,38 +383,4 @@ public sealed class FeatureRuntimeContractTests
         }
     }
 
-    private sealed class SearchCase : ILeaseCase
-    {
-        private readonly SearchFeatureRuntime _runtime;
-        private bool _chainLive;
-        private int _acquisitions;
-        private int _releases;
-        private bool _failNext;
-
-        public SearchCase()
-        {
-            _runtime = new SearchFeatureRuntime(
-                () =>
-                {
-                    bool fail = _failNext;
-                    _failNext = false;
-                    if (fail) throw new InvalidOperationException("search chain failed mid-initialization");
-                    _chainLive = true;
-                    _acquisitions++;
-                },
-                () =>
-                {
-                    _chainLive = false;
-                    _releases++;
-                });
-        }
-
-        public string Name => SearchName;
-        public IFeatureRuntime Runtime => _runtime;
-        public bool LeaseHeld => _chainLive;
-        public int Acquisitions => _acquisitions;
-        public int CompletedReleases => _releases;
-        public void FailNextAcquisition() => _failNext = true;
-        public void Dispose() { }
-    }
 }

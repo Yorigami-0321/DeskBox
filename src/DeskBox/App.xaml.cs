@@ -5,7 +5,6 @@ using CommunityToolkit.Mvvm.Input;
 using DeskBox.Controls.WidgetContents;
 using DeskBox.Core.Persistence;
 using DeskBox.Features.Todo;
-using DeskBox.Features.Search;
 using DeskBox.Features.Backup;
 using DeskBox.Features.QuickCapture;
 using DeskBox.Helpers;
@@ -81,7 +80,6 @@ public partial class App : Application
 
     // Feature-runtime registry keys (Services/FeatureRuntimeRegistry). They
     // intentionally read like the matching shutdown step names.
-    private const string SearchFeatureRuntimeId = "search";
     private const string QuickCaptureFeatureRuntimeId = "quick-capture";
     private const string TodoRemindersFeatureRuntimeId = "todo-reminders";
     private const string PendingJumpListArgumentFileName = "pending-jumplist-arg.txt";
@@ -166,8 +164,6 @@ public partial class App : Application
     private FeatureRuntimeRegistry? _featureRuntimes;
     private TodoReminderRuntime? _todoReminderRuntime;
     private TodoSettingsCoordinator? _todoSettings;
-    private SearchSettingsCoordinator? _searchSettings;
-    private SearchFeatureRuntime? _searchFeatureRuntime;
     private BackupSettingsCoordinator? _backupSettings;
     private BackupRestoreActions? _backupRestoreActions;
     private QuickCaptureSettingsCoordinator? _quickCaptureSettings;
@@ -192,11 +188,6 @@ public partial class App : Application
     private DisplayTopologyTransitionCoordinator? _displayTopologyTransitionCoordinator;
     private AppLifecycleRecoveryWatcher? _lifecycleRecoveryWatcher;
     private HookHealthWatchdog? _hookHealthWatchdog;
-    private EverythingSearchService? _everythingSearchService;
-    private SearchEngineService? _searchEngineService;
-    private FileMetaService? _fileMetaService;
-    private SearchHotkeyService? _searchHotkeyService;
-    private SearchPopupWindow? _searchPopupWindow;
     private Microsoft.UI.Dispatching.DispatcherQueueTimer? _visibleIdleMemoryMaintenanceTimer;
     private int _visibleIdleMemoryMaintenanceRunning;
     private readonly VisibleIdleMemoryTracker _visibleIdleMemoryTracker = new(
@@ -204,8 +195,6 @@ public partial class App : Application
             PerformanceSettingsPolicy.DefaultVisibleIdleCacheCleanupDelaySeconds),
         TimeSpan.FromSeconds(
             PerformanceSettingsPolicy.DefaultVisibleIdleCacheCleanupDelaySeconds));
-    private SearchHistoryService? _searchHistoryService;
-    private SearchResultActionService? _searchActionService;
     private bool _widgetsRaisedFromTray;
     private bool _hasUpdateAvailable;
     private string? _updateNotificationShownVersion;
@@ -278,17 +267,7 @@ public partial class App : Application
     public ThemeService ThemeService { get; private set; } = null!;
     public GlobalHotkeyService? GlobalHotkeyService { get; private set; }
     public DesktopDoubleClickActivationService? DesktopDoubleClickActivationService { get; private set; }
-    public SearchHotkeyService? SearchHotkeyService => _searchHotkeyService;
-    public SearchEngineService? SearchEngineService => _searchEngineService;
-    public EverythingSearchService? EverythingSearchService => _everythingSearchService;
     public AppDiagnosticsService? DiagnosticsService => _diagnosticsService;
-    internal SearchHistoryService? SearchHistoryService => _searchHistoryService;
-    public SearchResultActionService? SearchActionService => _searchActionService;
-    internal bool IsSearchPopupCreated => _searchPopupWindow is not null;
-    internal bool IsSearchPopupVisible => _searchPopupWindow?.IsPopupVisible == true;
-    internal bool IsEverythingSearchConnected =>
-        _everythingSearchService?.CurrentSnapshot.State == EverythingConnectionState.Connected;
-    internal int SearchMetaCacheCount => _fileMetaService?.CachedIconCount ?? 0;
     public WidgetManager? WidgetManager { get; private set; }
     public ResizeGuideOverlayService ResizeGuideOverlay { get; private set; } = null!;
     public NativeAppNotificationService? NativeNotificationService => _nativeNotificationService;
@@ -525,7 +504,6 @@ public partial class App : Application
             () => RecoveryOfferStore.TryRead()?.SnapshotPath);
         CloudBackupService = Services.GetRequiredService<CloudBackupService>();
         CloudBackupService.BackupRunCompleted += OnCloudBackupRunCompleted;
-        _ = LegacySearchIndexCleanupService.TryCleanup();
         AttachmentHealthService = Services.GetRequiredService<DeskBoxAttachmentHealthService>();
         DiagnosticsBundleService = Services.GetRequiredService<DeskBoxDiagnosticsBundleService>();
         FileService = Services.GetRequiredService<FileService>();
@@ -1359,24 +1337,6 @@ public partial class App : Application
                 SettingsService,
                 enabled => WidgetManager!.SetTodoEnabledAsync(enabled, reveal: enabled),
                 checkNow => RefreshTodoReminderService(checkNow));
-            _searchSettings = new SearchSettingsCoordinator(
-                SettingsService, LocalizationService,
-                () => _everythingSearchService,
-                () => EnsureSearchServicesForUserAction()?.EverythingProvider,
-                () => _searchHotkeyService,
-                enabled => _searchEngineService?.SetDeskBoxContentSearchEnabled(enabled),
-                (enabled, reveal) => WidgetManager is { } manager
-                    ? manager.ApplySearchWindowStateAsync(enabled, reveal)
-                    : SettingsService.SaveAsync(),
-                SetSearchFeatureEnabled,
-                action => UiDispatcherQueue.TryEnqueue(() => action()),
-                ex => Log($"[Search] Feature enablement failed: {ex}"));
-            // The App-owned search start/stop chain, formalized as the
-            // search feature's runtime lease. The settings coordinator's
-            // enable callback and the shutdown step both go through this
-            // adapter; ad-hoc ensures stay on the idempotent chain below.
-            _searchFeatureRuntime = _featureRuntimes.Register(SearchFeatureRuntimeId,
-                new SearchFeatureRuntime(EnsureSearchServices, DisposeSearchServices));
             // One restore-actions owner for the process: the settings editor
             // borrows it for delete/download/restore, and the remote list
             // reads route through the same registration, endpoint freeze and
@@ -1443,10 +1403,10 @@ public partial class App : Application
             {
                 WidgetManager = new WidgetManager(SettingsService, FileService, OrganizerService,
                     themeService, quickCaptureService, localizationService, _todoSettings,
-                    _quickCaptureSettings, _searchSettings);
+                    _quickCaptureSettings);
                 WidgetManager.TrayLayerStateChanged += UpdateTrayLayerStateText;
                 // Lets a quick-reveal raise promote already-open DeskBox surfaces
-                // (search popup, settings, desktop organization) above the raised
+                // (settings, desktop organization) above the raised
                 // widget group; the reverse order is handled per-window at show.
                 WidgetManager.AuxiliaryWindowProvider = GetRaisedBandAuxiliaryWindowHandles;
             });
@@ -2326,13 +2286,11 @@ public partial class App : Application
                     static message => Log(message),
                     static message => LogVerbose(message));
                 _hookHealthWatchdog.Watch(() => GlobalHotkeyService);
-                _hookHealthWatchdog.Watch(() => _searchHotkeyService);
                 _hookHealthWatchdog.Watch(() => DesktopDoubleClickActivationService);
                 // RegisterHotKey chords have no hook to probe; the watchdog
                 // keeps them alive with a periodic unregister+register
                 // round-trip instead (feedback 308/371).
                 _hookHealthWatchdog.WatchMaintenance(() => GlobalHotkeyService);
-                _hookHealthWatchdog.WatchMaintenance(() => _searchHotkeyService);
             }
             catch (Exception ex)
             {
@@ -2379,7 +2337,6 @@ public partial class App : Application
             {
                 GlobalHotkeyService?.RefreshRegistration();
                 DesktopDoubleClickActivationService?.RefreshRegistration();
-                _searchHotkeyService?.RefreshRegistration();
             }
             catch (Exception ex)
             {
@@ -2387,11 +2344,6 @@ public partial class App : Application
             }
 
             ScheduleExternalStateRecovery();
-            if (_everythingSearchService is not null &&
-                SettingsService.Settings.SearchEverythingEnabled)
-            {
-                _ = _everythingSearchService.RefreshConnectionAsync();
-            }
         }
     }
 
@@ -2776,7 +2728,8 @@ public partial class App : Application
     /// </summary>
     private ViewModels.TodoWidgetViewModel? TryGetLiveTodoViewModel(string widgetId)
     {
-        if (WidgetManager?.ContentWidgets.TryGetValue(widgetId, out var window) != true)
+        if (WidgetManager?.ContentWidgets.TryGetValue(widgetId, out var window) != true ||
+            window is null)
         {
             return null;
         }
@@ -4186,8 +4139,7 @@ public partial class App : Application
                 // The commit lands on an IPC pool thread; language replay
                 // touches XAML across the whole main process (same reason
                 // the theme delegate marshals).
-                () => UiDispatch.RunOrDefer(LocalizationService.NotifyExternalLanguageChange),
-                enabled => _searchEngineService?.SetDeskBoxContentSearchEnabled(enabled)));
+                () => UiDispatch.RunOrDefer(LocalizationService.NotifyExternalLanguageChange)));
     }
 
     private void RefreshThemeAppearanceOnUi() => ThemeService.RefreshAppearance();
@@ -4536,11 +4488,6 @@ public partial class App : Application
     {
         await RecoverExternalStateAsync(refreshFileWidgets: true);
         _displayAreaWatcher?.RefreshNow();
-        if (_everythingSearchService is not null &&
-            SettingsService.Settings.SearchEverythingEnabled)
-        {
-            await _everythingSearchService.RefreshConnectionAsync();
-        }
     }
 
     private void OnLanguageChanged()
@@ -4578,7 +4525,6 @@ public partial class App : Application
             SettingsService, ThemeService, LocalizationService,
             _todoSettings ?? throw new InvalidOperationException("Todo settings are not initialized."),
             _featureWidgetsSettings ?? throw new InvalidOperationException("Feature widgets settings are not initialized."),
-            _searchSettings ?? throw new InvalidOperationException("Search settings are not initialized."),
             _backupSettings ?? throw new InvalidOperationException("Backup settings are not initialized."),
             _backupRestoreActions ?? throw new InvalidOperationException(
                 "Backup restore actions are not initialized."),
@@ -4605,10 +4551,7 @@ public partial class App : Application
                         "Quick Capture is not initialized.")).SetEnabledAsync(enabled, reveal: enabled),
                 applyTodoEnabled: enabled =>
                     (_todoSettings ?? throw new InvalidOperationException(
-                        "Todo settings are not initialized.")).SetEnabledAsync(enabled),
-                applySearchEnabled: enabled =>
-                    (_searchSettings ?? throw new InvalidOperationException(
-                        "Search settings are not initialized.")).SetEnabledAsync(enabled, reveal: enabled)),
+                        "Todo settings are not initialized.")).SetEnabledAsync(enabled)),
             new InProcessSettingsRestoreActions(
                 DataBackupService ?? throw new InvalidOperationException("Backup service is not initialized."),
                 AttachmentHealthService ?? throw new InvalidOperationException("Attachment health service is not initialized.")),
@@ -4626,7 +4569,6 @@ public partial class App : Application
     private Contracts.ISettingsHotkeyActions CreateSettingsHotkeyActions() =>
         new InProcessSettingsHotkeyActions(
             GlobalHotkeyService,
-            SearchHotkeyService,
             DesktopDoubleClickActivationService,
             SettingsService);
 
@@ -5484,7 +5426,6 @@ public partial class App : Application
             IsWidgetInteractionActive: widgetManager?.IsWidgetInteractionActive == true,
             IsSettingsOpen: IsSettingsHostVisible,
             IsOnboardingOpen: _onboardingWindow is not null,
-            IsSearchPopupVisible: _searchPopupWindow?.IsPopupVisible == true,
             IsDeskBoxForeground: isDeskBoxForeground,
             IsPointerOverDeskBox: isPointerOverDeskBox,
             IsDesktopOrganizationOpen: _desktopOrganizationWindow is not null);
@@ -5542,8 +5483,7 @@ public partial class App : Application
                 .CaptureMemoryCleanupVisibilitySnapshot()
                 .HasNativeVisibleWidgets ||
             app._settingsWindow is { IsVisibleToUser: true } ||
-            app._onboardingWindow is not null ||
-            app._searchPopupWindow?.IsPopupVisible == true)
+            app._onboardingWindow is not null)
         {
             return;
         }
@@ -5563,7 +5503,6 @@ public partial class App : Application
     internal bool CanRunCompactExpansionWarmup =>
         _settingsWindow is not { IsVisibleToUser: true } &&
         _onboardingWindow is null &&
-        _searchPopupWindow?.IsPopupVisible != true &&
         WidgetManager?.IsWidgetInteractionActive != true;
 
     internal bool CanRunCriticalCompactExpansionWarmup => true;
@@ -5575,7 +5514,6 @@ public partial class App : Application
         int ThumbnailCacheCount,
         long ThumbnailEstimatedBytes,
         int IconCacheCount,
-        int SearchMetaCacheCount,
         int ShellKindCacheCount,
         int ShortcutMetadataCacheCount,
         int DecodedBitmapCacheCount,
@@ -5599,7 +5537,6 @@ public partial class App : Application
         internal bool DeepReclaimExecuted;
         internal long DeepReclaimDurationMilliseconds;
         internal long DeepReclaimReleasedHeapBytes;
-        internal int ReleasedSearchIconEntries;
         internal int ReleasedShellKindEntries;
         internal int ReleasedShortcutMetadataEntries;
         internal int ReleasedThumbnailEntries;
@@ -5680,7 +5617,6 @@ public partial class App : Application
                 PerformanceLogger.ThumbnailCacheCount,
                 PerformanceLogger.ThumbnailEstimatedBytes,
                 PerformanceLogger.IconCacheCount,
-                Current.SearchMetaCacheCount,
                 FileService.ShellKindCacheEntryCount,
                 ShortcutHelper.StoredMetadataCacheEntryCount,
                 PerformanceLogger.DecodedBitmapCacheCount,
@@ -5743,8 +5679,6 @@ public partial class App : Application
             $"thumbCacheAfterMB={after.ThumbnailEstimatedBytes / (1024.0 * 1024):F1} " +
             $"iconCacheBefore={before.IconCacheCount} " +
             $"iconCacheAfter={after.IconCacheCount} " +
-            $"searchMetaCacheBefore={before.SearchMetaCacheCount} " +
-            $"searchMetaCacheAfter={after.SearchMetaCacheCount} " +
             $"decodedBitmapBefore={before.DecodedBitmapCacheCount} " +
             $"decodedBitmapAfter={after.DecodedBitmapCacheCount} " +
             $"decodedBitmapBeforeMB={before.DecodedBitmapEstimatedBytes / (1024.0 * 1024):F1} " +
@@ -5761,7 +5695,6 @@ public partial class App : Application
             $"shellKindCacheAfter={after.ShellKindCacheCount} " +
             $"shortcutCacheBefore={before.ShortcutMetadataCacheCount} " +
             $"shortcutCacheAfter={after.ShortcutMetadataCacheCount} " +
-            $"releasedSearchIconEntries={state.ReleasedSearchIconEntries} " +
             $"releasedShellKindEntries={state.ReleasedShellKindEntries} " +
             $"releasedShortcutMetadataEntries={state.ReleasedShortcutMetadataEntries} " +
             $"releasedThumbs={state.ReleasedThumbnailEntries} " +
@@ -5780,7 +5713,6 @@ public partial class App : Application
             $"interactionActive={activity.IsWidgetInteractionActive} " +
             $"settingsOpen={activity.IsSettingsOpen} " +
             $"onboardingOpen={activity.IsOnboardingOpen} " +
-            $"searchVisible={activity.IsSearchPopupVisible} " +
             $"desktopOrganizationOpen={activity.IsDesktopOrganizationOpen} " +
             $"deskBoxForegroundVisible={activity.IsDeskBoxForeground} " +
             $"pointerOverDeskBox={activity.IsPointerOverDeskBox}";
@@ -6360,12 +6292,6 @@ public partial class App : Application
             return false;
         }
 
-        if (_searchPopupWindow?.IsPopupVisible == true)
-        {
-            blockReason = "search-popup-visible";
-            return false;
-        }
-
         blockReason = string.Empty;
         return true;
     }
@@ -6439,7 +6365,6 @@ public partial class App : Application
                 ? IconHelper.ReleaseIdleCaches(
                     TimeSpan.FromSeconds(Math.Max(1, hiddenDelaySeconds)))
                 : IconHelper.ReleaseHiddenCaches();
-        int releasedSearchIconEntries = 0;
         int releasedShellKindEntries = 0;
         int releasedShortcutMetadataEntries = 0;
         if (string.Equals(
@@ -6447,7 +6372,6 @@ public partial class App : Application
                 PerformanceSettingsPolicy.HiddenCacheCleanupScopeAllRecreatable,
                 StringComparison.Ordinal))
         {
-            releasedSearchIconEntries = _fileMetaService?.ReleaseHiddenCaches() ?? 0;
             releasedShellKindEntries = FileService.ReleaseHiddenShellKindCache();
             releasedShortcutMetadataEntries =
                 ShortcutHelper.ReleaseHiddenMetadataCache();
@@ -6455,11 +6379,9 @@ public partial class App : Application
 
         bool releasedAnything =
             cacheRelease.ReleasedAnything ||
-            releasedSearchIconEntries > 0 ||
             releasedShellKindEntries > 0 ||
             releasedShortcutMetadataEntries > 0;
         state.SoftCleanupResult = releasedAnything ? "released" : "no-op";
-        state.ReleasedSearchIconEntries += releasedSearchIconEntries;
         state.ReleasedShellKindEntries += releasedShellKindEntries;
         state.ReleasedShortcutMetadataEntries += releasedShortcutMetadataEntries;
         state.ReleasedThumbnailEntries += cacheRelease.ReleasedThumbnails;
@@ -6490,7 +6412,6 @@ public partial class App : Application
             $"releasedThumbs={cacheRelease.ReleasedThumbnails} " +
             $"releasedBitmaps={cacheRelease.ReleasedDecodedBitmaps} " +
             $"releasedIconBytes={cacheRelease.ReleasedIconByteEntries} " +
-            $"releasedSearchIconEntries={releasedSearchIconEntries} " +
             $"releasedShellKindEntries={releasedShellKindEntries} " +
             $"releasedShortcutMetadataEntries={releasedShortcutMetadataEntries} " +
             $"releasedEstimatedMB={cacheRelease.ReleasedEstimatedBytes / (1024.0 * 1024):F1}");
@@ -6584,10 +6505,6 @@ public partial class App : Application
             else if (activity.IsOnboardingOpen)
             {
                 blockReason = "onboarding-open";
-            }
-            else if (activity.IsSearchPopupVisible)
-            {
-                blockReason = "search-popup-visible";
             }
             else if (activity.IsDesktopOrganizationOpen)
             {
@@ -6962,17 +6879,6 @@ public partial class App : Application
                 _featureRuntimes?.DisposeAsync(TodoRemindersFeatureRuntimeId) ?? Task.CompletedTask,
                 shutdownGrace, abortFollowingStepsOnTimeout: true),
             ShutdownStep.Sync("notifications", () => { _nativeNotificationService?.Dispose(); _nativeNotificationService = null; }),
-            ShutdownStep.Sync("search-popup-window", () =>
-            {
-                _searchPopupWindow?.Close();
-                _searchPopupWindow = null;
-            }),
-            ShutdownStep.Bounded("search-settings", () =>
-                _searchSettings?.StopAsync() ?? Task.CompletedTask,
-                shutdownGrace, abortFollowingStepsOnTimeout: true),
-            ShutdownStep.Bounded("search-runtime", () =>
-                _featureRuntimes?.DisposeAsync(SearchFeatureRuntimeId) ?? Task.CompletedTask,
-                shutdownGrace),
             // Registry safety net: runtimes without a dedicated step (future
             // features) are released here in reverse registration order.
             // Runtimes that already ran their own step are idempotent no-ops;
@@ -7049,263 +6955,12 @@ public partial class App : Application
         }
     }
 
-    // ─── Search Services ─────────────────────────────────────────────
-
-    private void EnsureSearchFeatureShell()
-    {
-        if (!FeatureWidgetSettings.IsEnabled(SettingsService.Settings, WidgetKind.Search))
-        {
-            return;
-        }
-
-        try
-        {
-            if (_searchHistoryService is null)
-            {
-                _searchHistoryService = new SearchHistoryService();
-                Log("[Search] Lightweight history service initialized");
-            }
-
-            if (_searchHotkeyService is null)
-            {
-                _searchHotkeyService = new SearchHotkeyService(
-                    SettingsService,
-                    LocalizationService,
-                    ToggleSearchPopupAsync);
-                if (_trayWindow is not null)
-                {
-                    var trayHwnd = WindowNative.GetWindowHandle(_trayWindow);
-                    if (trayHwnd != IntPtr.Zero)
-                    {
-                        _searchHotkeyService.Attach(trayHwnd);
-                        Log("[Search] Hotkey service attached");
-                    }
-                }
-            }
-        }
-        catch (Exception ex)
-        {
-            Log($"[Search] Lightweight service initialization failed: {ex}");
-            _searchHotkeyService?.Dispose();
-            _searchHotkeyService = null;
-            _searchHistoryService = null;
-        }
-    }
-
-    private void EnsureSearchServices()
-    {
-        EnsureSearchFeatureShell();
-        if (_searchHistoryService is null)
-        {
-            return;
-        }
-
-        if (_searchEngineService is not null)
-        {
-            return;
-        }
-
-        try
-        {
-            _everythingSearchService = new EverythingSearchService(SettingsService);
-            _searchEngineService = new SearchEngineService(
-                SettingsService,
-                LocalizationService,
-                _everythingSearchService,
-                QuickCaptureService);
-            _searchActionService = new SearchResultActionService(SettingsService);
-
-            _searchSettings?.OnRuntimeChanged();
-
-            Log("[Search] Everything IPC provider initialized without a DeskBox file index");
-        }
-        catch (Exception ex)
-        {
-            Log($"[Search] Initialization failed: {ex}");
-            DisposeSearchServices();
-            EnsureSearchFeatureShell();
-        }
-    }
-
-    internal SearchEngineService? EnsureSearchServicesForUserAction()
-    {
-        if (!UiDispatcherQueue.HasThreadAccess)
-        {
-            Log("[Search] Explicit maintenance action ignored outside the UI thread");
-            return null;
-        }
-
-        if (!FeatureWidgetSettings.IsEnabled(SettingsService.Settings, WidgetKind.Search))
-        {
-            return null;
-        }
-
-        EnsureSearchServices();
-        return _searchEngineService;
-    }
-
-    internal void SetSearchFeatureEnabled(bool enabled)
-    {
-        if (!UiDispatcherQueue.HasThreadAccess)
-        {
-            UiDispatcherQueue.TryEnqueue(() => SetSearchFeatureEnabled(enabled));
-            return;
-        }
-
-        // The enable/disable cycle goes through the registered runtime lease;
-        // both transitions complete synchronously on the UI thread.
-        if (enabled)
-        {
-            _ = _searchFeatureRuntime?.StartAsync();
-            PerformanceLogger.SampleMemory("search-enabled");
-            return;
-        }
-
-        _ = _searchFeatureRuntime?.DisposeAsync();
-        PerformanceLogger.SampleMemory("search-disabled");
-    }
-
-    private void DisposeSearchServices()
-    {
-        _searchSettings?.OnRuntimeStopping();
-        var popup = _searchPopupWindow;
-        _searchPopupWindow = null;
-        if (popup is not null)
-        {
-            try
-            {
-                popup.Close();
-            }
-            catch (Exception ex)
-            {
-                Log($"[Search] Popup close failed during cleanup: {ex.Message}");
-            }
-        }
-
-        _fileMetaService?.Dispose();
-        _fileMetaService = null;
-        _searchHotkeyService?.Dispose();
-        _searchHotkeyService = null;
-        _searchEngineService?.Dispose();
-        _searchEngineService = null;
-        _everythingSearchService = null;
-        _searchHistoryService = null;
-        _searchActionService = null;
-        _searchSettings?.OnRuntimeChanged();
-        Log("[Search] Services disposed");
-        ScheduleLightMemoryCleanup(completedHeavyOperation: true);
-    }
-
-    private Task ToggleSearchPopupAsync()
-    {
-        if (!UiDispatcherQueue.HasThreadAccess)
-        {
-            UiDispatcherQueue.TryEnqueue(() => _ = ToggleSearchPopupAsync());
-            return Task.CompletedTask;
-        }
-
-        // If the search feature widget has been disabled by the user,
-        // the hotkey should not be able to invoke the popup either.
-        if (!FeatureWidgetSettings.IsEnabled(SettingsService.Settings, WidgetKind.Search))
-        {
-            Log("[Search] Popup toggle blocked: search feature widget is disabled");
-            return Task.CompletedTask;
-        }
-
-        if (_searchPopupWindow?.IsPopupVisible == true)
-        {
-            _searchPopupWindow.HidePopup();
-            return Task.CompletedTask;
-        }
-
-        OpenSearchPopupCore(initialQuery: null);
-        return Task.CompletedTask;
-    }
-
-    /// <summary>
-    /// Public entry point used by the search widget (and other direct UI callers).
-    /// Unlike the global hotkey, this is intentionally idempotent: queued repeat clicks
-    /// can only focus the popup and can never hide the window that the first click opened.
-    /// </summary>
-    public void OpenSearchPopup()
-    {
-        if (!UiDispatcherQueue.HasThreadAccess)
-        {
-            UiDispatcherQueue.TryEnqueue(OpenSearchPopup);
-            return;
-        }
-
-        OpenSearchPopupCore(initialQuery: null);
-    }
-
-    /// <summary>
-    /// Opens the search popup with a pre-filled query and immediately executes the search.
-    /// Used by search history items in the widget.
-    /// </summary>
-    public void OpenSearchPopupWithQuery(string query)
-    {
-        if (!UiDispatcherQueue.HasThreadAccess)
-        {
-            UiDispatcherQueue.TryEnqueue(() => OpenSearchPopupWithQuery(query));
-            return;
-        }
-
-        OpenSearchPopupCore(query);
-    }
-
-    private void OpenSearchPopupCore(string? initialQuery)
-    {
-        if (!FeatureWidgetSettings.IsEnabled(SettingsService.Settings, WidgetKind.Search))
-        {
-            return;
-        }
-
-        EnsureSearchServices();
-        if (_searchEngineService is null)
-        {
-            return;
-        }
-
-        CancelBackgroundMemoryCleanup();
-
-        if (_searchPopupWindow is null)
-        {
-            CreateSearchPopupWindow();
-        }
-
-        if (_searchPopupWindow is not { } popup)
-        {
-            return;
-        }
-
-        PerformanceLogger.Mark(
-            "SearchPopupOpenRequested",
-            $"shellReady=true visible={popup.IsPopupVisible} " +
-            $"everythingState={_everythingSearchService?.CurrentSnapshot.State}");
-
-        if (string.IsNullOrWhiteSpace(initialQuery))
-        {
-            popup.ShowPopup();
-        }
-        else
-        {
-            popup.ShowPopupWithQuery(initialQuery);
-        }
-
-        // Everything is queried only after the user types and has explicitly enabled it.
-    }
-
     private IReadOnlyList<IntPtr> GetRaisedBandAuxiliaryWindowHandles()
     {
-        List<IntPtr> handles = new(3);
+        List<IntPtr> handles = new(2);
         if (_settingsWindow is { IsVisibleToUser: true } settings)
         {
             handles.Add(WindowNative.GetWindowHandle(settings));
-        }
-
-        if (_searchPopupWindow is { IsPopupVisible: true } popup)
-        {
-            handles.Add(popup.WindowHandle);
         }
 
         if (_desktopOrganizationWindow is { } organize)
@@ -7314,136 +6969,6 @@ public partial class App : Application
         }
 
         return handles;
-    }
-
-    private void CreateSearchPopupWindow()
-    {
-        if (_searchEngineService is null || _searchHistoryService is null)
-        {
-            return;
-        }
-
-        var stopwatch = Stopwatch.StartNew();
-        _fileMetaService?.Dispose();
-        _fileMetaService = new FileMetaService();
-        var viewModel = new ViewModels.SearchPopupViewModel(
-            _searchEngineService,
-            SettingsService,
-            LocalizationService,
-            _searchHistoryService,
-            _fileMetaService);
-        var popup = new SearchPopupWindow(viewModel, SettingsService, LocalizationService);
-        _searchPopupWindow = popup;
-        popup.ActionRequested += OnSearchActionRequested;
-        popup.ContentRequested += OnSearchContentRequested;
-        popup.PopupShown += (_, _) =>
-        {
-            CancelBackgroundMemoryCleanup();
-        };
-        popup.PopupHidden += (_, _) =>
-        {
-            ScheduleBackgroundMemoryCleanup("search-popup-hidden");
-        };
-        popup.Closed += (_, _) =>
-        {
-            if (ReferenceEquals(_searchPopupWindow, popup))
-            {
-                _searchPopupWindow = null;
-                Log("[Search] Popup shell discarded; next open will recreate it");
-            }
-
-            _fileMetaService?.Dispose();
-            _fileMetaService = null;
-            PerformanceLogger.SampleMemory("search-popup-closed");
-            // Closing a transient popup already detaches its visual tree. Do not
-            // promote that normal release into a compacting GC while visible
-            // widgets are still warm.
-            ScheduleLightMemoryCleanup();
-            ScheduleBackgroundMemoryCleanup("search-popup-closed");
-        };
-        viewModel.HidePopupCallback = () => popup.HidePopup();
-        stopwatch.Stop();
-        Log($"[Search] Popup shell created in {stopwatch.ElapsedMilliseconds} ms");
-        PerformanceLogger.SampleMemory("search-popup-created");
-    }
-
-    private void OnSearchActionRequested(object? sender, string actionId)
-    {
-        _ = HandleSearchActionAsync(actionId);
-    }
-
-    private void OnSearchContentRequested(object? sender, Models.SearchResultItem item)
-    {
-        _ = HandleSearchContentAsync(item);
-    }
-
-    private async Task HandleSearchContentAsync(Models.SearchResultItem item)
-    {
-        if (WidgetManager is null)
-        {
-            return;
-        }
-
-        switch (item.Kind)
-        {
-            case Models.SearchResultKind.Todo:
-                await WidgetManager.ShowTodoReminderTargetAsync(
-                    item.TodoWidgetId,
-                    item.TodoItemId,
-                    preferTodayFilter: false);
-                break;
-
-            case Models.SearchResultKind.QuickCapture:
-                var window = await WidgetManager.CreateOrShowQuickCaptureWidgetAsync();
-                await window.RevealItemAsync(item.QuickCaptureItemId);
-                break;
-        }
-    }
-
-    private async Task HandleSearchActionAsync(string actionId)
-    {
-        switch (actionId)
-        {
-            case "new-todo":
-                if (WidgetManager is not null)
-                {
-                    await WidgetManager.CreateTodoWidgetAsync(focusNewInput: true);
-                }
-                break;
-
-            case "new-note":
-                if (WidgetManager is not null)
-                {
-                    await WidgetManager.CreateOrShowQuickCaptureWidgetAsync(focusNewInput: true);
-                }
-                break;
-
-            case "open-settings":
-                ShowSettings("SearchSettings");
-                break;
-
-            case "toggle-widgets":
-                await ToggleTrayWidgetsAsync("action-command");
-                break;
-
-            case "toggle-theme":
-                ToggleTheme();
-                break;
-
-            case "open-todo":
-                if (WidgetManager is not null)
-                {
-                    await WidgetManager.CreateTodoWidgetAsync();
-                }
-                break;
-
-            case "open-quickcapture":
-                if (WidgetManager is not null)
-                {
-                    await WidgetManager.CreateOrShowQuickCaptureWidgetAsync();
-                }
-                break;
-        }
     }
 
     private void ToggleTheme()

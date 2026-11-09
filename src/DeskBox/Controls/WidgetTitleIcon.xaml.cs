@@ -345,7 +345,6 @@ public sealed partial class WidgetTitleIcon : UserControl
                 WidgetTitleIconKind.Music => "FilledMusicPath",
                 WidgetTitleIconKind.Weather => "FilledWeatherPath",
                 WidgetTitleIconKind.Tags => "FilledTagsPath",
-                WidgetTitleIconKind.Search => "FilledSearchPath",
                 WidgetTitleIconKind.SystemMonitor => "FilledSystemMonitorPath",
                 _ => "FilledDefaultPath"
             }
@@ -358,7 +357,6 @@ public sealed partial class WidgetTitleIcon : UserControl
                 WidgetTitleIconKind.Music => "LineMusicPath",
                 WidgetTitleIconKind.Weather => "LineWeatherPath",
                 WidgetTitleIconKind.Tags => "LineTagsPath",
-                WidgetTitleIconKind.Search => "LineSearchPath",
                 WidgetTitleIconKind.SystemMonitor => "LineSystemMonitorPath",
                 _ => "LineDefaultPath"
             };
@@ -388,8 +386,7 @@ public sealed partial class WidgetTitleIcon : UserControl
             or WidgetTitleIconKind.MappedFolder
             or WidgetTitleIconKind.QuickCapture
             or WidgetTitleIconKind.Todo
-            or WidgetTitleIconKind.Music
-            or WidgetTitleIconKind.Search;
+            or WidgetTitleIconKind.Music;
     }
 
     private void ApplyLegacyGlyphFallback()

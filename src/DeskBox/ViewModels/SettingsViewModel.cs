@@ -186,7 +186,6 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         DeskBox.Features.Backup.BackupSettingsViewModel backupSettings,
         DeskBox.Contracts.IQuickCaptureSettings quickCaptureSettings,
         DeskBox.Features.QuickCapture.QuickCaptureSettingsViewModel quickCaptureSettingsEditor,
-        DeskBox.Contracts.ISearchFeatureSettings searchFeatureSettings,
         DeskBox.Features.Appearance.AppearanceSettingsViewModel appearanceSettings,
         DeskBox.Features.Capsule.CapsuleSettingsViewModel capsuleSettings,
         DeskBox.Features.Interaction.InteractionSettingsViewModel interactionSettings,
@@ -212,7 +211,6 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         _quickCaptureSettings = quickCaptureSettings;
         _quickCaptureSettingsEditor = quickCaptureSettingsEditor;
         _weatherSettings = weatherSettings;
-        _searchFeatureSettings = searchFeatureSettings;
         _appearanceSettings = appearanceSettings;
         _capsuleSettings = capsuleSettings;
         _interactionSettings = interactionSettings;
@@ -299,7 +297,6 @@ _ = RefreshQuickAccessStateAsync();
         _settingsService.SettingsChanged += OnSettingsChanged;
         _quickCaptureSettings.Changed += OnQuickCaptureSettingsChanged;
         _quickCaptureSettings.DiagnosticsChanged += OnQuickCaptureClipboardDiagnosticsChanged;
-        _searchFeatureSettings.FeatureChanged += OnSearchFeatureChanged;
         _themeService.AppearanceChanged += OnAppearanceChanged;
         _localizationService.LanguageChanged += OnLanguageChanged;
 
@@ -382,7 +379,6 @@ _ = RefreshQuickAccessStateAsync();
         _updateOperationCts?.Dispose();
         _quickCaptureSettings.Changed -= OnQuickCaptureSettingsChanged;
         _quickCaptureSettings.DiagnosticsChanged -= OnQuickCaptureClipboardDiagnosticsChanged;
-        _searchFeatureSettings.FeatureChanged -= OnSearchFeatureChanged;
 
         _settingsService.SettingsChanged -= OnSettingsChanged;
         _themeService.AppearanceChanged -= OnAppearanceChanged;

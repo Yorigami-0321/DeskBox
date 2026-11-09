@@ -697,7 +697,6 @@ public sealed partial class WidgetManager
             WidgetKind.Todo => "Todo.Title",
             WidgetKind.Weather => "Weather.Title",
             WidgetKind.Music => "Music.Title",
-            WidgetKind.Search => "Search.Title",
             WidgetKind.Glance => "Glance.Title",
             WidgetKind.Tags => "Tags.Title",
             WidgetKind.SystemMonitor => "SystemMonitor.Title",

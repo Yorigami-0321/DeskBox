@@ -78,25 +78,6 @@ public sealed class SettingsIpcFacadeTests : IDisposable
 
         public void SetEnabled(bool enabled) => SetEnabledArg = enabled;
 
-        public bool SearchHotkeyRegistered = true;
-        public bool? SearchSetEnabledArg;
-        public GlobalHotkeyGesture? SearchAppliedGesture;
-        public bool SearchApplyResult = true;
-        public bool SearchRefreshCalled;
-
-        public Task<bool> IsSearchHotkeyRegisteredAsync() => Task.FromResult(SearchHotkeyRegistered);
-
-        public void SetSearchHotkeyEnabled(bool enabled) => SearchSetEnabledArg = enabled;
-
-        public bool TryApplySearchHotkeyGesture(GlobalHotkeyGesture gesture, out string? error)
-        {
-            SearchAppliedGesture = gesture;
-            error = SearchApplyResult ? null : "search apply failed";
-            return SearchApplyResult;
-        }
-
-        public void RefreshSearchHotkeyRegistration() => SearchRefreshCalled = true;
-
         public DesktopDoubleClickToggleResult TrySetDesktopDoubleClickEnabled(bool enabled)
         {
             DoubleClickArg = enabled;
@@ -299,68 +280,6 @@ public sealed class SettingsIpcFacadeTests : IDisposable
         {
             await client.DisposeAsync();
             await server.DisposeAsync();
-        }
-    }
-
-    [Fact]
-    public async Task SearchHotkeyFacade_RoundTripsEveryCommandAndBridgesTheController()
-    {
-        // Batch R9: the search section's hotkey card was dead in the retail
-        // settings host (getHotkey: () => null) — these commands are its
-        // only path to the live service in the MAIN process.
-        var settings = new SettingsService(_tempRoot);
-        var loop = await StartLoopbackAsync(PipeName(), settings);
-        var hotkey = loop.Hotkey;
-        var client = loop.Client;
-        try
-        {
-            var remote = new RemoteSettingsHotkeyActions(client);
-
-            hotkey.SearchHotkeyRegistered = true;
-            Assert.True(await remote.IsSearchHotkeyRegisteredAsync());
-
-            remote.SetSearchHotkeyEnabled(false);
-            await UntilAsync(() => hotkey.SearchSetEnabledArg is false);
-            Assert.False(hotkey.SearchSetEnabledArg);
-
-            var gesture = new GlobalHotkeyGesture(HotkeyModifierKeys.Alt, 0x44);
-            Assert.True(remote.TryApplySearchHotkeyGesture(gesture, out string? applyError));
-            Assert.Null(applyError);
-            Assert.Equal(gesture, hotkey.SearchAppliedGesture);
-
-            hotkey.SearchApplyResult = false;
-            Assert.False(remote.TryApplySearchHotkeyGesture(gesture, out string? failedError));
-            Assert.Equal("search apply failed", failedError);
-            hotkey.SearchApplyResult = true;
-
-            remote.RefreshSearchHotkeyRegistration();
-            await UntilAsync(() => hotkey.SearchRefreshCalled);
-            Assert.True(hotkey.SearchRefreshCalled);
-
-            // The coordinator-facing adapter rides the same commands; the
-            // registration cache converges off the async probe (deep review
-            // R13-3), and the main-hotkey ownership predicate is a local
-            // mirror computation.
-            var controller = new RemoteSearchHotkeyController(
-                remote,
-                () => new GlobalHotkeyGesture(HotkeyModifierKeys.Alt, 0x44),
-                () => DeskBox.Models.GlobalHotkeyActivation.FromChord(gesture));
-            await UntilAsync(() => controller.IsRegistered);
-            Assert.True(controller.IsRegistered);
-            Assert.Equal(
-                new GlobalHotkeyGesture(HotkeyModifierKeys.Alt, 0x44),
-                controller.CurrentGesture);
-            controller.SetEnabled(true);
-            await UntilAsync(() => hotkey.SearchSetEnabledArg is true);
-            Assert.True(hotkey.SearchSetEnabledArg);
-            Assert.True(controller.IsGestureOwnedByMainHotkey(gesture));
-            Assert.False(controller.IsGestureOwnedByMainHotkey(
-                new GlobalHotkeyGesture(HotkeyModifierKeys.Control, 0x44)));
-        }
-        finally
-        {
-            await client.DisposeAsync();
-            await loop.Server.DisposeAsync();
         }
     }
 

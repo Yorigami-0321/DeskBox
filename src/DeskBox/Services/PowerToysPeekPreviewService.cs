@@ -449,7 +449,7 @@ public sealed class PowerToysPeekPreviewService
     /// <summary>
     /// Traditional uninstall keys miss the store (MSIX) install of
     /// PowerToys; they are only the fallback after the running process's
-    /// own image path. Mirrors the EverythingInstallationDetector shape.
+    /// own image path.
     /// </summary>
     private static (string? InstallLocation, string? DisplayVersion)? TryFindPowerToysUninstallEntry()
     {

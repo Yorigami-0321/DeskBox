@@ -1,7 +1,6 @@
 using DeskBox.Contracts;
 using DeskBox.Services;
 using DeskBox.Features.Backup;
-using DeskBox.Features.Search;
 using DeskBox.Features.Todo;
 using DeskBox.ViewModels;
 using DeskBox.Views;
@@ -22,7 +21,6 @@ internal sealed record SettingsWindowFactoryInput(
     LocalizationService LocalizationService,
     TodoSettingsCoordinator TodoSettings,
     FeatureWidgetsSettingsCoordinator FeatureWidgetsSettings,
-    SearchSettingsCoordinator SearchSettings,
     IBackupSettings BackupSettings,
     IBackupRestoreActions BackupRestoreActions,
     IQuickCaptureSettings QuickCaptureSettings,
@@ -62,10 +60,6 @@ internal sealed record SettingsWindowFactoryInput(
                 T,
                 Format,
                 ex => ReportError("[WeatherSettings] Update failed:", ex)),
-            new SearchSettingsViewModel(
-                SearchSettings,
-                TryEnqueueOnUi,
-                ex => ReportError("[SearchSettings] Operation failed:", ex)),
             new BackupSettingsViewModel(
                 BackupSettings,
                 TryEnqueueOnUi,
@@ -81,7 +75,6 @@ internal sealed record SettingsWindowFactoryInput(
                 Format,
                 message => App.Log(message),
                 ex => ReportError("[QuickCapture] Settings operation failed:", ex)),
-            SearchSettings,
             BackupCommands,
             new DeskBox.Features.Appearance.AppearanceSettingsViewModel(AppearanceSettings, T),
             new DeskBox.Features.Capsule.CapsuleSettingsViewModel(CapsuleSettings, T, Format),

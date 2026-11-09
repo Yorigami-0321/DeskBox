@@ -198,11 +198,7 @@ public sealed class DeskBoxDiagnosticsBundleServiceTests : IDisposable
                 0,
                 0,
                 0,
-                false,
-                false,
-                false,
-                3,
-                70),
+                false),
             new DeskBoxSettingsDiagnostic(
                 SettingsLoadRecoveryState.Primary,
                 false,

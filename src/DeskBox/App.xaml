@@ -87,7 +87,7 @@
                 </ResourceDictionary>
                 <!-- High contrast stays system-owned: RequestedTheme is ignored
                      by the framework under high contrast, so the widget windows
-                     and search popup resolve these keys against the system
+                     and other popups resolve these keys against the system
                      contrast palette. Without this dictionary the lookup chain
                      (HighContrast -> Default at the time it was authored) found
                      nothing and ThemeResource resolution failed at parse time.

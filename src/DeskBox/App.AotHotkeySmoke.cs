@@ -26,7 +26,6 @@ public partial class App
     private const string AotHotkeyReleasePhase = "Release";
     private const string AotHotkeySmokeDirectoryName = "aot-hotkey-smoke";
     private const int AotGlobalConflictHotkeyId = 0x4452;
-    private const int AotSearchConflictHotkeyId = 0x4453;
     private const uint AotModAlt = 0x0001;
     private const uint AotModControl = 0x0002;
     private const uint AotModShift = 0x0004;
@@ -166,46 +165,32 @@ public partial class App
             "The hotkey host HWND is invalid.");
 
         var settings = SettingsService.Settings;
-        FeatureWidgetSettings.SetEnabled(settings, WidgetKind.Search, true);
-        SetSearchFeatureEnabled(true);
-        RequireAotHotkey(
-            result,
-            _searchHotkeyService is not null,
-            "search-service-ready",
-            "Search hotkey service was not initialized.");
-
         GlobalHotkeyService global = GlobalHotkeyService!;
-        SearchHotkeyService search = _searchHotkeyService!;
         result.StartupGlobalEnabled = settings.GlobalHotkeyEnabled;
         result.StartupGlobalRegistered = global.IsRegistered;
-        result.StartupSearchEnabled = settings.SearchHotkeyEnabled;
-        result.StartupSearchRegistered = search.IsRegistered;
         if (result.Phase == AotHotkeyPrimaryPhase)
         {
             RequireAotHotkey(
                 result,
-                !result.StartupGlobalEnabled && !result.StartupGlobalRegistered &&
-                !result.StartupSearchEnabled && !result.StartupSearchRegistered,
+                !result.StartupGlobalEnabled && !result.StartupGlobalRegistered,
                 "primary-startup-disabled",
-                "Primary phase must start with both hotkeys disabled.");
+                "Primary phase must start with the hotkey disabled.");
         }
         else
         {
             RequireAotHotkey(
                 result,
-                result.StartupGlobalEnabled && result.StartupGlobalRegistered &&
-                result.StartupSearchEnabled && result.StartupSearchRegistered,
+                result.StartupGlobalEnabled && result.StartupGlobalRegistered,
                 "release-startup-reregistered",
-                "Release phase did not re-register both gestures after prior shutdown.");
+                "Release phase did not re-register the gesture after prior shutdown.");
         }
 
         global.SetEnabled(false);
-        search.SetEnabled(false);
         RequireAotHotkey(
             result,
-            !global.IsRegistered && !search.IsRegistered,
+            !global.IsRegistered,
             "disabled-unregistered",
-            "Disabling did not unregister both hotkeys.");
+            "Disabling did not unregister the hotkey.");
 
         var globalGesture = new GlobalHotkeyGesture(
             HotkeyModifierKeys.Control | HotkeyModifierKeys.Shift,
@@ -223,41 +208,21 @@ public partial class App
             "global-standard-registered",
             $"Global standard registration failed: {globalError}");
 
-        var searchGesture = new GlobalHotkeyGesture(
-            HotkeyModifierKeys.Control | HotkeyModifierKeys.Alt,
-            (int)VirtualKey.F24);
-        bool searchApplied = search.TryApplyGesture(searchGesture);
-        search.SetEnabled(true);
-        result.SearchStandardApplySucceeded = searchApplied;
-        result.SearchStandardRegistered = search.IsRegistered;
-        RequireAotHotkey(
-            result,
-            searchApplied && search.IsRegistered &&
-            search.CurrentGesture.Equals(searchGesture),
-            "search-standard-registered",
-            "Search standard registration failed.");
-
         await TriggerGlobalStandardHotkeyAsync(global, result);
-        await TriggerSearchStandardHotkeyAsync(search, result);
         ExerciseGlobalConflictRollback(trayWindowHandle, global, globalGesture, result);
-        ExerciseSearchConflictRollback(trayWindowHandle, search, searchGesture, result);
         await ExerciseReservedHookLifecycleAsync(global, globalGesture, result);
 
         global.SetEnabled(false);
-        search.SetEnabled(false);
         RequireAotHotkey(
             result,
-            !global.IsRegistered && !search.IsRegistered,
+            !global.IsRegistered,
             "final-disable-unregistered",
-            "Final disable did not unregister both hotkeys.");
+            "Final disable did not unregister the hotkey.");
         global.SetEnabled(true);
-        search.SetEnabled(true);
         result.FinalGlobalRegistered = global.IsRegistered;
-        result.FinalSearchRegistered = search.IsRegistered;
         RequireAotHotkey(
             result,
-            result.FinalGlobalRegistered && result.FinalSearchRegistered &&
-            !global.UsesReservedHook,
+            result.FinalGlobalRegistered && !global.UsesReservedHook,
             "final-reregistered",
             "Final re-registration failed.");
     }
@@ -296,42 +261,6 @@ public partial class App
             result.GlobalDispatchFailureDelta == 0,
             "global-registerhotkey-dispatched",
             "Global RegisterHotKey did not dispatch exactly once.");
-    }
-
-    private static async Task TriggerSearchStandardHotkeyAsync(
-        SearchHotkeyService service,
-        AotHotkeySmokeResult result)
-    {
-        long receivedBefore = service.ReceivedCount;
-        long invokedBefore = service.InvocationCount;
-        long dispatchFailuresBefore = service.DispatchFailureCount;
-        ushort[] modifiers = [0x11, 0x12]; // Ctrl + Alt
-        result.SearchSyntheticInputSent = Win32Helper.TrySendTaggedKeyChord(
-            modifiers,
-            (ushort)VirtualKey.F24,
-            AotHotkeyInjectedEventTag,
-            out int inputError);
-        result.SearchSyntheticInputError = inputError;
-        RequireAotHotkey(
-            result,
-            result.SearchSyntheticInputSent,
-            "search-synthetic-input-sent",
-            $"Search test chord SendInput failed with {inputError}.");
-        bool invoked = await WaitForAotHotkeyConditionAsync(
-            () => service.InvocationCount > invokedBefore,
-            TimeSpan.FromSeconds(5));
-        await Task.Delay(100);
-        result.SearchReceivedDelta = service.ReceivedCount - receivedBefore;
-        result.SearchInvocationDelta = service.InvocationCount - invokedBefore;
-        result.SearchDispatchFailureDelta =
-            service.DispatchFailureCount - dispatchFailuresBefore;
-        RequireAotHotkey(
-            result,
-            invoked && result.SearchReceivedDelta == 1 &&
-            result.SearchInvocationDelta == 1 &&
-            result.SearchDispatchFailureDelta == 0,
-            "search-registerhotkey-dispatched",
-            "Search RegisterHotKey did not dispatch exactly once.");
     }
 
     private static void ExerciseGlobalConflictRollback(
@@ -374,46 +303,6 @@ public partial class App
             result.GlobalConflictHolderReleased = Win32Helper.UnregisterHotKey(
                 trayWindowHandle,
                 AotGlobalConflictHotkeyId);
-        }
-    }
-
-    private static void ExerciseSearchConflictRollback(
-        IntPtr trayWindowHandle,
-        SearchHotkeyService service,
-        GlobalHotkeyGesture expectedGesture,
-        AotHotkeySmokeResult result)
-    {
-        bool holderRegistered = Win32Helper.RegisterHotKey(
-            trayWindowHandle,
-            AotSearchConflictHotkeyId,
-            AotModControl | AotModShift | AotModNoRepeat,
-            (uint)VirtualKey.F21);
-        result.SearchConflictHolderRegistered = holderRegistered;
-        result.SearchConflictHolderError = holderRegistered ? 0 : Marshal.GetLastWin32Error();
-        RequireAotHotkey(
-            result,
-            holderRegistered,
-            "search-conflict-holder-registered",
-            $"Search conflict holder failed with {result.SearchConflictHolderError}.");
-        try
-        {
-            bool applied = service.TryApplyGesture(new GlobalHotkeyGesture(
-                HotkeyModifierKeys.Control | HotkeyModifierKeys.Shift,
-                (int)VirtualKey.F21));
-            result.SearchConflictApplyReturned = applied;
-            result.SearchConflictRolledBack = !applied && service.IsRegistered &&
-                service.CurrentGesture.Equals(expectedGesture);
-            RequireAotHotkey(
-                result,
-                result.SearchConflictRolledBack,
-                "search-conflict-rolled-back",
-                "Search conflict did not restore the previous registration.");
-        }
-        finally
-        {
-            result.SearchConflictHolderReleased = Win32Helper.UnregisterHotKey(
-                trayWindowHandle,
-                AotSearchConflictHotkeyId);
         }
     }
 
@@ -565,8 +454,6 @@ internal sealed class AotHotkeySmokeResult
     public bool PhysicalRecorderVerified { get; set; }
     public bool StartupGlobalEnabled { get; set; }
     public bool StartupGlobalRegistered { get; set; }
-    public bool StartupSearchEnabled { get; set; }
-    public bool StartupSearchRegistered { get; set; }
     public bool GlobalStandardApplySucceeded { get; set; }
     public string? GlobalStandardApplyError { get; set; }
     public bool GlobalStandardRegistered { get; set; }
@@ -576,24 +463,12 @@ internal sealed class AotHotkeySmokeResult
     public long GlobalReceivedDelta { get; set; }
     public long GlobalInvocationDelta { get; set; }
     public long GlobalDispatchFailureDelta { get; set; }
-    public bool SearchStandardApplySucceeded { get; set; }
-    public bool SearchStandardRegistered { get; set; }
-    public bool SearchSyntheticInputSent { get; set; }
-    public int SearchSyntheticInputError { get; set; }
-    public long SearchReceivedDelta { get; set; }
-    public long SearchInvocationDelta { get; set; }
-    public long SearchDispatchFailureDelta { get; set; }
     public bool GlobalConflictHolderRegistered { get; set; }
     public int GlobalConflictHolderError { get; set; }
     public bool GlobalConflictApplyReturned { get; set; }
     public string? GlobalConflictApplyError { get; set; }
     public bool GlobalConflictRolledBack { get; set; }
     public bool GlobalConflictHolderReleased { get; set; }
-    public bool SearchConflictHolderRegistered { get; set; }
-    public int SearchConflictHolderError { get; set; }
-    public bool SearchConflictApplyReturned { get; set; }
-    public bool SearchConflictRolledBack { get; set; }
-    public bool SearchConflictHolderReleased { get; set; }
     public bool ReservedHookApplySucceeded { get; set; }
     public string? ReservedHookApplyError { get; set; }
     public bool ReservedHookRegistered { get; set; }
@@ -607,7 +482,6 @@ internal sealed class AotHotkeySmokeResult
     public string? ReservedHookRestoreError { get; set; }
     public bool ReservedHookStopped { get; set; }
     public bool FinalGlobalRegistered { get; set; }
-    public bool FinalSearchRegistered { get; set; }
     public bool NormalShutdownRequested { get; set; }
     public List<string> Steps { get; set; } = [];
     public string? Error { get; set; }

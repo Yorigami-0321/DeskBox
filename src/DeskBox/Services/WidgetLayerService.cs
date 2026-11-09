@@ -354,7 +354,7 @@ public static class WidgetLayerService
     }
 
     /// <summary>
-    /// Holds a DeskBox-owned auxiliary window (search popup, settings, desktop
+    /// Holds a DeskBox-owned auxiliary window (settings, desktop
     /// organization) in the topmost band above a raised quick-reveal widget
     /// group. The caller owns the release; see <see cref="ReleaseRaisedBandWindow"/>.
     /// </summary>

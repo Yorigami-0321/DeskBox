@@ -48,7 +48,6 @@ public sealed class SettingsIpcServer : IAsyncDisposable
         // dispatch before the first and leave the OLDER registration
         // standing (same disease C/F family as the layout writes).
         SettingsIpcMethods.HotkeySetEnabled,
-        SettingsIpcMethods.SearchHotkeySetEnabled,
     };
 
     // Bounded: a wedged ordered consumer applies backpressure to the read

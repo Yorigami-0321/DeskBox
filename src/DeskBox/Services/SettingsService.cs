@@ -368,7 +368,6 @@ public const string WeatherDataSourceMsn = WeatherOptionKinds.DataSourceMsn;
 public const string WeatherDataSourceOpenMeteo = WeatherOptionKinds.DataSourceOpenMeteo;
 public const int WeatherRefreshMinMinutes = WeatherOptionKinds.RefreshMinMinutes;
 public const int WeatherRefreshMaxMinutes = WeatherOptionKinds.RefreshMaxMinutes;
-public const int DefaultSearchMaxResults = 100;
 
     internal static IReadOnlyDictionary<string, DefaultPreferencePreservationReason>
         DefaultPreferencePreservationPolicy { get; } =
@@ -686,23 +685,6 @@ settings.WeatherShowHumidity = true;
 settings.WeatherShowWind = true;
 settings.WeatherShowPressure = false;
 settings.WeatherRefreshIntervalMinutes = 60;
-        settings.SearchHotkeyEnabled = false;
-        settings.SearchHotkeyModifiers = (int)HotkeyModifierKeys.Alt;
-        settings.SearchHotkeyKey = 0x44;
-        settings.SearchDisplayMode = "Spotlight";
-        settings.SearchIncludeDeskBoxContent = true;
-        settings.SearchEverythingEnabled = false;
-        settings.SearchEverythingExecutablePath = string.Empty;
-        settings.SearchEverythingAdvancedSyntaxEnabled = false;
-        settings.SearchShowRecommendations = true;
-        settings.SearchMaxResults = DefaultSearchMaxResults;
-        settings.SearchDefaultTab = "all";
-        settings.SearchSaveHistory = true;
-        settings.SearchAppIconAnimation = 0;
-        settings.SearchPopupCustomX = null;
-        settings.SearchPopupCustomY = null;
-        settings.SearchPopupCustomWidth = null;
-        settings.SearchPopupCustomHeight = null;
         settings.TodoNewTaskPosition = TodoNewTaskPositionTop;
         settings.TodoDefaultFilter = TodoDefaultFilterAll;
         settings.TodoTabStyle = WidgetTabStyleButton;
@@ -912,7 +894,6 @@ settings.FocusClickedWidgetOnRaise = false;
                 // enabled rule's target as deleted, disabling the rule and
                 // the master switch on every boot (feedback #553 family).
                 changed |= NormalizeHotkeySettings(_settings);
-                changed |= NormalizeSearchSettings(_settings);
                 changed |= NormalizeQuickCaptureSettings(_settings);
                 changed |= NormalizeTodoSettings(_settings);
                 changed |= NormalizeWeatherSettings(_settings);
@@ -1662,7 +1643,6 @@ settings.FocusClickedWidgetOnRaise = false;
                 NormalizeOrganizerSettings(_settings);
             }
             NormalizeHotkeySettings(_settings);
-            NormalizeSearchSettings(_settings);
             NormalizeQuickCaptureSettings(_settings);
             NormalizeTodoSettings(_settings);
             NormalizeWeatherSettings(_settings);
@@ -3649,64 +3629,6 @@ settings.FocusClickedWidgetOnRaise = false;
             settings.GlobalHotkeyActivationKind = DefaultGlobalHotkeyActivationKind;
             settings.GlobalHotkeyModifiers = DefaultGlobalHotkeyModifiers;
             settings.GlobalHotkeyKey = DefaultGlobalHotkeyKey;
-            changed = true;
-        }
-
-        // Normalize the search hotkey modifiers.
-        int searchNormalizedModifiers = (int)((Models.HotkeyModifierKeys)settings.SearchHotkeyModifiers &
-            (Models.HotkeyModifierKeys.Alt | Models.HotkeyModifierKeys.Control | Models.HotkeyModifierKeys.Shift));
-        if (settings.SearchHotkeyModifiers != searchNormalizedModifiers)
-        {
-            settings.SearchHotkeyModifiers = searchNormalizedModifiers;
-            changed = true;
-        }
-
-        // Alt+Space rides the opt-in reserved hook and can only belong to one
-        // hotkey at a time. When the main hotkey owns it, reset a saved Alt+Space
-        // search gesture to the working default (Alt+D) so search stays usable.
-        var searchModifiers = (Models.HotkeyModifierKeys)settings.SearchHotkeyModifiers;
-        if (settings.SearchHotkeyKey == 0x20 && searchModifiers == Models.HotkeyModifierKeys.Alt &&
-            settings.GlobalHotkeyActivationKind == Models.HotkeyActivationKind.Chord &&
-            settings.GlobalHotkeyModifiers == (int)Models.HotkeyModifierKeys.Alt &&
-            settings.GlobalHotkeyKey == 0x20)
-        {
-            settings.SearchHotkeyModifiers = (int)Models.HotkeyModifierKeys.Alt;
-            settings.SearchHotkeyKey = 0x44; // D
-            changed = true;
-        }
-
-        return changed;
-    }
-
-    private static bool NormalizeSearchSettings(AppSettings settings)
-    {
-        bool changed = false;
-
-        string everythingPath = settings.SearchEverythingExecutablePath?.Trim() ?? string.Empty;
-        if (!string.Equals(
-                settings.SearchEverythingExecutablePath,
-                everythingPath,
-                StringComparison.Ordinal))
-        {
-            settings.SearchEverythingExecutablePath = everythingPath;
-            changed = true;
-        }
-
-        string normalized = settings.SearchDefaultTab?.Trim().ToLowerInvariant() ?? "all";
-        if (normalized is not ("all" or "app" or "file" or "deskbox"))
-        {
-            normalized = "all";
-        }
-
-        if (!string.Equals(settings.SearchDefaultTab, normalized, StringComparison.Ordinal))
-        {
-            settings.SearchDefaultTab = normalized;
-            changed = true;
-        }
-
-        if (settings.SearchMaxResults is not (50 or 100 or 200))
-        {
-            settings.SearchMaxResults = DefaultSearchMaxResults;
             changed = true;
         }
 
