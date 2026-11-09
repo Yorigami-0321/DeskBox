@@ -915,6 +915,9 @@ public sealed partial class ContentWidgetWindow : WidgetWindowBase, IDesktopWidg
         ContentWidgetShell.ShowHoverButtons = SettingsService.Settings.ShowHoverButtons;
         ApplyTitleBarLayout();
         _contentHost.ApplyAppearance(invalidate: invalidateContent);
+        // Group member switches funnel through here; keep the window's
+        // shadow opt-out as the last DWM word for the new member's chrome.
+        ReassertWindowShadowPolicy("appearance-preview");
     }
 
     public void SetTrayAnimationOffsetOverride(

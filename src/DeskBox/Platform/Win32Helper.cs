@@ -922,6 +922,7 @@ public static partial class Win32Helper
     public const uint WM_QUIT = 0x0012;
     public const uint PM_NOREMOVE = 0x0000;
     public const int WM_MOUSEACTIVATE = 0x0021;
+    public const int WM_DWMNCRENDERINGCHANGED = 0x031F;
     public const int WM_LBUTTONDOWN = 0x0201;
     public const int WM_MOUSEWHEEL = 0x020A;
     public const int WM_RBUTTONDOWN = 0x0204;

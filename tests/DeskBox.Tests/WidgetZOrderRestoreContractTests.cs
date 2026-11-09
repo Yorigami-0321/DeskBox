@@ -963,10 +963,33 @@ public sealed class WidgetZOrderRestoreContractTests
 
         string bounds = File.ReadAllText(TestPaths.FromRepository(
             "src/DeskBox/Views/WidgetWindowBase.Bounds.cs"));
-        Assert.Contains("DisableWindowDropShadow(HWnd)", bounds, StringComparison.Ordinal);
+        string reassert = SliceMethod(
+            bounds,
+            "protected void ReassertWindowShadowPolicy",
+            "protected double GetCornerRadiusFromPreference");
+        Assert.Contains("DisableWindowDropShadow(HWnd)", reassert, StringComparison.Ordinal);
+        // Frame-level DWM writes rebuild the frame and drop the policy; every
+        // mutation point must reassert the opt-out afterwards.
+        Assert.Contains("ReassertWindowShadowPolicy(\"init\")", bounds, StringComparison.Ordinal);
+        Assert.Contains("ReassertWindowShadowPolicy(\"root-loaded\")", bounds, StringComparison.Ordinal);
+        Assert.Contains("ReassertWindowShadowPolicy(\"corner-preference\")", bounds, StringComparison.Ordinal);
+        Assert.Contains("ReassertWindowShadowPolicy(\"dwm-border\")", bounds, StringComparison.Ordinal);
+        // The OS notifies the window whenever NC rendering flips; that event
+        // must restore the opt-out so no unknown DWM path can reintroduce it.
+        Assert.Contains("WM_DWMNCRENDERINGCHANGED", bounds, StringComparison.Ordinal);
+        Assert.Contains(
+            "ReassertWindowShadowPolicy(\"dwm-nc-rendering-changed\")",
+            bounds,
+            StringComparison.Ordinal);
         string backdrop = File.ReadAllText(TestPaths.FromRepository(
             "src/DeskBox/Views/WidgetWindowBase.Backdrop.cs"));
-        Assert.Contains("DisableWindowDropShadow(HWnd)", backdrop, StringComparison.Ordinal);
+        Assert.Contains("ReassertWindowShadowPolicy(\"backdrop-reuse\")", backdrop, StringComparison.Ordinal);
+        Assert.Contains("ReassertWindowShadowPolicy(\"backdrop-applied\")", backdrop, StringComparison.Ordinal);
+        // Tab switches reapply the member's chrome through the appearance
+        // preview; the last DWM word there must stay shadow-free.
+        string contentWindowCode = File.ReadAllText(TestPaths.FromRepository(
+            "src/DeskBox/Views/ContentWidgetWindow.xaml.cs"));
+        Assert.Contains("ReassertWindowShadowPolicy(\"appearance-preview\")", contentWindowCode, StringComparison.Ordinal);
         // SWP_FRAMECHANGED re-evaluates the frame and can re-enable NC
         // rendering, so the no-activate style flip must reapply the policy.
         string layer = File.ReadAllText(TestPaths.FromRepository(
@@ -976,6 +999,10 @@ public sealed class WidgetZOrderRestoreContractTests
             "private static void SetWindowNoActivate",
             "private static bool ShouldAttachRestingWindowToDesktop");
         Assert.Contains("DisableWindowDropShadow(windowHandle)", noActivate, StringComparison.Ordinal);
+        // Tray show/hide toggles WS_EX_TRANSPARENT with SWP_FRAMECHANGED.
+        string inputSuppression = File.ReadAllText(TestPaths.FromRepository(
+            "src/DeskBox/Views/WidgetWindowBase.InputSuppression.cs"));
+        Assert.Contains("ReassertWindowShadowPolicy(\"tray-input-style\")", inputSuppression, StringComparison.Ordinal);
     }
 
     private static string SliceMethod(string source, string startMarker, string endMarker)

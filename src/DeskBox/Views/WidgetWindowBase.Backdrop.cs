@@ -54,6 +54,7 @@ public abstract partial class WidgetWindowBase
         if (CanReuseAppliedBackdrop(signature))
         {
             ApplySurfaceStyle();
+            ReassertWindowShadowPolicy("backdrop-reuse");
             return;
         }
 
@@ -70,7 +71,6 @@ public abstract partial class WidgetWindowBase
             {
                 Win32Helper.SetWindowTheme(HWnd, isDark);
                 Win32Helper.ApplyFullWindowFrame(HWnd);
-                Win32Helper.DisableWindowDropShadow(HWnd);
                 ApplyDwmBorderStyle(isDark);
             }
 
@@ -190,6 +190,9 @@ public abstract partial class WidgetWindowBase
         }
 
         ApplySurfaceStyle();
+        // Backdrop controllers and the system-backdrop attribute re-enter
+        // DWM; restore the shadow opt-out after the last mutation.
+        ReassertWindowShadowPolicy("backdrop-applied");
     }
 
     private bool ApplyLegacyAccentBackdrop(Windows.UI.Color tintColor, double opacity)

@@ -85,5 +85,6 @@ public abstract partial class WidgetWindowBase
             Win32Helper.SWP_NOZORDER |
             Win32Helper.SWP_NOACTIVATE |
             Win32Helper.SWP_FRAMECHANGED);
+        ReassertWindowShadowPolicy("tray-input-style");
     }
 }

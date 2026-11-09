@@ -104,7 +104,7 @@ public abstract partial class WidgetWindowBase
         // Stacked widget windows must not cast DWM shadows on each other;
         // the system re-raises the clicked window on every press, and no
         // peer z-order can keep its active shadow off the widget below.
-        Win32Helper.DisableWindowDropShadow(HWnd);
+        ReassertWindowShadowPolicy("init");
         InitializeWidgetCollapse();
         InitializeWidgetGrouping();
         WidgetShellControl.HostedContentChanged -= WidgetShellControl_HostedContentChanged;
@@ -118,7 +118,7 @@ public abstract partial class WidgetWindowBase
             ApplyWidgetForegroundAppearance();
             ApplyBackdropPreference();
             Win32Helper.ApplyFullWindowFrame(HWnd);
-            Win32Helper.DisableWindowDropShadow(HWnd);
+            ReassertWindowShadowPolicy("root-loaded");
             if (SupportsBackdropRefresh)
             {
                 QueueBackdropRefresh();
@@ -530,6 +530,21 @@ public abstract partial class WidgetWindowBase
             return new IntPtr(Win32Helper.MA_NOACTIVATE);
         }
 
+        if (message == Win32Helper.WM_DWMNCRENDERINGCHANGED)
+        {
+            // Any DWM frame or backdrop write can flip non-client rendering
+            // back on; reassert the widget shadow opt-out once the native
+            // callback frame has unwound. A no-op reapply does not emit
+            // another notification, so this cannot loop.
+            UiDispatch.PostAfterCallback(() =>
+            {
+                if (Win32Helper.IsWindowInCurrentProcess(hWnd))
+                {
+                    ReassertWindowShadowPolicy("dwm-nc-rendering-changed");
+                }
+            });
+        }
+
         if (message == Win32Helper.WM_MOUSEACTIVATE &&
             WidgetLayerService.ShouldPreserveQuickRevealActivatingClick())
         {
@@ -914,6 +929,9 @@ public abstract partial class WidgetWindowBase
         };
 
         Win32Helper.TrySetDwmWindowAttribute(HWnd, Win32Helper.DWMWA_WINDOW_CORNER_PREFERENCE, ref cornerPreference);
+        // Frame attribute writes can rebuild the DWM frame and drop the
+        // NC-rendering policy; the shadow opt-out must survive them.
+        ReassertWindowShadowPolicy("corner-preference");
     }
 
     protected void ApplyDwmBorderStyle(bool isDark)
@@ -922,6 +940,17 @@ public abstract partial class WidgetWindowBase
         // BackgroundPlate.BorderBrush which correctly follows the XAML CornerRadius.
         int borderNone = unchecked((int)0xFFFFFFFE);
         Win32Helper.SetWindowBorderColor(HWnd, borderNone);
+        ReassertWindowShadowPolicy("dwm-border");
+    }
+
+    protected void ReassertWindowShadowPolicy(string reason)
+    {
+        if (HWnd != IntPtr.Zero && Win32Helper.DisableWindowDropShadow(HWnd))
+        {
+            App.LogVerbose(
+                $"[Shadow] widget drop shadow disabled reason={reason} " +
+                $"hwnd=0x{HWnd.ToInt64():X}");
+        }
     }
 
     protected double GetCornerRadiusFromPreference()
