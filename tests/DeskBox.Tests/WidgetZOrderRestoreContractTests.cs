@@ -968,6 +968,7 @@ public sealed class WidgetZOrderRestoreContractTests
             "protected void ReassertWindowShadowPolicy",
             "protected double GetCornerRadiusFromPreference");
         Assert.Contains("DisableWindowDropShadow(HWnd)", reassert, StringComparison.Ordinal);
+        Assert.Contains("IsWindow(HWnd)", reassert, StringComparison.Ordinal);
         // Frame-level DWM writes rebuild the frame and drop the policy; every
         // mutation point must reassert the opt-out afterwards.
         Assert.Contains("ReassertWindowShadowPolicy(\"init\")", bounds, StringComparison.Ordinal);
@@ -985,11 +986,20 @@ public sealed class WidgetZOrderRestoreContractTests
             "src/DeskBox/Views/WidgetWindowBase.Backdrop.cs"));
         Assert.Contains("ReassertWindowShadowPolicy(\"backdrop-reuse\")", backdrop, StringComparison.Ordinal);
         Assert.Contains("ReassertWindowShadowPolicy(\"backdrop-applied\")", backdrop, StringComparison.Ordinal);
+        // DWM applies backdrop work asynchronously; the settled pass covers
+        // a frame rebuild that lands after the synchronous reassert.
+        Assert.Contains("ReassertWindowShadowPolicy(\"backdrop-settled\")", backdrop, StringComparison.Ordinal);
         // Tab switches reapply the member's chrome through the appearance
         // preview; the last DWM word there must stay shadow-free.
         string contentWindowCode = File.ReadAllText(TestPaths.FromRepository(
             "src/DeskBox/Views/ContentWidgetWindow.xaml.cs"));
         Assert.Contains("ReassertWindowShadowPolicy(\"appearance-preview\")", contentWindowCode, StringComparison.Ordinal);
+        Assert.Contains("appearance-preview-settled", contentWindowCode, StringComparison.Ordinal);
+        Assert.Contains("appearance-preview-settled-late", contentWindowCode, StringComparison.Ordinal);
+        // Re-running the appearance preview with identical chrome must not
+        // rewrite frame attributes: that rebuild is what resurrects the shadow.
+        Assert.Contains("_lastAppliedCornerPreference != cornerPreference", bounds, StringComparison.Ordinal);
+        Assert.Contains("if (!_dwmBorderStyleApplied)", bounds, StringComparison.Ordinal);
         // SWP_FRAMECHANGED re-evaluates the frame and can re-enable NC
         // rendering, so the no-activate style flip must reapply the policy.
         string layer = File.ReadAllText(TestPaths.FromRepository(

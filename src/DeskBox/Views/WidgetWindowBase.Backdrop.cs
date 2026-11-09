@@ -191,8 +191,11 @@ public abstract partial class WidgetWindowBase
 
         ApplySurfaceStyle();
         // Backdrop controllers and the system-backdrop attribute re-enter
-        // DWM; restore the shadow opt-out after the last mutation.
+        // DWM; restore the shadow opt-out after the last mutation, then once
+        // more after the asynchronous controller work settles.
         ReassertWindowShadowPolicy("backdrop-applied");
+        UiDispatch.PostAfterCallback(() =>
+            ReassertWindowShadowPolicy("backdrop-settled"));
     }
 
     private bool ApplyLegacyAccentBackdrop(Windows.UI.Color tintColor, double opacity)

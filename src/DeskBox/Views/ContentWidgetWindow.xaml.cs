@@ -918,6 +918,16 @@ public sealed partial class ContentWidgetWindow : WidgetWindowBase, IDesktopWidg
         // Group member switches funnel through here; keep the window's
         // shadow opt-out as the last DWM word for the new member's chrome.
         ReassertWindowShadowPolicy("appearance-preview");
+        // DWM applies frame-attribute and backdrop work asynchronously; a
+        // rebuild can land after the synchronous reassert and resurrect the
+        // shadow, so settle the opt-out once more on later dispatcher turns.
+        UiDispatch.RunOrDefer(async () =>
+        {
+            await Task.Delay(80);
+            ReassertWindowShadowPolicy("appearance-preview-settled");
+            await Task.Delay(220);
+            ReassertWindowShadowPolicy("appearance-preview-settled-late");
+        });
     }
 
     public void SetTrayAnimationOffsetOverride(

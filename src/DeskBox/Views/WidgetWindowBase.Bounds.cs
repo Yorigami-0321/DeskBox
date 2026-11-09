@@ -24,6 +24,10 @@ namespace DeskBox.Views;
 public abstract partial class WidgetWindowBase
 {
     private bool _desktopPinnedInputActivationInProgress;
+    // Frame-level DWM attribute writes rebuild the window frame and can
+    // resurrect the drop shadow, so only write them when the value changes.
+    private int? _lastAppliedCornerPreference;
+    private bool _dwmBorderStyleApplied;
 
     // WM_MOUSEACTIVATE suppression runs before the same click is routed to
     // XAML, so without this stamp one suppressed click would run the bottom
@@ -928,7 +932,15 @@ public abstract partial class WidgetWindowBase
             _ => Win32Helper.DWMWCP_ROUND
         };
 
-        Win32Helper.TrySetDwmWindowAttribute(HWnd, Win32Helper.DWMWA_WINDOW_CORNER_PREFERENCE, ref cornerPreference);
+        // Group member switches re-run the appearance preview with identical
+        // chrome. Re-writing this frame attribute churns DWM and briefly
+        // resurrects the window shadow, so skip no-op writes.
+        if (_lastAppliedCornerPreference != cornerPreference)
+        {
+            Win32Helper.TrySetDwmWindowAttribute(HWnd, Win32Helper.DWMWA_WINDOW_CORNER_PREFERENCE, ref cornerPreference);
+            _lastAppliedCornerPreference = cornerPreference;
+        }
+
         // Frame attribute writes can rebuild the DWM frame and drop the
         // NC-rendering policy; the shadow opt-out must survive them.
         ReassertWindowShadowPolicy("corner-preference");
@@ -938,14 +950,21 @@ public abstract partial class WidgetWindowBase
     {
         // Always set DWM border to transparent — the visual border is drawn by XAML
         // BackgroundPlate.BorderBrush which correctly follows the XAML CornerRadius.
-        int borderNone = unchecked((int)0xFFFFFFFE);
-        Win32Helper.SetWindowBorderColor(HWnd, borderNone);
+        if (!_dwmBorderStyleApplied)
+        {
+            int borderNone = unchecked((int)0xFFFFFFFE);
+            Win32Helper.SetWindowBorderColor(HWnd, borderNone);
+            _dwmBorderStyleApplied = true;
+        }
+
         ReassertWindowShadowPolicy("dwm-border");
     }
 
     protected void ReassertWindowShadowPolicy(string reason)
     {
-        if (HWnd != IntPtr.Zero && Win32Helper.DisableWindowDropShadow(HWnd))
+        if (HWnd != IntPtr.Zero &&
+            Win32Helper.IsWindow(HWnd) &&
+            Win32Helper.DisableWindowDropShadow(HWnd))
         {
             App.LogVerbose(
                 $"[Shadow] widget drop shadow disabled reason={reason} " +
