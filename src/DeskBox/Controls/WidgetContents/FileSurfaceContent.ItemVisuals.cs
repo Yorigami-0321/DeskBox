@@ -490,6 +490,13 @@ public sealed partial class FileSurfaceContent
         ObservePointerPosition(tile, border, e);
         SetTileVisualState(border, tile, tile.OnPointerPressed());
 
+        // Item presses never reach the marquee handler's reassert: its
+        // blank-space gate returns first. Without this call the activation
+        // raise leaves the clicked widget above its siblings and its DWM
+        // shadow stays on the top edge of the widget below.
+        App.Current?.WidgetManager?.ReassertQuickRevealCanonicalPeerOrder(
+            "surface-item-tile-pointer-pressed");
+
         var pointerPoint = e.GetCurrentPoint(border);
         bool isPrimaryContact =
             pointerPoint.Properties.IsLeftButtonPressed ||

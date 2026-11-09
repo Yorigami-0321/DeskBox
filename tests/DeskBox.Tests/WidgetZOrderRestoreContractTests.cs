@@ -107,6 +107,14 @@ public sealed class WidgetZOrderRestoreContractTests
             "ReassertQuickRevealCanonicalPeerOrder(",
             selection,
             StringComparison.Ordinal);
+        // Item presses are gated out of the marquee handler, so the tile press
+        // path must request the same canonical order on its own.
+        string itemVisuals = File.ReadAllText(TestPaths.FromRepository(
+            "src/DeskBox/Controls/WidgetContents/FileSurfaceContent.ItemVisuals.cs"));
+        Assert.Contains(
+            "ReassertQuickRevealCanonicalPeerOrder(",
+            itemVisuals,
+            StringComparison.Ordinal);
 
         // The reassert order must escalate: a tray raise that ran while
         // DeskBox was a background process pins the peers below the
