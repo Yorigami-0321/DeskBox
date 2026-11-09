@@ -93,6 +93,13 @@ public sealed class WidgetZOrderRestoreContractTests
         Assert.Contains("IsForegroundDeskBoxWindow()", method, StringComparison.Ordinal);
         Assert.Contains("ApplyRaisedGroupReassertOrder", method, StringComparison.Ordinal);
         Assert.DoesNotContain("RestoreRaisedWidgetsToDesktopLayer", method, StringComparison.Ordinal);
+        // Quick reveal keeps lower rows above upper rows so the upper tile's
+        // DWM shadow cannot darken the top edge of the widget below.
+        Assert.Contains("keepCanonicalPeerOrder", method, StringComparison.Ordinal);
+        Assert.Contains(
+            "WidgetLayerService.ApplyPeerOrderHighestToLowest(handles)",
+            method,
+            StringComparison.Ordinal);
 
         // The reassert order must escalate: a tray raise that ran while
         // DeskBox was a background process pins the peers below the
@@ -724,6 +731,10 @@ public sealed class WidgetZOrderRestoreContractTests
             source,
             "private void QueueTrayRaiseBandRecheck(",
             "private void SaveBatchVisibilityState()");
+        string quickRecheck = SliceMethod(
+            source,
+            "private void QueueQuickRevealTopMostRecheck(",
+            "private void QueueTrayRaiseBandRecheck(");
 
         // The recheck must be queued after the animation driver settles:
         // queued from the confirm itself it always landed inside its own
@@ -743,9 +754,18 @@ public sealed class WidgetZOrderRestoreContractTests
             raise,
             StringComparison.Ordinal);
 
-        // Neither confirm branch queues a recheck (quick-reveal never gets
-        // one; the dynamic branch defers to the post-settle queue).
+        // The confirm itself stays synchronous; quick reveal gets a deferred
+        // topmost recheck, the dynamic branch the post-settle band recheck.
         Assert.DoesNotContain("QueueTrayRaiseBandRecheck", confirm, StringComparison.Ordinal);
+        Assert.Contains(
+            "QueueQuickRevealTopMostRecheck(shownWindows)",
+            raise,
+            StringComparison.Ordinal);
+        Assert.Contains("generation != _trayRaiseBatchGeneration", quickRecheck, StringComparison.Ordinal);
+        Assert.Contains("!_widgetsRaisedFromTray", quickRecheck, StringComparison.Ordinal);
+        Assert.Contains("!WidgetLayerService.UsesQuickRevealMode()", quickRecheck, StringComparison.Ordinal);
+        Assert.Contains("Win32Helper.IsWindowTopMost(handle)", quickRecheck, StringComparison.Ordinal);
+        Assert.Contains("HoldGroupTopMostWithoutActivation(handles)", quickRecheck, StringComparison.Ordinal);
 
         // Guard set (the v1.2.9 removal taught us repeated confirmations
         // must never fight the user's foreground switch) — note the

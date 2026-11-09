@@ -1312,16 +1312,42 @@ public sealed partial class WidgetManager
             return false;
         }
 
-        List<IntPtr> handles = [activeWidgetHandle];
-        handles.AddRange(visibleWindows
-            .Select(window => window.WindowHandle)
-            .Where(handle => handle != activeWidgetHandle));
+        bool keepCanonicalPeerOrder = WidgetLayerService.UsesQuickRevealMode();
+        List<IntPtr> handles;
+        if (keepCanonicalPeerOrder)
+        {
+            handles = visibleWindows
+                .Where(window =>
+                    window.WindowHandle != IntPtr.Zero &&
+                    Win32Helper.IsWindow(window.WindowHandle))
+                .Select(window => window.WindowHandle)
+                .Distinct()
+                .ToList();
+        }
+        else
+        {
+            handles = [activeWidgetHandle];
+            handles.AddRange(visibleWindows
+                .Select(window => window.WindowHandle)
+                .Where(handle => handle != activeWidgetHandle));
+        }
+
         bool applied =
             WidgetLayerService.ApplyRaisedGroupReassertOrder(handles, activeWidgetHandle);
+        if (keepCanonicalPeerOrder)
+        {
+            // Activation raises the clicked window above its siblings. In the
+            // quick-reveal band that re-raises an upper widget and its DWM
+            // shadow darkens the top edge of the widget below. All widgets are
+            // already above foreign windows, so restore the lower-rows-above
+            // canonical order without activating or demoting the active one.
+            applied |= WidgetLayerService.ApplyPeerOrderHighestToLowest(handles);
+        }
+
         App.LogVerbose(
             $"[ZOrder] Raised group reasserted reason={reason} " +
             $"active=0x{activeWidgetHandle.ToInt64():X} " +
-            $"count={handles.Count} applied={applied}");
+            $"count={handles.Count} canonical={keepCanonicalPeerOrder} applied={applied}");
         return applied;
     }
 

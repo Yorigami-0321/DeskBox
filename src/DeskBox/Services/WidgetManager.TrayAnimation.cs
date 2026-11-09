@@ -178,6 +178,15 @@ public sealed partial class WidgetManager
             }
             SaveBatchVisibilityState();
             await _trayBatchAnimationDriver.WaitForIdleAsync();
+            if (WidgetLayerService.UsesQuickRevealMode() &&
+                shownWindows.Count > 0)
+            {
+                // Desktop double-click deliberately does not activate (the
+                // click is still owned by Explorer), so the first TOPMOST
+                // transaction can race the reveal/uncloak and land below a
+                // foreign window. Re-assert after the show settles.
+                QueueQuickRevealTopMostRecheck(shownWindows);
+            }
             if (!WidgetLayerService.UsesQuickRevealMode() &&
                 shownWindows.Count > 0)
             {
@@ -658,7 +667,15 @@ public sealed partial class WidgetManager
             // Quick reveal behaves like a system flyout: it stays above the
             // newly activated application without taking focus, then releases
             // TOPMOST only from each window's hide-animation completion path.
-            WidgetLayerService.HoldGroupTopMostWithoutActivation(visibleHandles);
+            // Use every visible surface, not only the candidate windows: a
+            // group host is one HWND shared by several member configs, and a
+            // descendant that is not in this batch must still join the band.
+            IReadOnlyList<IntPtr> quickRevealHandles = GetWindowsInIdleHighestFirstOrder(
+                    GetLoadedDesktopWindows().Where(window => window.Visible))
+                .Select(window => window.WindowHandle)
+                .Distinct()
+                .ToList();
+            WidgetLayerService.HoldGroupTopMostWithoutActivation(quickRevealHandles);
             // Auxiliary surfaces that were already open before this raise
             // (settings, desktop organization) join the band
             // above the widgets; after the group hold, SetWindowTopMost leaves
@@ -675,6 +692,73 @@ public sealed partial class WidgetManager
     }
 
     private const int TrayRaiseBandRecheckDelayMs = 80;
+
+    private const int QuickRevealTopMostRecheckDelayMs = 120;
+
+    /// <summary>
+    /// Quick-reveal re-asserts TOPMOST after the show animation settles.
+    /// Desktop double-click intentionally keeps Explorer as the foreground
+    /// owner, so the synchronous band hold can race the uncloak and leave a
+    /// visible surface below a foreign window. Two bounded attempts cover the
+    /// Explorer activation turn without fighting a later user switch: the
+    /// generation and raised-state guards drop the retry as soon as the
+    /// session is dismissed.
+    /// </summary>
+    private void QueueQuickRevealTopMostRecheck(
+        IReadOnlyList<IDesktopWidgetWindow> windows)
+    {
+        if (windows.Count == 0)
+        {
+            return;
+        }
+
+        long generation = _trayRaiseBatchGeneration;
+        UiDispatch.RunOrDefer(async () =>
+        {
+            foreach (int delay in new[]
+                     {
+                         QuickRevealTopMostRecheckDelayMs,
+                         QuickRevealTopMostRecheckDelayMs + 200
+                     })
+            {
+                await Task.Delay(delay);
+                if (generation != _trayRaiseBatchGeneration ||
+                    !_widgetsRaisedFromTray ||
+                    !WidgetLayerService.UsesQuickRevealMode())
+                {
+                    return;
+                }
+
+                List<IntPtr> handles = GetWindowsInIdleHighestFirstOrder(
+                        GetLoadedDesktopWindows().Where(window => window.Visible))
+                    .Where(window => Win32Helper.IsWindow(window.WindowHandle))
+                    .Select(window => window.WindowHandle)
+                    .Distinct()
+                    .ToList();
+                if (handles.Count == 0)
+                {
+                    return;
+                }
+
+                int missingBefore = handles.Count(
+                    handle => !Win32Helper.IsWindowTopMost(handle));
+                WidgetLayerService.HoldGroupTopMostWithoutActivation(handles);
+                if (missingBefore > 0)
+                {
+                    App.Log(
+                        "[QuickReveal] Topmost re-asserted " +
+                        $"generation={generation} count={handles.Count} " +
+                        $"missingBefore={missingBefore}");
+                }
+                else
+                {
+                    App.LogVerbose(
+                        "[QuickReveal] Topmost verified " +
+                        $"generation={generation} count={handles.Count}");
+                }
+            }
+        });
+    }
 
     /// <summary>
     /// One-shot band-integrity recheck after the synchronous raise
