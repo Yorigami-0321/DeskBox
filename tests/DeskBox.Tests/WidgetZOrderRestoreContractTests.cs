@@ -101,6 +101,18 @@ public sealed class WidgetZOrderRestoreContractTests
             method,
             StringComparison.Ordinal);
         Assert.Contains("ReassertQuickRevealCanonicalPeerOrder", method, StringComparison.Ordinal);
+        // The canonical order must be restored on the dispatcher turn right
+        // after the press callback, before the raised shadow reaches a
+        // composition frame; the delayed pass stays as the safety net.
+        Assert.Contains("PostAfterCallback", method, StringComparison.Ordinal);
+        Assert.Contains("ApplyQuickRevealCanonicalPeerOrder", method, StringComparison.Ordinal);
+        Assert.Contains("-immediate", method, StringComparison.Ordinal);
+        // Re-activating an already-foreground widget re-raises it above its
+        // siblings; the subclass must decline that activation.
+        string widgetBounds = File.ReadAllText(TestPaths.FromRepository(
+            "src/DeskBox/Views/WidgetWindowBase.Bounds.cs"));
+        Assert.Contains("alreadyForeground", widgetBounds, StringComparison.Ordinal);
+        Assert.Contains("MA_NOACTIVATE", widgetBounds, StringComparison.Ordinal);
         string selection = File.ReadAllText(TestPaths.FromRepository(
             "src/DeskBox/Controls/WidgetContents/FileSurfaceContent.SelectionAndMenus.cs"));
         Assert.Contains(

@@ -1366,33 +1366,44 @@ public sealed partial class WidgetManager
             return;
         }
 
+        // The activation raise is committed inside the press's native callback,
+        // before the routed pointer event. Restoring the canonical order on the
+        // next dispatcher turn lands before the next compositor frame, so the
+        // raised widget's DWM shadow is never presented over its sibling.
+        UiDispatch.PostAfterCallback(() =>
+            ApplyQuickRevealCanonicalPeerOrder($"{reason}-immediate"));
+
+        // Safety net for a raise that lands after that dispatcher turn.
         UiDispatch.RunOrDefer(async () =>
         {
-            // The click's activation raise lands after this pointer handler;
-            // wait one short turn before restoring the canonical peer order.
             await Task.Delay(60);
-            if (!WidgetLayerService.UsesQuickRevealMode() ||
-                !_widgetsRaisedFromTray)
-            {
-                return;
-            }
-
-            List<IntPtr> handles = GetWindowsInIdleHighestFirstOrder(
-                    GetLoadedDesktopWindows().Where(window => window.Visible))
-                .Where(window => Win32Helper.IsWindow(window.WindowHandle))
-                .Select(window => window.WindowHandle)
-                .Distinct()
-                .ToList();
-            if (handles.Count < 2)
-            {
-                return;
-            }
-
-            bool applied = WidgetLayerService.ApplyPeerOrderHighestToLowest(handles);
-            App.LogVerbose(
-                $"[ZOrder] Quick-reveal canonical order reasserted reason={reason} " +
-                $"count={handles.Count} applied={applied}");
+            ApplyQuickRevealCanonicalPeerOrder(reason);
         });
+    }
+
+    private void ApplyQuickRevealCanonicalPeerOrder(string reason)
+    {
+        if (!WidgetLayerService.UsesQuickRevealMode() ||
+            !_widgetsRaisedFromTray)
+        {
+            return;
+        }
+
+        List<IntPtr> handles = GetWindowsInIdleHighestFirstOrder(
+                GetLoadedDesktopWindows().Where(window => window.Visible))
+            .Where(window => Win32Helper.IsWindow(window.WindowHandle))
+            .Select(window => window.WindowHandle)
+            .Distinct()
+            .ToList();
+        if (handles.Count < 2)
+        {
+            return;
+        }
+
+        bool applied = WidgetLayerService.ApplyPeerOrderHighestToLowest(handles);
+        App.LogVerbose(
+            $"[ZOrder] Quick-reveal canonical order reasserted reason={reason} " +
+            $"count={handles.Count} applied={applied}");
     }
 
     private void TryRestoreRaisedWidgetsAfterInteraction(string reason, long generation)

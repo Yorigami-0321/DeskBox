@@ -531,7 +531,18 @@ public abstract partial class WidgetWindowBase
             // Quick Reveal activates only the highest widget. Explicitly keep
             // the activating mouse message for every other revealed HWND so a
             // stack, button, or item responds to the first click.
-            return new IntPtr(Win32Helper.MA_ACTIVATE);
+            // A window that already owns the foreground must not be activated
+            // again: the system re-raises it above its canonical siblings on
+            // every re-activation, exposing its DWM shadow over the widget
+            // below until the deferred peer reorder runs.
+            bool alreadyForeground =
+                Win32Helper.GetForegroundWindow() == hWnd;
+            App.LogVerbose(
+                $"[ZOrder] Quick-reveal mouse-activate hwnd=0x{hWnd.ToInt64():X} " +
+                $"alreadyForeground={alreadyForeground}");
+            return new IntPtr(alreadyForeground
+                ? Win32Helper.MA_NOACTIVATE
+                : Win32Helper.MA_ACTIVATE);
         }
 
         return Win32Helper.DefSubclassProc(hWnd, message, wParam, lParam);
