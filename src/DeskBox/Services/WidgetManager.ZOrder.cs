@@ -1351,6 +1351,50 @@ public sealed partial class WidgetManager
         return applied;
     }
 
+    /// <summary>
+    /// Re-applies the quick-reveal canonical peer order after an item press
+    /// activates and raises one widget above its siblings. This is the
+    /// pointer-press counterpart of the activation reassert: the first clicks
+    /// after a raise land inside the activation-ping-pong suppression window,
+    /// so the shadow fix must not depend on that guard.
+    /// </summary>
+    internal void ReassertQuickRevealCanonicalPeerOrder(string reason)
+    {
+        if (!WidgetLayerService.UsesQuickRevealMode() ||
+            !_widgetsRaisedFromTray)
+        {
+            return;
+        }
+
+        UiDispatch.RunOrDefer(async () =>
+        {
+            // The click's activation raise lands after this pointer handler;
+            // wait one short turn before restoring the canonical peer order.
+            await Task.Delay(60);
+            if (!WidgetLayerService.UsesQuickRevealMode() ||
+                !_widgetsRaisedFromTray)
+            {
+                return;
+            }
+
+            List<IntPtr> handles = GetWindowsInIdleHighestFirstOrder(
+                    GetLoadedDesktopWindows().Where(window => window.Visible))
+                .Where(window => Win32Helper.IsWindow(window.WindowHandle))
+                .Select(window => window.WindowHandle)
+                .Distinct()
+                .ToList();
+            if (handles.Count < 2)
+            {
+                return;
+            }
+
+            bool applied = WidgetLayerService.ApplyPeerOrderHighestToLowest(handles);
+            App.LogVerbose(
+                $"[ZOrder] Quick-reveal canonical order reasserted reason={reason} " +
+                $"count={handles.Count} applied={applied}");
+        });
+    }
+
     private void TryRestoreRaisedWidgetsAfterInteraction(string reason, long generation)
     {
         if (!_widgetsRaisedFromTray ||

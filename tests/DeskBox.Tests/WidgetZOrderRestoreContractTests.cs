@@ -100,6 +100,13 @@ public sealed class WidgetZOrderRestoreContractTests
             "WidgetLayerService.ApplyPeerOrderHighestToLowest(handles)",
             method,
             StringComparison.Ordinal);
+        Assert.Contains("ReassertQuickRevealCanonicalPeerOrder", method, StringComparison.Ordinal);
+        string selection = File.ReadAllText(TestPaths.FromRepository(
+            "src/DeskBox/Controls/WidgetContents/FileSurfaceContent.SelectionAndMenus.cs"));
+        Assert.Contains(
+            "ReassertQuickRevealCanonicalPeerOrder(",
+            selection,
+            StringComparison.Ordinal);
 
         // The reassert order must escalate: a tray raise that ran while
         // DeskBox was a background process pins the peers below the

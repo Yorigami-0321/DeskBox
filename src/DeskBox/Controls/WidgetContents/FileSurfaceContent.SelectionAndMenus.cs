@@ -67,6 +67,8 @@ public sealed partial class FileSurfaceContent
         // space sweeps a selection, and the release opens the context menu
         // for whatever it caught (blank-area menu when it caught nothing).
         _selectionStartedWithRightButton = isRightButtonPressed;
+        App.Current?.WidgetManager?.ReassertQuickRevealCanonicalPeerOrder(
+            "surface-item-pointer-pressed");
         if (ReferenceEquals(listView, _stackPopoverItemsView))
         {
             listView.Focus(FocusState.Programmatic);

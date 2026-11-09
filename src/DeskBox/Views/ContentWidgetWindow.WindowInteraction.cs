@@ -170,6 +170,8 @@ public sealed partial class ContentWidgetWindow
         }
         var properties = e.GetCurrentPoint(ContentWidgetShell.TitleBar).Properties;
         if (!properties.IsLeftButtonPressed) return;
+        App.Current?.WidgetManager?.ReassertQuickRevealCanonicalPeerOrder(
+            "content-title-pointer-pressed");
         if (ContentWidgetShell.TitleEditorContent is TextBox &&
             ShouldOpenTitleBarFlyout(e.OriginalSource))
         {
