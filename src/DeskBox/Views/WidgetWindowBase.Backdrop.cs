@@ -70,6 +70,7 @@ public abstract partial class WidgetWindowBase
             {
                 Win32Helper.SetWindowTheme(HWnd, isDark);
                 Win32Helper.ApplyFullWindowFrame(HWnd);
+                Win32Helper.DisableWindowDropShadow(HWnd);
                 ApplyDwmBorderStyle(isDark);
             }
 

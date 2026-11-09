@@ -1079,6 +1079,9 @@ public static class WidgetLayerService
                 Win32Helper.SWP_NOZORDER |
                 Win32Helper.SWP_NOACTIVATE |
                 Win32Helper.SWP_FRAMECHANGED);
+        // The frame-changed pass can re-enable DWM non-client rendering;
+        // widget windows keep their shadow disabled across style flips.
+        Win32Helper.DisableWindowDropShadow(windowHandle);
         App.LogVerbose(
             $"[WidgetLayer] no-activate style hwnd=0x{windowHandle.ToInt64():X} " +
             $"enabled={enabled}");

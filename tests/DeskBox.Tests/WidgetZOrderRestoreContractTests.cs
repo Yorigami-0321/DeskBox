@@ -947,6 +947,37 @@ public sealed class WidgetZOrderRestoreContractTests
             "the deferred branch must re-invoke the refresh after the retry delay");
     }
 
+    [Fact]
+    public void WidgetWindows_DisableDwmDropShadowAtEveryFrameReapply()
+    {
+        string helper = File.ReadAllText(TestPaths.FromRepository(
+            "src/DeskBox/Platform/Win32Helper.cs"));
+        string disable = SliceMethod(
+            helper,
+            "public static bool DisableWindowDropShadow",
+            "internal static int ResolveAccentState");
+        // Window shadows are removed through the documented DWM policy, not
+        // by fighting the system's activation-driven peer reorder.
+        Assert.Contains("DWMWA_NCRENDERING_POLICY", disable, StringComparison.Ordinal);
+        Assert.Contains("DWMNCRP_DISABLED", disable, StringComparison.Ordinal);
+
+        string bounds = File.ReadAllText(TestPaths.FromRepository(
+            "src/DeskBox/Views/WidgetWindowBase.Bounds.cs"));
+        Assert.Contains("DisableWindowDropShadow(HWnd)", bounds, StringComparison.Ordinal);
+        string backdrop = File.ReadAllText(TestPaths.FromRepository(
+            "src/DeskBox/Views/WidgetWindowBase.Backdrop.cs"));
+        Assert.Contains("DisableWindowDropShadow(HWnd)", backdrop, StringComparison.Ordinal);
+        // SWP_FRAMECHANGED re-evaluates the frame and can re-enable NC
+        // rendering, so the no-activate style flip must reapply the policy.
+        string layer = File.ReadAllText(TestPaths.FromRepository(
+            "src/DeskBox/Services/WidgetLayerService.cs"));
+        string noActivate = SliceMethod(
+            layer,
+            "private static void SetWindowNoActivate",
+            "private static bool ShouldAttachRestingWindowToDesktop");
+        Assert.Contains("DisableWindowDropShadow(windowHandle)", noActivate, StringComparison.Ordinal);
+    }
+
     private static string SliceMethod(string source, string startMarker, string endMarker)
     {
         int start = source.IndexOf(startMarker, StringComparison.Ordinal);

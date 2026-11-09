@@ -101,6 +101,10 @@ public abstract partial class WidgetWindowBase
         Win32Helper.EnsureSystemDispatcherQueue();
         Win32Helper.ApplyFullWindowFrame(HWnd);
         ApplyBackdropPreference();
+        // Stacked widget windows must not cast DWM shadows on each other;
+        // the system re-raises the clicked window on every press, and no
+        // peer z-order can keep its active shadow off the widget below.
+        Win32Helper.DisableWindowDropShadow(HWnd);
         InitializeWidgetCollapse();
         InitializeWidgetGrouping();
         WidgetShellControl.HostedContentChanged -= WidgetShellControl_HostedContentChanged;
@@ -114,6 +118,7 @@ public abstract partial class WidgetWindowBase
             ApplyWidgetForegroundAppearance();
             ApplyBackdropPreference();
             Win32Helper.ApplyFullWindowFrame(HWnd);
+            Win32Helper.DisableWindowDropShadow(HWnd);
             if (SupportsBackdropRefresh)
             {
                 QueueBackdropRefresh();

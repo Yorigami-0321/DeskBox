@@ -2383,6 +2383,25 @@ public static partial class Win32Helper
     }
 
     /// <summary>
+    /// Disables DWM non-client rendering, which removes the system drop
+    /// shadow and frame. Stacked desktop windows cannot hide each other's
+    /// active shadow through z-order alone: Windows raises the clicked
+    /// foreground window and DWM composites its shadow over the peer below.
+    /// Desktop-widget shells therefore opt out of the system shadow instead
+    /// (same switch Tauri uses for shadow:false).
+    /// </summary>
+    public static bool DisableWindowDropShadow(IntPtr hWnd)
+    {
+        if (hWnd == IntPtr.Zero)
+        {
+            return false;
+        }
+
+        int policy = DWMNCRP_DISABLED;
+        return TrySetDwmWindowAttribute(hWnd, DWMWA_NCRENDERING_POLICY, ref policy) == 0;
+    }
+
+    /// <summary>
     /// Pure accent-state selection so interaction-time simplification (keep the
     /// tint, drop the DWM blur) stays unit-testable.
     /// </summary>
