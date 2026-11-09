@@ -42,6 +42,12 @@ public sealed class DpiAdaptiveLayoutContractTests
             "_slot.Margin = layout.IconTileMargin;",
             itemStateCode,
             StringComparison.Ordinal);
+        // The template root can be unreachable during DataContextChanged; the
+        // retry gate must include the slot or labels stay auto-sized/clipped.
+        Assert.Contains(
+            "_partsCached = _nameText is not null && _slot is not null;",
+            itemStateCode,
+            StringComparison.Ordinal);
         Assert.Null(itemsPanel.Attribute("ItemWidth"));
         Assert.Null(itemsPanel.Attribute("ItemHeight"));
         Assert.Equal(

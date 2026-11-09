@@ -418,17 +418,15 @@ internal sealed class FileItemTileState
 
     private void EnsureParts()
     {
-        if (_partsCached)
+        _slot ??= FindAncestorByTag(Border, "ItemSlot") as Grid;
+        if (!_partsCached)
         {
-            return;
+            CacheParts(Border);
+            // DataContextChanged can run before the template root is parented;
+            // keep retrying on Loaded until the ItemSlot is reachable, otherwise
+            // the tile keeps its auto-sized width and clips every long label.
+            _partsCached = _nameText is not null && _slot is not null;
         }
-
-        _slot = FindAncestorByTag(Border, "ItemSlot") as Grid;
-        CacheParts(Border);
-        // Attached presentation properties are assigned while the template is
-        // still being inflated. Keep re-scanning until the content exists;
-        // afterwards the parts are stable for the container's lifetime.
-        _partsCached = _nameText is not null;
     }
 
     private void CacheParts(DependencyObject root)
